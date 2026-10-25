@@ -125,14 +125,20 @@ export default function App() {
   const [currentRole, setCurrentRole] = useState<RoleName>('Super Admin');
   const [selectedBrandId, setSelectedBrandId] = useState<number | null>(null);
 
-  // Authenticated User State (Loaded from localStorage or defaults to master account if not signed out)
+  // Authenticated User State (Loaded strictly from authenticated localStorage session; defaults to null on any new session)
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
-      if (typeof window !== 'undefined' && localStorage.getItem('ci360_is_signed_out') === 'true') {
-        return null;
+      if (typeof window !== 'undefined') {
+        if (localStorage.getItem('ci360_is_signed_out') === 'true') {
+          return null;
+        }
+        const saved = localStorage.getItem('ci360_auth_user');
+        const token = localStorage.getItem('ci360_auth_token');
+        if (saved && token) {
+          return JSON.parse(saved);
+        }
       }
-      const saved = localStorage.getItem('ci360_auth_user');
-      return saved ? JSON.parse(saved) : null;
+      return null;
     } catch {
       return null;
     }
@@ -312,24 +318,17 @@ export default function App() {
       }
       if (usersRes.status === 'fulfilled' && Array.isArray(usersRes.value)) {
         setUsers(usersRes.value);
-        const isExplicitlySignedOut = typeof window !== 'undefined' && localStorage.getItem('ci360_is_signed_out') === 'true';
-        if (!isExplicitlySignedOut) {
-          setCurrentUser(prevUser => {
-            if (prevUser) {
-              const matched = usersRes.value.find(u => u.id === prevUser.id);
-              if (matched) {
-                setCurrentRole(matched.role);
-                return matched;
-              }
-              return prevUser;
-            } else if (usersRes.value.length > 0) {
-              const defaultUser = usersRes.value[0];
-              setCurrentRole(defaultUser.role);
-              return defaultUser;
+        // Synchronize authenticated user profile changes without auto-logging in unauthenticated sessions
+        setCurrentUser(prevUser => {
+          if (prevUser) {
+            const matched = usersRes.value.find(u => u.id === prevUser.id);
+            if (matched) {
+              setCurrentRole(matched.role);
+              return matched;
             }
-            return null;
-          });
-        }
+          }
+          return prevUser;
+        });
       }
 
       // Load comments for top posts
@@ -345,6 +344,9 @@ export default function App() {
   };
 
   useEffect(() => {
+    // Strictly require authenticated session before fetching dashboard data or starting background streams
+    if (!currentUser) return;
+
     loadInitialData();
 
     // v2 Server-Sent Events (SSE) live push stream
@@ -379,10 +381,14 @@ export default function App() {
     }
 
     return () => {
-      if (interval) clearInterval(interval);
-      if (eventSource) eventSource.close();
+      if (eventSource) {
+        eventSource.close();
+      }
+      if (interval) {
+        clearInterval(interval);
+      }
     };
-  }, [autoRefreshSec]);
+  }, [currentUser, autoRefreshSec]);
 
   // Handlers for Post Operations
   const handleCreatePost = async (postData: any) => {

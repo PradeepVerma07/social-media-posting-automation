@@ -188,6 +188,25 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </div>
             </div>
 
+            {/* Demo / Admin Credentials Helper Card */}
+            <div className="p-3.5 rounded-xl bg-slate-800/40 border border-slate-700/60 flex items-center justify-between text-xs">
+              <div className="space-y-0.5">
+                <span className="text-[10px] text-slate-400 font-mono uppercase block">Admin Account</span>
+                <span className="text-slate-200 font-mono text-[11px] block">pradeepofficial8795@gmail.com</span>
+                <span className="text-slate-400 font-mono text-[10px]">Pass: <code className="text-blue-300">Admin@123</code></span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIdentifier('pradeepofficial8795@gmail.com');
+                  setPassword('Admin@123');
+                }}
+                className="px-2.5 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 font-semibold text-[11px] transition-colors cursor-pointer border border-blue-500/30"
+              >
+                Auto-fill
+              </button>
+            </div>
+
             {/* Remember Me */}
             <div className="flex items-center justify-between pt-1">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -199,7 +218,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 />
                 <span className="text-xs text-slate-400">Keep me signed in</span>
               </label>
-              <span className="text-[11px] text-slate-500 font-mono">Port 3000</span>
+              <span className="text-[11px] text-slate-500 font-mono">Protected</span>
             </div>
 
             {/* Submit Button */}
