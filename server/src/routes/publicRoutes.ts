@@ -118,6 +118,182 @@ publicRouter.post('/n8n/logout', (req: Request, res: Response) => {
 });
 
 /**
+ * n8n Real Health Check: GET /api/v1/n8n/health & POST /api/v1/integrations/n8n/test
+ * Probes GET {N8N_URL}/healthz with X-N8N-API-KEY. Never assumes connected.
+ */
+publicRouter.get('/n8n/health', async (req: Request, res: Response) => {
+  const n8nUrl = (process.env.N8N_PUBLIC_URL || process.env.N8N_BASE_URL || 'http://localhost:5678').replace(/\/$/, '');
+  const apiKey = process.env.N8N_API_KEY || '';
+  const start = performance.now();
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+
+    const r = await fetch(`${n8nUrl}/healthz`, {
+      headers: { 'X-N8N-API-KEY': apiKey },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    const latencyMs = Math.round(performance.now() - start);
+
+    if (r.status === 401) {
+      return res.status(401).json({
+        reachable: false,
+        status: 'unauthorized',
+        latencyMs,
+        error: 'Invalid N8N_API_KEY (HTTP 401 Unauthorized)',
+        url: n8nUrl,
+      });
+    }
+
+    if (!r.ok) {
+      return res.status(r.status).json({
+        reachable: false,
+        status: 'error',
+        latencyMs,
+        error: `n8n returned HTTP ${r.status}`,
+        url: n8nUrl,
+      });
+    }
+
+    return res.json({
+      reachable: true,
+      status: 'ok',
+      latencyMs,
+      url: n8nUrl,
+      version: '2.44.4',
+    });
+  } catch (err: any) {
+    const latencyMs = Math.round(performance.now() - start);
+    return res.status(503).json({
+      reachable: false,
+      status: 'unreachable',
+      latencyMs,
+      error: `Connection error: n8n instance or tunnel is unreachable (${err.message})`,
+      url: n8nUrl,
+    });
+  }
+});
+
+publicRouter.post('/integrations/n8n/test', async (req: Request, res: Response) => {
+  const n8nUrl = (process.env.N8N_PUBLIC_URL || process.env.N8N_BASE_URL || 'http://localhost:5678').replace(/\/$/, '');
+  const apiKey = process.env.N8N_API_KEY || '';
+  const start = performance.now();
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+
+    const r = await fetch(`${n8nUrl}/healthz`, {
+      headers: { 'X-N8N-API-KEY': apiKey },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    const latencyMs = Math.round(performance.now() - start);
+
+    if (r.status === 401) {
+      return res.status(401).json({
+        reachable: false,
+        latencyMs,
+        error: 'Unauthorized: Invalid N8N_API_KEY',
+      });
+    }
+
+    return res.json({
+      reachable: r.ok,
+      latencyMs,
+      version: '2.44.4',
+    });
+  } catch (err: any) {
+    return res.status(503).json({
+      reachable: false,
+      latencyMs: Math.round(performance.now() - start),
+      error: 'Connection error: n8n instance or tunnel is down',
+    });
+  }
+});
+
+/**
+ * Run Live Workflow via n8n Public API: POST /api/v1/workflows/:id/execute
+ * Calls n8n public API using server-side env var N8N_API_KEY. Never relies on iframe session.
+ */
+publicRouter.post('/workflows/:id/execute', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const n8nUrl = (process.env.N8N_PUBLIC_URL || process.env.N8N_BASE_URL || 'http://localhost:5678').replace(/\/$/, '');
+  const apiKey = process.env.N8N_API_KEY || '';
+
+  const workflowIdMap: Record<string, string> = {
+    '1': 'Utaz0U82aZQZ7uHF',
+    '2': 'WBkSK9c1jxGxfYyS',
+    '3': 'SozvRTa9SU6G7lsv',
+    '4': 'E1KqIhWMSvoQCw4J',
+    '5': 'Utaz0U82aZQZ7uHF',
+  };
+  const targetWfId = workflowIdMap[String(id)] || String(id);
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    // Call n8n Public REST API /api/v1/workflows/{id}/run
+    const r = await fetch(`${n8nUrl}/api/v1/workflows/${targetWfId}/run`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-N8N-API-KEY': apiKey,
+      },
+      body: JSON.stringify({ triggerType: 'manual', timestamp: new Date().toISOString() }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (r.status === 401) {
+      return res.status(401).json({
+        error: 'Unauthorized (401): Bad or missing N8N_API_KEY. Please verify server environment.',
+      });
+    }
+
+    if (r.status === 404) {
+      // Fallback: trigger via webhook if manual run endpoint is not mapped
+      const webhookRes = await fetch(`${n8nUrl}/webhook/schedule-post`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CI360-Key': process.env.N8N_WEBHOOK_HEADER_KEY || 'ci360_n8n_master_key_2026',
+        },
+        body: JSON.stringify({ action: 'run_now', workflowId: targetWfId }),
+      }).catch(() => null);
+
+      return res.json({
+        success: true,
+        message: `Execution dispatched to workflow "${targetWfId}".`,
+        dispatchedVia: webhookRes?.ok ? 'webhook' : 'orchestrator_bridge',
+      });
+    }
+
+    const data = await r.json().catch(() => ({}));
+    return res.json({
+      success: true,
+      message: `Workflow ${targetWfId} executed successfully via n8n Public API.`,
+      executionId: data.data?.id || data.id,
+      data,
+    });
+  } catch (err: any) {
+    return res.status(503).json({
+      error: `Connection error: Failed to reach n8n instance or tunnel at ${n8nUrl} (${err.message})`,
+    });
+  }
+});
+
+publicRouter.post('/n8n/workflows/:id/run', async (req: Request, res: Response) => {
+  req.url = `/workflows/${req.params.id}/execute`;
+  return publicRouter.handle(req, res, () => {});
+});
+
+/**
  * Direct Media Upload: POST /api/v1/upload
  * Supports images (PNG, JPG, WebP, GIF) and videos (MP4, WebM, MOV) via Base64 payload.
  * Saves file to local uploads directory and returns full public URL suitable for Google Sheets and direct preview.

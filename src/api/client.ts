@@ -281,6 +281,32 @@ export const api = {
   },
 
   // n8n Direct Session & Auth
+  async getN8nHealth(): Promise<{
+    reachable: boolean;
+    status?: string;
+    latencyMs?: number;
+    error?: string;
+    url?: string;
+    version?: string;
+  }> {
+    return request('/n8n/health');
+  },
+
+  async executeWorkflow(
+    id: string | number,
+    data?: any
+  ): Promise<{
+    success: boolean;
+    data?: any;
+    error?: string;
+    executionId?: string;
+  }> {
+    return request(`/workflows/${id}/execute`, {
+      method: 'POST',
+      body: JSON.stringify(data || {}),
+    });
+  },
+
   async getN8nSession(): Promise<{
     connected: boolean;
     instanceUrl: string;

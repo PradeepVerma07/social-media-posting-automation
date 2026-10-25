@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: n8n-automation-hub
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_PORT=5678
+      - N8N_SAMESITE_COOKIE=none
+      - N8N_SECURE_COOKIE=true
+      - N8N_PROXY_HOPS=1
+      - N8N_EDITOR_BASE_URL=${N8N_PUBLIC_URL:-http://localhost:5678}
+      - WEBHOOK_URL=${N8N_PUBLIC_URL:-http://localhost:5678}/
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
+      - GENERIC_TIMEZONE=Asia/Kolkata
+    volumes:
+      - ~/.n8n:/home/node/.n8n

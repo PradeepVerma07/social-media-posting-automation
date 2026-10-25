@@ -68,9 +68,12 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
   } | null>(null);
   const [executingId, setExecutingId] = useState<number | null>(null);
 
-  // Canvas View Mode: 'native-canvas' (visual node graph) vs 'live-runtime' (real n8n runtime)
-  const [canvasMode, setCanvasMode] = useState<'live-runtime' | 'native-canvas'>('native-canvas');
-  const [showEmbeddedIframe, setShowEmbeddedIframe] = useState<boolean>(false);
+  // Canvas View Mode: 'live-runtime' (embedded real n8n runtime) vs 'native-canvas' (visual node graph)
+  const [canvasMode, setCanvasMode] = useState<'live-runtime' | 'native-canvas'>('live-runtime');
+  const [showEmbeddedIframe, setShowEmbeddedIframe] = useState<boolean>(true);
+  const [iframeKey, setIframeKey] = useState<number>(1);
+  const [iframeStatus, setIframeStatus] = useState<'loading' | 'loaded' | 'timeout' | 'error'>('loading');
+  const [showAuthHelp, setShowAuthHelp] = useState<boolean>(false);
   const [copiedEmail, setCopiedEmail] = useState<boolean>(false);
   const [copiedPassword, setCopiedPassword] = useState<boolean>(false);
   const [selectedRealWfId, setSelectedRealWfId] = useState<string>('Utaz0U82aZQZ7uHF');
@@ -82,62 +85,31 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
     { id: 'nRmUm34gWBdx778T', name: 'PostPilot Master Production Pipeline' },
   ]);
 
-  // Active live Cloudflare tunnel URL for n8n workflows
-  const ACTIVE_CLOUDFLARE_URL = 'https://greatly-mazda-behalf-derby.trycloudflare.com';
-  const ACTIVE_WORKFLOWS_URL = 'https://greatly-mazda-behalf-derby.trycloudflare.com/home/workflows';
+  // Read the n8n public URL from environment variable VITE_N8N_URL (do not hardcode quick tunnel URLs)
+  const n8nBaseUrl = (
+    import.meta.env.VITE_N8N_URL ||
+    (window as any).__N8N_URL__ ||
+    localStorage.getItem('ci360_n8n_url') ||
+    'http://localhost:5678'
+  ).replace(/\/$/, '');
 
-  // n8n connection URL (supports local dev or custom Cloudflare / remote tunnel URL)
-  const [n8nBaseUrl, setN8nBaseUrl] = useState<string>(() => {
-    const saved = localStorage.getItem('ci360_n8n_url');
-    if (saved && !saved.includes('tin-holdings-postcards-paragraph')) {
-      return saved;
-    }
-    return ACTIVE_CLOUDFLARE_URL;
-  });
-  const [tunnelInput, setTunnelInput] = useState<string>(() => {
-    const saved = localStorage.getItem('ci360_n8n_url');
-    return (saved && saved.startsWith('https://') && !saved.includes('tin-holdings-postcards-paragraph')) ? saved : ACTIVE_CLOUDFLARE_URL;
-  });
-  const [copiedTunnelCmd, setCopiedTunnelCmd] = useState(false);
-
-  const isHttpsParent = typeof window !== 'undefined' && window.location.protocol === 'https:';
-  const isLocalOrInsecureN8n = n8nBaseUrl.startsWith('http://') || n8nBaseUrl.includes('localhost') || n8nBaseUrl.includes('127.0.0.1');
-  const isBlockedByBrowser = isHttpsParent && (isLocalOrInsecureN8n || !n8nBaseUrl.startsWith('https://'));
-
-  const getExternalWfUrl = () => {
-    if (n8nBaseUrl && n8nBaseUrl.startsWith('https://')) {
-      return `${n8nBaseUrl.replace(/\/$/, '')}/home/workflows`;
-    }
-    return `http://localhost:5678/workflow/${selectedRealWfId}`;
-  };
-
-  const getExternalHomeUrl = () => {
-    if (n8nBaseUrl && n8nBaseUrl.startsWith('https://')) {
-      return `${n8nBaseUrl.replace(/\/$/, '')}/home/workflows`;
-    }
-    return 'http://localhost:5678';
-  };
-
-  const handleSaveTunnelUrl = (url: string) => {
-    const trimmed = url.trim().replace(/\/$/, '');
-    if (trimmed && trimmed.startsWith('https://')) {
-      localStorage.setItem('ci360_n8n_url', trimmed);
-      setN8nBaseUrl(trimmed);
-    } else {
-      localStorage.removeItem('ci360_n8n_url');
-      setN8nBaseUrl('http://localhost:5678');
-      setTunnelInput('');
-    }
-  };
-
-  const handleCopyTunnelCmd = () => {
-    navigator.clipboard.writeText('npx cloudflared tunnel --url http://localhost:5678');
-    setCopiedTunnelCmd(true);
-    setTimeout(() => setCopiedTunnelCmd(false), 2000);
-  };
+  const currentIframeUrl = selectedRealWfId
+    ? `${n8nBaseUrl}/workflow/${selectedRealWfId}`
+    : `${n8nBaseUrl}/home/workflows`;
 
   const [isTriggeringLiveRun, setIsTriggeringLiveRun] = useState(false);
   const [liveExecutionMessage, setLiveExecutionMessage] = useState<string | null>(null);
+  const [liveExecutionError, setLiveExecutionError] = useState<string | null>(null);
+
+  // 10-second load timeout: if iframe stays blank or cross-origin cookies fail, surface auth fallback
+  useEffect(() => {
+    if (!showEmbeddedIframe || canvasMode !== 'live-runtime') return;
+    setIframeStatus('loading');
+    const timer = setTimeout(() => {
+      setIframeStatus(curr => (curr === 'loading' ? 'timeout' : curr));
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [iframeKey, showEmbeddedIframe, canvasMode, n8nBaseUrl, selectedRealWfId]);
 
   // Visual Workflow Canvas state (Default loaded to Production Main Scheduler)
   const [currentWorkflow, setCurrentWorkflow] = useState<Workflow>(() => {
@@ -161,22 +133,43 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
       .catch(() => {});
   }, []);
 
-  const handleTriggerLiveExecution = async () => {
+  /**
+   * Run Live Workflow via Backend Proxy:
+   * Calls /api/v1/workflows/:id/execute which queries n8n Public REST API with server-side N8N_API_KEY.
+   * Completely independent of the iframe's browser cookie session.
+   */
+  const handleTriggerLiveExecution = async (workflowIdOverride?: string) => {
+    const targetWfId = workflowIdOverride || selectedRealWfId;
     setIsTriggeringLiveRun(true);
     setLiveExecutionMessage(null);
+    setLiveExecutionError(null);
+
     try {
-      const found = workflows.find(w => w.n8nWorkflowId.includes('main') || w.id === 5) || workflows[0];
-      if (found) {
-        await onExecuteWorkflow(found.id);
-        setLiveExecutionMessage(`Live runtime execution dispatched for "${found.workflowName}". Active execution streamed to database.`);
+      const res = await api.executeWorkflow(targetWfId);
+      if (res && (res as any).error) {
+        setLiveExecutionError((res as any).error);
       } else {
-        setLiveExecutionMessage(`Live execution dispatched to workflow ${selectedRealWfId} on port :5678.`);
+        const matched = installedRealWorkflows.find(w => w.id === targetWfId);
+        const name = matched ? matched.name : `Workflow ${targetWfId}`;
+        setLiveExecutionMessage(
+          `Workflow "${name}" successfully triggered via n8n Public API.${res?.executionId ? ` Execution ID: #${res.executionId}` : ''}`
+        );
       }
-    } catch {
-      setLiveExecutionMessage('Live execution triggered on n8n instance (:5678).');
+    } catch (err: any) {
+      const message = err.message || String(err);
+      if (message.includes('401') || message.toLowerCase().includes('unauthorized')) {
+        setLiveExecutionError('Authentication Failed (HTTP 401): Invalid or missing N8N_API_KEY in server environment.');
+      } else if (message.includes('503') || message.toLowerCase().includes('unreachable') || message.toLowerCase().includes('fetch')) {
+        setLiveExecutionError(`Connection Error (503): n8n daemon or Cloudflare tunnel is unreachable at ${n8nBaseUrl}.`);
+      } else {
+        setLiveExecutionError(`Execution Failed: ${message}`);
+      }
     } finally {
-      setTimeout(() => setIsTriggeringLiveRun(false), 800);
-      setTimeout(() => setLiveExecutionMessage(null), 7000);
+      setIsTriggeringLiveRun(false);
+      setTimeout(() => {
+        setLiveExecutionMessage(null);
+        setLiveExecutionError(null);
+      }, 9000);
     }
   };
 
@@ -652,28 +645,39 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
                 <>
                   <button
                     type="button"
-                    onClick={handleTriggerLiveExecution}
+                    onClick={() => handleTriggerLiveExecution()}
                     disabled={isTriggeringLiveRun}
                     className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    title="Execute selected workflow via backend n8n Public API"
                   >
                     <Play className={`w-3.5 h-3.5 fill-current ${isTriggeringLiveRun ? 'animate-spin' : ''}`} />
-                    <span>{isTriggeringLiveRun ? 'Running...' : 'Run Live Workflow'}</span>
+                    <span>{isTriggeringLiveRun ? 'Executing via API...' : 'Run Live Workflow'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowEmbeddedIframe(prev => !prev)}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer border border-slate-700"
+                    title={showEmbeddedIframe ? 'Hide embedded iframe' : 'Show embedded iframe'}
+                  >
+                    <span>{showEmbeddedIframe ? 'Hide Iframe' : 'Show Iframe'}</span>
                   </button>
 
                   <a
-                    href={ACTIVE_WORKFLOWS_URL}
+                    href={currentIframeUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="px-3.5 py-1.5 bg-gradient-to-r from-[#FF6D5A] to-[#EA4B71] hover:from-[#ff5943] hover:to-[#df3860] text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                    title="Open live n8n in dedicated browser tab"
                   >
-                    <span>Open n8n Workflows</span>
+                    <span>Open in New Tab</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 </>
               ) : (
                 <>
                   <a
-                    href={ACTIVE_WORKFLOWS_URL}
+                    href={`${n8nBaseUrl}/home/workflows`}
                     target="_blank"
                     rel="noreferrer"
                     className="px-3.5 py-1.5 bg-gradient-to-r from-[#FF6D5A] to-[#EA4B71] hover:from-[#ff5943] hover:to-[#df3860] text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
@@ -716,7 +720,7 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
             </div>
           </div>
 
-          {/* Feedback & Notifications */}
+          {/* Execution Success Message */}
           {liveExecutionMessage && (
             <div className="p-3.5 bg-emerald-950/80 border border-emerald-700/80 rounded-xl text-xs text-emerald-200 flex items-center justify-between shadow-lg animate-in fade-in duration-150">
               <div className="flex items-center gap-2 font-medium">
@@ -725,7 +729,23 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
               </div>
               <button
                 onClick={() => setLiveExecutionMessage(null)}
-                className="text-emerald-400 hover:text-white text-xs font-bold"
+                className="text-emerald-400 hover:text-white text-xs font-bold cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {/* Execution Error Feedback (401 = bad API key, 503 = connection down) */}
+          {liveExecutionError && (
+            <div className="p-3.5 bg-rose-950/90 border border-rose-700/80 rounded-xl text-xs text-rose-200 flex items-center justify-between shadow-lg animate-in fade-in duration-150">
+              <div className="flex items-center gap-2 font-medium">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{liveExecutionError}</span>
+              </div>
+              <button
+                onClick={() => setLiveExecutionError(null)}
+                className="text-rose-400 hover:text-white text-xs font-bold cursor-pointer"
               >
                 Dismiss
               </button>
@@ -740,7 +760,7 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
               </div>
               <button
                 onClick={() => setWorkflowSuccessBanner(null)}
-                className="text-emerald-400 hover:text-white text-xs font-bold"
+                className="text-emerald-400 hover:text-white text-xs font-bold cursor-pointer"
               >
                 Dismiss
               </button>
@@ -749,187 +769,237 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
 
           {/* MAIN CONTENT AREA */}
           {canvasMode === 'live-runtime' ? (
-            /* LIVE REAL N8N WORKFLOW CONTROL STATION & GATEWAY */
-            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6 sm:p-8 text-white shadow-2xl space-y-6 animate-in fade-in duration-150">
-              {/* Notice Header */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+            /* EMBEDDED REAL N8N WORKFLOW STUDIO IN IFRAME */
+            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 sm:p-6 text-white shadow-2xl space-y-4 animate-in fade-in duration-150">
+              {/* Studio Header & Navigation Controls */}
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b border-slate-800 pb-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold font-mono">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>CLOUDFLARE TUNNEL LIVE</span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold font-mono">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>EMBEDDED STUDIO ACTIVE</span>
                     </span>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#1336E8]/10 text-blue-400 border border-blue-500/20 text-xs font-medium font-mono">
-                      <span>HTTPS SECURED</span>
+                    <span className="text-xs font-mono text-slate-400 truncate max-w-xs md:max-w-md">
+                      {n8nBaseUrl}
                     </span>
                   </div>
-                  <h2 className="text-xl font-bold tracking-tight text-white pt-1">
-                    Live n8n Studio & Automation Hub
-                  </h2>
-                  <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
-                    Connected to your running n8n instance. Click any workflow below to launch it directly in n8n's studio editor with full credentials, live triggers, and instant telemetry.
-                  </p>
+                  <h3 className="text-base font-bold text-white">n8n Visual Workflow Editor</h3>
                 </div>
 
-                <div className="flex items-center gap-2">
+                {/* Toolbar Buttons: Hide/Show, Reload, Open in New Tab, Auth Help */}
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setCanvasMode('native-canvas')}
-                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors flex items-center gap-2 shrink-0 cursor-pointer border border-slate-700"
+                    onClick={() => setShowEmbeddedIframe(prev => !prev)}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors flex items-center gap-1.5 border border-slate-700 cursor-pointer"
                   >
-                    <Layers className="w-4 h-4 text-[#FF6D5A]" />
-                    <span>View Node Graph Canvas</span>
+                    <span>{showEmbeddedIframe ? 'Hide Iframe' : 'Show Iframe'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIframeKey(k => k + 1);
+                      setIframeStatus('loading');
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors flex items-center gap-1.5 border border-slate-700 cursor-pointer"
+                    title="Reload n8n iframe session"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Reload Iframe</span>
+                  </button>
+
+                  <a
+                    href={currentIframeUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#FF6D5A] to-[#EA4B71] hover:from-[#ff5943] hover:to-[#df3860] text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                  >
+                    <span>Open in New Tab</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowAuthHelp(prev => !prev)}
+                    className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-300 text-xs font-semibold transition-colors flex items-center gap-1.5 border border-amber-500/30 cursor-pointer"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Auth Help</span>
                   </button>
                 </div>
               </div>
 
-              {/* Login Credentials & Quick Copy Card */}
-              <div className="bg-slate-900/90 rounded-xl p-5 border border-slate-800 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-300">n8n Administrator Login Credentials:</span>
-                  <span className="text-[10px] text-emerald-400 font-mono">● Verified Active</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] text-slate-500 block uppercase font-mono">Admin Email</span>
-                      <span className="text-xs font-mono text-white">pradeepofficial8795@gmail.com</span>
+              {/* AUTH-FAILURE & TIMEOUT FALLBACK BANNER */}
+              {(iframeStatus === 'timeout' || showAuthHelp) && (
+                <div className="p-4 rounded-xl bg-amber-950/60 border border-amber-600/70 text-amber-200 text-xs space-y-3 animate-in fade-in duration-200">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2.5">
+                      <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <h4 className="font-bold text-amber-300 text-sm">Log in to n8n first</h4>
+                        <p className="text-amber-200/90 leading-relaxed mt-1">
+                          If the embedded editor stays blank, black, or returns <code className="bg-amber-950 px-1 py-0.5 rounded font-mono">401 Unauthorized</code>, your browser (Chrome, Safari, Brave, or Incognito) is blocking cross-site third-party cookies.
+                          Open n8n in a separate tab to complete sign-in, then click <strong>Reload iframe</strong>.
+                        </p>
+                      </div>
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText('pradeepofficial8795@gmail.com');
-                        setCopiedEmail(true);
-                        setTimeout(() => setCopiedEmail(false), 2000);
-                      }}
-                      className="text-xs text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer ml-2"
+                      onClick={() => setShowAuthHelp(false)}
+                      className="text-amber-400 hover:text-white text-xs font-bold cursor-pointer shrink-0"
                     >
-                      {copiedEmail ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span className="text-[11px]">{copiedEmail ? 'Copied' : 'Copy'}</span>
+                      Dismiss
                     </button>
                   </div>
 
-                  <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] text-slate-500 block uppercase font-mono">Password</span>
-                      <span className="text-xs font-mono text-white">Admin@123</span>
-                    </div>
+                  <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-amber-800/60">
+                    <a
+                      href={`${n8nBaseUrl}/signin`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3.5 py-1.5 bg-[#FF6D5A] hover:bg-[#ff5943] text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+                    >
+                      <LogIn className="w-3.5 h-3.5" />
+                      <span>Log in to n8n in New Tab</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+
                     <button
                       type="button"
                       onClick={() => {
-                        navigator.clipboard.writeText('Admin@123');
-                        setCopiedPassword(true);
-                        setTimeout(() => setCopiedPassword(false), 2000);
+                        setIframeKey(k => k + 1);
+                        setIframeStatus('loading');
                       }}
-                      className="text-xs text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer ml-2"
+                      className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors border border-slate-700 cursor-pointer"
                     >
-                      {copiedPassword ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span className="text-[11px]">{copiedPassword ? 'Copied' : 'Copy'}</span>
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Reload Iframe</span>
                     </button>
-                  </div>
-                </div>
-              </div>
 
-              {/* Master Launch Actions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* PRIMARY ACTION: Cloudflare Tunnel Workflows */}
-                <div className="bg-slate-900/90 rounded-xl p-5 border border-slate-800 flex flex-col justify-between space-y-4 hover:border-slate-700 transition-colors">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-400 font-mono">REMOTE HTTPS ACCESS</span>
-                      <span className="text-[10px] text-slate-400 font-mono">Cloudflare Active</span>
+                    <div className="flex items-center gap-2 text-[11px] text-amber-300 font-mono ml-auto">
+                      <span>Credentials:</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText('pradeepofficial8795@gmail.com');
+                          setCopiedEmail(true);
+                          setTimeout(() => setCopiedEmail(false), 2000);
+                        }}
+                        className="underline hover:text-white cursor-pointer"
+                      >
+                        {copiedEmail ? 'Copied Email' : 'Copy Email'}
+                      </button>
+                      <span>/</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText('Admin@123');
+                          setCopiedPassword(true);
+                          setTimeout(() => setCopiedPassword(false), 2000);
+                        }}
+                        className="underline hover:text-white cursor-pointer"
+                      >
+                        {copiedPassword ? 'Copied Password' : 'Copy Password'}
+                      </button>
                     </div>
-                    <h3 className="text-sm font-bold text-white">Open n8n Workflows in Full Studio</h3>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      Opens your live production workflows in a dedicated tab. Full visual canvas, credential setups, node executions, and debug telemetry.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2 pt-2">
-                    <a
-                      href={ACTIVE_WORKFLOWS_URL}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="w-full h-11 px-4 rounded-xl bg-gradient-to-r from-[#FF6D5A] to-[#EA4B71] hover:from-[#ff5943] hover:to-[#df3860] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition-all"
-                    >
-                      <span>Launch n8n Workflows</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
                   </div>
                 </div>
+              )}
 
-                {/* SECONDARY ACTION: Localhost Direct Access */}
-                <div className="bg-slate-900/90 rounded-xl p-5 border border-slate-800 flex flex-col justify-between space-y-4 hover:border-slate-700 transition-colors">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#1336E8] font-mono">DIRECT LOCALHOST</span>
-                      <span className="text-[10px] text-slate-400 font-mono">Port 5678</span>
+              {/* EMBEDDED IFRAME COMPONENT */}
+              {showEmbeddedIframe ? (
+                <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-900 min-h-[720px]">
+                  {iframeStatus === 'loading' && (
+                    <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center gap-3 z-10 pointer-events-none">
+                      <div className="w-9 h-9 border-3 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-xs font-mono text-slate-300">Loading n8n Workflow Studio...</span>
+                      <span className="text-[11px] text-slate-500 font-mono">{currentIframeUrl}</span>
                     </div>
-                    <h3 className="text-sm font-bold text-white">Open Direct Localhost (:5678)</h3>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      Connected directly to your computer’s local n8n daemon without routing through external networks.
-                    </p>
-                  </div>
+                  )}
 
-                  <div className="space-y-2 pt-2">
-                    <a
-                      href="http://localhost:5678/home/workflows"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="w-full h-11 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition-colors border border-slate-700"
-                    >
-                      <Globe className="w-4 h-4 text-slate-400" />
-                      <span>Open Localhost:5678</span>
-                    </a>
-                  </div>
+                  <iframe
+                    key={iframeKey}
+                    src={currentIframeUrl}
+                    title="n8n Workflow Studio"
+                    className="w-full h-[740px] bg-slate-900 border-none"
+                    allow="clipboard-read; clipboard-write; fullscreen"
+                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-downloads"
+                    onLoad={() => {
+                      setIframeStatus(s => (s === 'timeout' ? 'timeout' : 'loaded'));
+                    }}
+                  />
                 </div>
-              </div>
+              ) : (
+                <div className="p-8 rounded-xl bg-slate-900/60 border border-slate-800 text-center space-y-3">
+                  <Cpu className="w-10 h-10 text-slate-500 mx-auto" />
+                  <h4 className="text-sm font-bold text-white">n8n Iframe is currently hidden</h4>
+                  <p className="text-xs text-slate-400 max-w-md mx-auto">
+                    Click the button below to display the live n8n workflow canvas embedded directly inside the dashboard.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowEmbeddedIframe(true)}
+                    className="px-4 py-2 bg-[#1336E8] hover:bg-[#0E27B3] text-white rounded-xl text-xs font-semibold cursor-pointer"
+                  >
+                    Show Iframe
+                  </button>
+                </div>
+              )}
 
-              {/* Active Installed Workflows Directory */}
-              <div className="space-y-3">
+              {/* Workflow Directory & Instant Execution Strip */}
+              <div className="pt-2 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
                     <Layers className="w-4 h-4 text-[#FF6D5A]" />
-                    <span>Synchronized Production Workflows ({installedRealWorkflows.length})</span>
+                    <span>Synchronized Workflows ({installedRealWorkflows.length})</span>
                   </span>
-                  <span className="text-[11px] text-slate-400">Click any workflow to edit in n8n</span>
+                  <span className="text-[11px] text-slate-400">Run independently via Server API or load inside iframe</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {installedRealWorkflows.map(wf => (
                     <div
                       key={wf.id}
-                      className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 transition-all flex flex-col justify-between space-y-3 shadow-xs"
+                      className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between space-y-2.5 ${
+                        selectedRealWfId === wf.id
+                          ? 'bg-slate-900 border-[#FF6D5A]/50 shadow-md ring-1 ring-[#FF6D5A]/30'
+                          : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
+                      }`}
                     >
                       <div>
                         <div className="flex items-center justify-between text-[10px] font-mono text-emerald-400 mb-1">
                           <span>ID: {wf.id}</span>
-                          <span className="text-slate-400">Active</span>
+                          {selectedRealWfId === wf.id && (
+                            <span className="text-[#FF6D5A] font-bold">Active in Iframe</span>
+                          )}
                         </div>
                         <h4 className="text-xs font-bold text-white line-clamp-2">
                           {wf.name}
                         </h4>
                       </div>
 
-                      <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
-                        <a
-                          href={`${ACTIVE_CLOUDFLARE_URL}/workflow/${wf.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-[11px] font-semibold flex items-center gap-1 transition-colors"
-                        >
-                          <span>Open in n8n</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
+                      <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-1.5">
                         <button
                           type="button"
-                          onClick={handleTriggerLiveExecution}
+                          onClick={() => {
+                            setSelectedRealWfId(wf.id);
+                            if (!showEmbeddedIframe) setShowEmbeddedIframe(true);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-semibold transition-colors cursor-pointer"
+                        >
+                          View in Iframe
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleTriggerLiveExecution(wf.id)}
                           disabled={isTriggeringLiveRun}
-                          className="px-2.5 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                          title="Execute via backend n8n Public API"
                         >
                           <Play className="w-3 h-3 fill-current" />
-                          <span>Run</span>
+                          <span>Run API</span>
                         </button>
                       </div>
                     </div>
@@ -937,12 +1007,12 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
                 </div>
               </div>
 
-              {/* Architecture & MySQL Sync Footnote */}
-              <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-400">
+              {/* Hostinger MySQL Footnote */}
+              <div className="p-3 bg-slate-900/50 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-400">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
                   <span>
-                    <strong className="text-white">Hostinger MySQL Synced:</strong> Both this dashboard and your local n8n connect to <code className="text-emerald-300 font-mono">u245050038_ci360</code>. Workflows query and publish scheduled posts continuously.
+                    <strong className="text-white">Hostinger MySQL Synced:</strong> Both dashboard and n8n connect to <code className="text-emerald-300 font-mono">u245050038_ci360</code>.
                   </span>
                 </div>
                 <span className="text-[11px] font-mono text-slate-500 shrink-0">Polling Interval: 15s</span>

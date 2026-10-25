@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Brand, InAppNotification, RoleName, User } from '../../../server/src/types';
 import { formatISTTime } from '../../utils/timezone';
+import { api } from '../../api/client';
 
 interface HeaderProps {
   brands: Brand[];
@@ -55,6 +56,52 @@ export const Header: React.FC<HeaderProps> = ({
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [dateRange] = useState('Last 30 Days');
+  const [n8nHealth, setN8nHealth] = useState<{
+    reachable: boolean;
+    status: 'checking' | 'connected' | 'unreachable' | 'unauthorized';
+    latencyMs?: number;
+    error?: string;
+  }>({ reachable: false, status: 'checking' });
+
+  // Resolve dynamic n8n public URL from environment
+  const n8nBaseUrl = (
+    import.meta.env.VITE_N8N_URL ||
+    (window as any).__N8N_URL__ ||
+    localStorage.getItem('ci360_n8n_url') ||
+    'http://localhost:5678'
+  ).replace(/\/$/, '');
+
+  // Real backend health check GET {N8N_URL}/healthz via /api/v1/n8n/health
+  useEffect(() => {
+    let isMounted = true;
+    const checkHealth = async () => {
+      try {
+        const res = await api.getN8nHealth();
+        if (!isMounted) return;
+        if (res.reachable) {
+          setN8nHealth({ reachable: true, status: 'connected', latencyMs: res.latencyMs });
+        } else if (res.status === 'unauthorized') {
+          setN8nHealth({ reachable: false, status: 'unauthorized', latencyMs: res.latencyMs, error: res.error });
+        } else {
+          setN8nHealth({ reachable: false, status: 'unreachable', latencyMs: res.latencyMs, error: res.error });
+        }
+      } catch (err: any) {
+        if (!isMounted) return;
+        setN8nHealth({
+          reachable: false,
+          status: 'unreachable',
+          error: err.message || 'n8n instance is unreachable',
+        });
+      }
+    };
+
+    checkHealth();
+    const interval = setInterval(checkHealth, 30000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -174,27 +221,53 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right: n8n Status, Date Range, Notifications & User */}
       <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-        {/* Direct n8n Workflows Link */}
+        {/* Direct n8n Workflows Link (opens in new tab) */}
         <a
-          href="https://greatly-mazda-behalf-derby.trycloudflare.com/home/workflows"
+          href={`${n8nBaseUrl}/home/workflows`}
           target="_blank"
           rel="noreferrer"
           className="h-8 px-2 sm:px-2.5 rounded-lg border border-[#D0D5DD] bg-white hover:bg-[#F2F4F7] flex items-center gap-1.5 text-[11px] font-semibold text-[#101828] transition-colors shrink-0 shadow-xs"
-          title="Open live n8n Workflows in new tab"
+          title={`Open live n8n Workflows in new tab (${n8nBaseUrl})`}
         >
           <span className="w-2 h-2 rounded-full bg-[#FF6D5A]"></span>
           <span className="hidden sm:inline font-mono">n8n Workflows</span>
           <ExternalLink className="w-3 h-3 text-[#667085]" />
         </a>
 
-        {/* n8n Status Pill */}
+        {/* Real n8n Health Status Pill */}
         <button
           onClick={onOpenN8nStatus}
           className="h-8 px-2 sm:px-2.5 rounded-lg border border-[#D0D5DD] bg-[#F6F8FC] hover:bg-[#F2F4F7] flex items-center gap-1.5 text-[11px] font-medium text-[#344054] transition-colors shrink-0"
-          title="Click to view n8n Orchestrator status"
+          title={
+            n8nHealth.status === 'connected'
+              ? `n8n Connected (${n8nHealth.latencyMs}ms) via ${n8nBaseUrl}`
+              : n8nHealth.status === 'unauthorized'
+              ? `n8n Auth Required: ${n8nHealth.error}`
+              : n8nHealth.status === 'unreachable'
+              ? `n8n Offline: ${n8nHealth.error || 'Server unreachable'}`
+              : 'Checking n8n connection...'
+          }
         >
-          <span className="w-2 h-2 rounded-full bg-[#12B76A] ring-2 ring-[#12B76A]/20"></span>
-          <span className="hidden sm:inline font-mono">n8n Connected</span>
+          <span
+            className={`w-2 h-2 rounded-full ring-2 ${
+              n8nHealth.status === 'connected'
+                ? 'bg-[#12B76A] ring-[#12B76A]/20'
+                : n8nHealth.status === 'checking'
+                ? 'bg-amber-400 ring-amber-400/20 animate-pulse'
+                : n8nHealth.status === 'unauthorized'
+                ? 'bg-amber-500 ring-amber-500/20'
+                : 'bg-rose-500 ring-rose-500/20'
+            }`}
+          ></span>
+          <span className="hidden sm:inline font-mono">
+            {n8nHealth.status === 'connected'
+              ? `n8n Connected${n8nHealth.latencyMs ? ` (${n8nHealth.latencyMs}ms)` : ''}`
+              : n8nHealth.status === 'checking'
+              ? 'n8n Checking...'
+              : n8nHealth.status === 'unauthorized'
+              ? 'n8n Auth Key Err'
+              : 'n8n Disconnected'}
+          </span>
         </button>
 
         {/* Date Range Selector (Hidden on mobile & tablet) */}
