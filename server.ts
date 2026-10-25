@@ -1,6 +1,16 @@
-import './server/src/utils/dnsResolver';
 import fs from 'fs';
 import path from 'path';
+
+// Load local or environment-specific .env file if available
+try {
+  if (fs.existsSync(path.resolve(process.cwd(), '.env'))) {
+    process.loadEnvFile(path.resolve(process.cwd(), '.env'));
+  }
+} catch {
+  // Silent fallback
+}
+
+import './server/src/utils/dnsResolver';
 import express from 'express';
 import { createServer } from 'http';
 import { app } from './server/src/app';

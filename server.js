@@ -48162,6 +48162,10 @@ var require_promise = __commonJS({
   }
 });
 
+// server.ts
+import fs6 from "fs";
+import path6 from "path";
+
 // server/src/utils/dnsResolver.ts
 import dns from "node:dns";
 var resolver = new dns.promises.Resolver();
@@ -48191,8 +48195,6 @@ dns.lookup = function(hostname3, options, callback) {
 
 // server.ts
 var import_express4 = __toESM(require_express2(), 1);
-import fs6 from "fs";
-import path6 from "path";
 import { createServer } from "http";
 
 // server/src/app.ts
@@ -79216,6 +79218,12 @@ var MySQLSyncService = class {
 var mySQLSyncService = new MySQLSyncService();
 
 // server.ts
+try {
+  if (fs6.existsSync(path6.resolve(process.cwd(), ".env"))) {
+    process.loadEnvFile(path6.resolve(process.cwd(), ".env"));
+  }
+} catch {
+}
 var PORT = Number(process.env.PORT) || 3e3;
 async function startServer() {
   const possibleDistPaths = [
