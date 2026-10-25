@@ -4739,21 +4739,31 @@ var mySQLSyncService = new MySQLSyncService();
 // server.ts
 var PORT = Number(process.env.PORT) || 3e3;
 async function startServer() {
-  const isProd = process.env.NODE_ENV === "production";
+  const possibleDistPaths = [
+    path6.resolve(process.cwd(), "dist"),
+    path6.resolve(process.cwd(), "server", "dist", "public"),
+    path6.resolve(process.cwd(), "public_html")
+  ];
+  const distPath = possibleDistPaths.find((p) => fs6.existsSync(path6.join(p, "index.html"))) || possibleDistPaths[0];
+  const hasDist = fs6.existsSync(path6.join(distPath, "index.html"));
+  const isProd = process.env.NODE_ENV === "production" || hasDist;
   if (!isProd) {
-    const { createServer: createViteServer } = await import("vite");
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa"
-    });
-    app.use(vite.middlewares);
+    try {
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa"
+      });
+      app.use(vite.middlewares);
+    } catch {
+      if (hasDist) {
+        app.use(express2.static(distPath));
+        app.get("*", (req, res) => {
+          res.sendFile(path6.join(distPath, "index.html"));
+        });
+      }
+    }
   } else {
-    const possibleDistPaths = [
-      path6.resolve(process.cwd(), "dist"),
-      path6.resolve(process.cwd(), "server", "dist", "public"),
-      path6.resolve(process.cwd(), "public_html")
-    ];
-    const distPath = possibleDistPaths.find((p) => fs6.existsSync(path6.join(p, "index.html"))) || possibleDistPaths[0];
     app.use(express2.static(distPath));
     app.get("*", (req, res) => {
       res.sendFile(path6.join(distPath, "index.html"));

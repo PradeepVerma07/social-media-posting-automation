@@ -9,24 +9,35 @@ import { mySQLSyncService } from './server/src/db/mysqlSync';
 const PORT = Number(process.env.PORT) || 3000;
 
 async function startServer() {
-  const isProd = process.env.NODE_ENV === 'production';
+  const possibleDistPaths = [
+    path.resolve(process.cwd(), 'dist'),
+    path.resolve(process.cwd(), 'server', 'dist', 'public'),
+    path.resolve(process.cwd(), 'public_html'),
+  ];
+  const distPath = possibleDistPaths.find(p => fs.existsSync(path.join(p, 'index.html'))) || possibleDistPaths[0];
+  const hasDist = fs.existsSync(path.join(distPath, 'index.html'));
+  const isProd = process.env.NODE_ENV === 'production' || hasDist;
 
   if (!isProd) {
-    // In dev, attach Vite middleware so frontend & backend run together on port 3000
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
+    try {
+      // In dev, attach Vite middleware so frontend & backend run together on port 3000
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } catch {
+      // Fallback to static serving if vite middleware fails
+      if (hasDist) {
+        app.use(express.static(distPath));
+        app.get('*', (req, res) => {
+          res.sendFile(path.join(distPath, 'index.html'));
+        });
+      }
+    }
   } else {
     // In production, serve built SPA
-    const possibleDistPaths = [
-      path.resolve(process.cwd(), 'dist'),
-      path.resolve(process.cwd(), 'server', 'dist', 'public'),
-      path.resolve(process.cwd(), 'public_html'),
-    ];
-    const distPath = possibleDistPaths.find(p => fs.existsSync(path.join(p, 'index.html'))) || possibleDistPaths[0];
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
