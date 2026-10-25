@@ -79,12 +79,14 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
     { id: 'nRmUm34gWBdx778T', name: 'PostPilot Master Production Pipeline' },
   ]);
   // n8n connection URL (supports local dev or Cloudflare / remote tunnel URL)
+  const defaultTunnelUrl = 'https://tin-holdings-postcards-paragraph.trycloudflare.com';
   const [n8nBaseUrl, setN8nBaseUrl] = useState<string>(() => {
-    return localStorage.getItem('ci360_n8n_url') || 'http://localhost:5678';
+    const saved = localStorage.getItem('ci360_n8n_url');
+    if (saved) return saved;
+    return typeof window !== 'undefined' && window.location.protocol === 'https:' ? defaultTunnelUrl : 'http://localhost:5678';
   });
   const [tunnelInput, setTunnelInput] = useState<string>(() => {
-    const saved = localStorage.getItem('ci360_n8n_url');
-    return (saved && saved.startsWith('https://')) ? saved : '';
+    return localStorage.getItem('ci360_n8n_url') || defaultTunnelUrl;
   });
   const [copiedTunnelCmd, setCopiedTunnelCmd] = useState(false);
 
