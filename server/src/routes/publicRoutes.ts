@@ -126,7 +126,7 @@ publicRouter.get('/n8n/health', async (req: Request, res: Response) => {
     process.env.N8N_PUBLIC_URL ||
     process.env.VITE_N8N_URL ||
     process.env.N8N_BASE_URL ||
-    'https://home-taking-refers-rating.trycloudflare.com'
+    'https://n8n.webtrionix.com'
   ).replace(/\/$/, '');
   const apiKey = process.env.N8N_API_KEY || '';
   const start = performance.now();
@@ -187,7 +187,7 @@ publicRouter.post('/integrations/n8n/test', async (req: Request, res: Response) 
     process.env.N8N_PUBLIC_URL ||
     process.env.VITE_N8N_URL ||
     process.env.N8N_BASE_URL ||
-    'https://home-taking-refers-rating.trycloudflare.com'
+    'https://n8n.webtrionix.com'
   ).replace(/\/$/, '');
   const apiKey = process.env.N8N_API_KEY || '';
   const start = performance.now();
@@ -236,7 +236,7 @@ publicRouter.post('/workflows/:id/execute', async (req: Request, res: Response) 
     process.env.N8N_PUBLIC_URL ||
     process.env.VITE_N8N_URL ||
     process.env.N8N_BASE_URL ||
-    'https://home-taking-refers-rating.trycloudflare.com'
+    'https://n8n.webtrionix.com'
   ).replace(/\/$/, '');
   const apiKey = process.env.N8N_API_KEY || '';
 

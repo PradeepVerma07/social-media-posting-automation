@@ -76213,7 +76213,7 @@ publicRouter.post("/n8n/logout", (req, res) => {
   res.json({ success: true });
 });
 publicRouter.get("/n8n/health", async (req, res) => {
-  const n8nUrl = (process.env.N8N_PUBLIC_URL || process.env.VITE_N8N_URL || process.env.N8N_BASE_URL || "https://home-taking-refers-rating.trycloudflare.com").replace(/\/$/, "");
+  const n8nUrl = (process.env.N8N_PUBLIC_URL || process.env.VITE_N8N_URL || process.env.N8N_BASE_URL || "https://n8n.webtrionix.com").replace(/\/$/, "");
   const apiKey = process.env.N8N_API_KEY || "";
   const start = performance.now();
   try {
@@ -76262,7 +76262,7 @@ publicRouter.get("/n8n/health", async (req, res) => {
   }
 });
 publicRouter.post("/integrations/n8n/test", async (req, res) => {
-  const n8nUrl = (process.env.N8N_PUBLIC_URL || process.env.VITE_N8N_URL || process.env.N8N_BASE_URL || "https://home-taking-refers-rating.trycloudflare.com").replace(/\/$/, "");
+  const n8nUrl = (process.env.N8N_PUBLIC_URL || process.env.VITE_N8N_URL || process.env.N8N_BASE_URL || "https://n8n.webtrionix.com").replace(/\/$/, "");
   const apiKey = process.env.N8N_API_KEY || "";
   const start = performance.now();
   try {
@@ -76296,7 +76296,7 @@ publicRouter.post("/integrations/n8n/test", async (req, res) => {
 });
 publicRouter.post("/workflows/:id/execute", async (req, res) => {
   const { id } = req.params;
-  const n8nUrl = (process.env.N8N_PUBLIC_URL || process.env.VITE_N8N_URL || process.env.N8N_BASE_URL || "https://home-taking-refers-rating.trycloudflare.com").replace(/\/$/, "");
+  const n8nUrl = (process.env.N8N_PUBLIC_URL || process.env.VITE_N8N_URL || process.env.N8N_BASE_URL || "https://n8n.webtrionix.com").replace(/\/$/, "");
   const apiKey = process.env.N8N_API_KEY || "";
   const workflowIdMap = {
     "1": "Utaz0U82aZQZ7uHF",
