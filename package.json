@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node node_modules/tsx/dist/cli.mjs watch server.ts",
     "build:client": "node node_modules/vite/bin/vite.js build",
-    "build:server": "node node_modules/esbuild/bin/esbuild server.ts --bundle --platform=node --format=esm --packages=external --outfile=server.js && node -e \"const fs=require('fs'); fs.mkdirSync('server/dist', {recursive:true}); fs.copyFileSync('server.js', 'server/dist/index.js');\"",
+    "build:server": "node node_modules/esbuild/bin/esbuild server.ts --bundle --platform=node --format=esm --external:vite \"--banner:js=import { createRequire } from 'module'; const require = createRequire(import.meta.url);\" --outfile=server.js && node -e \"const fs=require('fs'); fs.mkdirSync('dist', {recursive:true}); fs.copyFileSync('server.js', 'dist/server.js');\"",
     "build": "node node_modules/vite/bin/vite.js build && node -e \"const fs=require('fs'); fs.copyFileSync('server.js', 'dist/server.js');\"",
     "start": "node server.js",
     "n8n:start": "powershell -ExecutionPolicy Bypass -File scripts/start_n8n.ps1",
