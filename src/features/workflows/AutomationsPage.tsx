@@ -749,201 +749,204 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
 
           {/* MAIN CONTENT AREA */}
           {canvasMode === 'live-runtime' ? (
-            /* LIVE REAL N8N WORKFLOW RUNTIME GATEWAY */
-            <div className="space-y-4">
-              {showEmbeddedIframe ? (
-                /* EMBEDDED IFRAME (OPTIONAL VIEW) */
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-slate-900 rounded-xl border border-slate-800 text-xs text-slate-300">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                      <span>Target: <code className="text-white font-mono">{ACTIVE_WORKFLOWS_URL}</code></span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowEmbeddedIframe(false)}
-                        className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
-                      >
-                        Hide Iframe
-                      </button>
-                      <a
-                        href={ACTIVE_WORKFLOWS_URL}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-3 py-1 rounded-lg bg-[#1336E8] hover:bg-[#0F29B8] text-white flex items-center gap-1 font-semibold"
-                      >
-                        <span>Open in New Tab</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
+            /* LIVE REAL N8N WORKFLOW CONTROL STATION & GATEWAY */
+            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6 sm:p-8 text-white shadow-2xl space-y-6 animate-in fade-in duration-150">
+              {/* Notice Header */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold font-mono">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>CLOUDFLARE TUNNEL LIVE</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#1336E8]/10 text-blue-400 border border-blue-500/20 text-xs font-medium font-mono">
+                      <span>HTTPS SECURED</span>
+                    </span>
                   </div>
-
-                  <div className="relative rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950 h-[760px] w-full">
-                    <iframe
-                      src={ACTIVE_WORKFLOWS_URL}
-                      title="Live Real n8n Workflow Runtime Automation"
-                      className="w-full h-full border-0 bg-slate-950"
-                      allow="clipboard-read; clipboard-write"
-                    />
-                  </div>
+                  <h2 className="text-xl font-bold tracking-tight text-white pt-1">
+                    Live n8n Studio & Automation Hub
+                  </h2>
+                  <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
+                    Connected to your running n8n instance. Click any workflow below to launch it directly in n8n's studio editor with full credentials, live triggers, and instant telemetry.
+                  </p>
                 </div>
-              ) : (
-                /* LIVE GATEWAY PANEL (RECOMMENDED FOR SEAMLESS AUTH) */
-                <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6 sm:p-8 text-white shadow-2xl space-y-6">
-                  {/* Notice Header */}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold font-mono">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>CLOUDFLARE TUNNEL LIVE</span>
-                        </span>
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#1336E8]/10 text-blue-400 border border-blue-500/20 text-xs font-medium font-mono">
-                          <span>HTTPS SECURED</span>
-                        </span>
-                      </div>
-                      <h2 className="text-xl font-bold tracking-tight text-white pt-1">
-                        Live n8n Studio Gateway
-                      </h2>
-                      <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
-                        To protect your account security, modern browsers require top-level tabs for cross-domain cookie authentication. Open n8n in a full tab for complete node access, execution debugging, and live workflow editing.
-                      </p>
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setCanvasMode('native-canvas')}
-                        className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors flex items-center gap-2 shrink-0 cursor-pointer border border-slate-700"
-                      >
-                        <Layers className="w-4 h-4 text-[#FF6D5A]" />
-                        <span>View Visual Node Graph</span>
-                      </button>
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCanvasMode('native-canvas')}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors flex items-center gap-2 shrink-0 cursor-pointer border border-slate-700"
+                  >
+                    <Layers className="w-4 h-4 text-[#FF6D5A]" />
+                    <span>View Node Graph Canvas</span>
+                  </button>
+                </div>
+              </div>
 
-                  {/* Login Credentials & Quick Copy Card */}
-                  <div className="bg-slate-900/90 rounded-xl p-5 border border-slate-800 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-300">n8n Administrator Login Credentials:</span>
-                      <span className="text-[10px] text-emerald-400 font-mono">● Verified Active</span>
-                    </div>
+              {/* Login Credentials & Quick Copy Card */}
+              <div className="bg-slate-900/90 rounded-xl p-5 border border-slate-800 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-300">n8n Administrator Login Credentials:</span>
+                  <span className="text-[10px] text-emerald-400 font-mono">● Verified Active</span>
+                </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between">
-                        <div>
-                          <span className="text-[10px] text-slate-500 block uppercase font-mono">Admin Email</span>
-                          <span className="text-xs font-mono text-white">pradeepofficial8795@gmail.com</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText('pradeepofficial8795@gmail.com');
-                            setCopiedEmail(true);
-                            setTimeout(() => setCopiedEmail(false), 2000);
-                          }}
-                          className="text-xs text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer ml-2"
-                        >
-                          {copiedEmail ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                          <span className="text-[11px]">{copiedEmail ? 'Copied' : 'Copy'}</span>
-                        </button>
-                      </div>
-
-                      <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between">
-                        <div>
-                          <span className="text-[10px] text-slate-500 block uppercase font-mono">Password</span>
-                          <span className="text-xs font-mono text-white">Admin@123</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText('Admin@123');
-                            setCopiedPassword(true);
-                            setTimeout(() => setCopiedPassword(false), 2000);
-                          }}
-                          className="text-xs text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer ml-2"
-                        >
-                          {copiedPassword ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                          <span className="text-[11px]">{copiedPassword ? 'Copied' : 'Copy'}</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {/* PRIMARY ACTION: Cloudflare Tunnel Workflows */}
-                    <div className="bg-slate-900/90 rounded-xl p-5 border border-slate-800 flex flex-col justify-between space-y-4 hover:border-slate-700 transition-colors">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-emerald-400 font-mono">REMOTE HTTPS ACCESS</span>
-                          <span className="text-[10px] text-slate-400 font-mono">Cloudflare Active</span>
-                        </div>
-                        <h3 className="text-sm font-bold text-white">Open n8n Workflows in Full Studio</h3>
-                        <p className="text-xs text-slate-400 leading-relaxed">
-                          Opens your live production workflows in a dedicated tab. Full visual canvas, credential setups, node executions, and debug telemetry.
-                        </p>
-                      </div>
-
-                      <div className="space-y-2 pt-2">
-                        <a
-                          href={ACTIVE_WORKFLOWS_URL}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="w-full h-11 px-4 rounded-xl bg-gradient-to-r from-[#FF6D5A] to-[#EA4B71] hover:from-[#ff5943] hover:to-[#df3860] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition-all"
-                        >
-                          <span>Launch n8n Workflows</span>
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      </div>
-                    </div>
-
-                    {/* SECONDARY ACTION: Localhost Direct Access */}
-                    <div className="bg-slate-900/90 rounded-xl p-5 border border-slate-800 flex flex-col justify-between space-y-4 hover:border-slate-700 transition-colors">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-[#1336E8] font-mono">DIRECT LOCALHOST</span>
-                          <span className="text-[10px] text-slate-400 font-mono">Port 5678</span>
-                        </div>
-                        <h3 className="text-sm font-bold text-white">Open Direct Localhost (:5678)</h3>
-                        <p className="text-xs text-slate-400 leading-relaxed">
-                          Connected directly to your computer’s local n8n daemon without routing through external networks.
-                        </p>
-                      </div>
-
-                      <div className="space-y-2 pt-2">
-                        <a
-                          href="http://localhost:5678/home/workflows"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="w-full h-11 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition-colors border border-slate-700"
-                        >
-                          <Globe className="w-4 h-4 text-slate-400" />
-                          <span>Open Localhost:5678</span>
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Architecture & MySQL Sync Footnote */}
-                  <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-400">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                      <span>
-                        <strong className="text-white">Hostinger MySQL Synced:</strong> Both this dashboard and your local n8n connect to <code className="text-emerald-300 font-mono">u245050038_ci360</code>. Workflows query and publish scheduled posts continuously.
-                      </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-slate-500 block uppercase font-mono">Admin Email</span>
+                      <span className="text-xs font-mono text-white">pradeepofficial8795@gmail.com</span>
                     </div>
                     <button
                       type="button"
-                      onClick={() => setShowEmbeddedIframe(true)}
-                      className="text-[11px] text-slate-400 hover:text-white underline cursor-pointer shrink-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText('pradeepofficial8795@gmail.com');
+                        setCopiedEmail(true);
+                        setTimeout(() => setCopiedEmail(false), 2000);
+                      }}
+                      className="text-xs text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer ml-2"
                     >
-                      Show Embedded Iframe View
+                      {copiedEmail ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span className="text-[11px]">{copiedEmail ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-slate-500 block uppercase font-mono">Password</span>
+                      <span className="text-xs font-mono text-white">Admin@123</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText('Admin@123');
+                        setCopiedPassword(true);
+                        setTimeout(() => setCopiedPassword(false), 2000);
+                      }}
+                      className="text-xs text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer ml-2"
+                    >
+                      {copiedPassword ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span className="text-[11px]">{copiedPassword ? 'Copied' : 'Copy'}</span>
                     </button>
                   </div>
                 </div>
-              )}
+              </div>
+
+              {/* Master Launch Actions */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* PRIMARY ACTION: Cloudflare Tunnel Workflows */}
+                <div className="bg-slate-900/90 rounded-xl p-5 border border-slate-800 flex flex-col justify-between space-y-4 hover:border-slate-700 transition-colors">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-400 font-mono">REMOTE HTTPS ACCESS</span>
+                      <span className="text-[10px] text-slate-400 font-mono">Cloudflare Active</span>
+                    </div>
+                    <h3 className="text-sm font-bold text-white">Open n8n Workflows in Full Studio</h3>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Opens your live production workflows in a dedicated tab. Full visual canvas, credential setups, node executions, and debug telemetry.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2 pt-2">
+                    <a
+                      href={ACTIVE_WORKFLOWS_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="w-full h-11 px-4 rounded-xl bg-gradient-to-r from-[#FF6D5A] to-[#EA4B71] hover:from-[#ff5943] hover:to-[#df3860] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition-all"
+                    >
+                      <span>Launch n8n Workflows</span>
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </div>
+                </div>
+
+                {/* SECONDARY ACTION: Localhost Direct Access */}
+                <div className="bg-slate-900/90 rounded-xl p-5 border border-slate-800 flex flex-col justify-between space-y-4 hover:border-slate-700 transition-colors">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#1336E8] font-mono">DIRECT LOCALHOST</span>
+                      <span className="text-[10px] text-slate-400 font-mono">Port 5678</span>
+                    </div>
+                    <h3 className="text-sm font-bold text-white">Open Direct Localhost (:5678)</h3>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Connected directly to your computer’s local n8n daemon without routing through external networks.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2 pt-2">
+                    <a
+                      href="http://localhost:5678/home/workflows"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="w-full h-11 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition-colors border border-slate-700"
+                    >
+                      <Globe className="w-4 h-4 text-slate-400" />
+                      <span>Open Localhost:5678</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Installed Workflows Directory */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-[#FF6D5A]" />
+                    <span>Synchronized Production Workflows ({installedRealWorkflows.length})</span>
+                  </span>
+                  <span className="text-[11px] text-slate-400">Click any workflow to edit in n8n</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {installedRealWorkflows.map(wf => (
+                    <div
+                      key={wf.id}
+                      className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 transition-all flex flex-col justify-between space-y-3 shadow-xs"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between text-[10px] font-mono text-emerald-400 mb-1">
+                          <span>ID: {wf.id}</span>
+                          <span className="text-slate-400">Active</span>
+                        </div>
+                        <h4 className="text-xs font-bold text-white line-clamp-2">
+                          {wf.name}
+                        </h4>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
+                        <a
+                          href={`${ACTIVE_CLOUDFLARE_URL}/workflow/${wf.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-[11px] font-semibold flex items-center gap-1 transition-colors"
+                        >
+                          <span>Open in n8n</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                        <button
+                          type="button"
+                          onClick={handleTriggerLiveExecution}
+                          disabled={isTriggeringLiveRun}
+                          className="px-2.5 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <Play className="w-3 h-3 fill-current" />
+                          <span>Run</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Architecture & MySQL Sync Footnote */}
+              <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-400">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <span>
+                    <strong className="text-white">Hostinger MySQL Synced:</strong> Both this dashboard and your local n8n connect to <code className="text-emerald-300 font-mono">u245050038_ci360</code>. Workflows query and publish scheduled posts continuously.
+                  </span>
+                </div>
+                <span className="text-[11px] font-mono text-slate-500 shrink-0">Polling Interval: 15s</span>
+              </div>
             </div>
           ) : (
             /* NATIVE VISUAL GRAPH */
