@@ -68,8 +68,17 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
   } | null>(null);
   const [executingId, setExecutingId] = useState<number | null>(null);
 
-  // Canvas View Mode: 'live-runtime' (Real running n8n on :5678) vs 'native-canvas'
-  const [canvasMode, setCanvasMode] = useState<'live-runtime' | 'native-canvas'>('live-runtime');
+  // Canvas View Mode: 'native-canvas' (visual node graph) vs 'live-runtime' (real n8n runtime)
+  const [canvasMode, setCanvasMode] = useState<'live-runtime' | 'native-canvas'>(() => {
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+      const saved = localStorage.getItem('ci360_n8n_url');
+      if (saved && saved.startsWith('https://') && !saved.includes('tin-holdings-postcards-paragraph')) {
+        return 'live-runtime';
+      }
+      return 'native-canvas';
+    }
+    return 'live-runtime';
+  });
   const [selectedRealWfId, setSelectedRealWfId] = useState<string>('Utaz0U82aZQZ7uHF');
   const [installedRealWorkflows, setInstalledRealWorkflows] = useState<Array<{ id: string; name: string }>>([
     { id: 'Utaz0U82aZQZ7uHF', name: 'Social Media Automation Hub - Main Scheduler & Multi-Platform Publisher' },
@@ -78,30 +87,51 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
     { id: 'E1KqIhWMSvoQCw4J', name: 'WF-01 Scheduler (1-Minute Cron)' },
     { id: 'nRmUm34gWBdx778T', name: 'PostPilot Master Production Pipeline' },
   ]);
-  // n8n connection URL (supports local dev or Cloudflare / remote tunnel URL)
-  const defaultTunnelUrl = 'https://tin-holdings-postcards-paragraph.trycloudflare.com';
+
+  // n8n connection URL (supports local dev or custom Cloudflare / remote tunnel URL)
   const [n8nBaseUrl, setN8nBaseUrl] = useState<string>(() => {
     const saved = localStorage.getItem('ci360_n8n_url');
-    if (saved) return saved;
-    return typeof window !== 'undefined' && window.location.protocol === 'https:' ? defaultTunnelUrl : 'http://localhost:5678';
+    if (saved && !saved.includes('tin-holdings-postcards-paragraph')) {
+      return saved;
+    }
+    if (saved) {
+      localStorage.removeItem('ci360_n8n_url');
+    }
+    return 'http://localhost:5678';
   });
   const [tunnelInput, setTunnelInput] = useState<string>(() => {
-    return localStorage.getItem('ci360_n8n_url') || defaultTunnelUrl;
+    const saved = localStorage.getItem('ci360_n8n_url');
+    return (saved && saved.startsWith('https://') && !saved.includes('tin-holdings-postcards-paragraph')) ? saved : '';
   });
   const [copiedTunnelCmd, setCopiedTunnelCmd] = useState(false);
 
   const isHttpsParent = typeof window !== 'undefined' && window.location.protocol === 'https:';
   const isLocalOrInsecureN8n = n8nBaseUrl.startsWith('http://') || n8nBaseUrl.includes('localhost') || n8nBaseUrl.includes('127.0.0.1');
-  const isBlockedByBrowser = isHttpsParent && isLocalOrInsecureN8n;
+  const isBlockedByBrowser = isHttpsParent && (isLocalOrInsecureN8n || !n8nBaseUrl.startsWith('https://'));
+
+  const getExternalWfUrl = () => {
+    if (n8nBaseUrl && n8nBaseUrl.startsWith('https://')) {
+      return `${n8nBaseUrl.replace(/\/$/, '')}/workflow/${selectedRealWfId}`;
+    }
+    return `http://localhost:5678/workflow/${selectedRealWfId}`;
+  };
+
+  const getExternalHomeUrl = () => {
+    if (n8nBaseUrl && n8nBaseUrl.startsWith('https://')) {
+      return n8nBaseUrl;
+    }
+    return 'http://localhost:5678';
+  };
 
   const handleSaveTunnelUrl = (url: string) => {
     const trimmed = url.trim().replace(/\/$/, '');
-    if (trimmed) {
+    if (trimmed && trimmed.startsWith('https://')) {
       localStorage.setItem('ci360_n8n_url', trimmed);
       setN8nBaseUrl(trimmed);
     } else {
       localStorage.removeItem('ci360_n8n_url');
       setN8nBaseUrl('http://localhost:5678');
+      setTunnelInput('');
     }
   };
 
@@ -637,8 +667,8 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => window.open(`${n8nBaseUrl.replace(/\/$/, '')}/workflow/${selectedRealWfId}`, '_blank', 'noopener,noreferrer')}
-                    className="px-3.5 py-1.5 bg-white/10 hover:bg-white/15 border border-white/15 text-white rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    onClick={() => window.open(getExternalWfUrl(), '_blank', 'noopener,noreferrer')}
+                    className="px-3.5 py-1.5 bg-gradient-to-r from-[#FF6D5A] to-[#EA4B71] hover:from-[#ff5943] hover:to-[#df3860] text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
                   >
                     <span>Launch in n8n Tab</span>
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -646,6 +676,16 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
                 </>
               ) : (
                 <>
+                  <button
+                    type="button"
+                    onClick={() => window.open(getExternalWfUrl(), '_blank', 'noopener,noreferrer')}
+                    className="px-3 py-1.5 bg-gradient-to-r from-[#FF6D5A] to-[#EA4B71] hover:from-[#ff5943] hover:to-[#df3860] text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    title="Launch real workflow in n8n (:5678)"
+                  >
+                    <span>Launch n8n (:5678)</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
+
                   <button
                     onClick={() => setIsLibraryOpen(true)}
                     className="px-3 py-1.5 bg-[#1336E8] hover:bg-[#0E27B3] text-white rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
@@ -767,7 +807,7 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
                       <div className="space-y-2 pt-2">
                         <button
                           type="button"
-                          onClick={() => window.open(`${n8nBaseUrl.replace(/\/$/, '')}/workflow/${selectedRealWfId}`, '_blank', 'noopener,noreferrer')}
+                          onClick={() => window.open(getExternalWfUrl(), '_blank', 'noopener,noreferrer')}
                           className="w-full h-11 px-4 rounded-xl bg-gradient-to-r from-[#FF6D5A] to-[#EA4B71] hover:from-[#ff5943] hover:to-[#df3860] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer"
                         >
                           <span>Launch Current Workflow in n8n</span>
@@ -775,7 +815,7 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
                         </button>
                         <button
                           type="button"
-                          onClick={() => window.open(n8nBaseUrl, '_blank', 'noopener,noreferrer')}
+                          onClick={() => window.open(getExternalHomeUrl(), '_blank', 'noopener,noreferrer')}
                           className="w-full h-9 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
                         >
                           <Globe className="w-3.5 h-3.5 text-slate-400" />
