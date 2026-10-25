@@ -1,0 +1,105 @@
+{
+  "name": "WF-06 Global Error Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "node-error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Extract structured execution failure diagnostics\nconst errorData = $input.first().json;\n\nreturn [\n  {\n    json: {\n      workflowName: errorData.workflow?.name || 'Unknown Workflow',\n      workflowId: errorData.workflow?.id,\n      executionId: errorData.execution?.id,\n      errorMessage: errorData.execution?.error?.message || 'Unspecified runtime error',\n      nodeName: errorData.execution?.lastNodeExecuted,\n      timestamp: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "id": "node-format-error",
+      "name": "Extract Error Diagnostics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.API_URL || 'http://api:4000' }}/api/v1/audit/errors",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"source\": \"n8n-orchestrator\",\n  \"error\": {{ JSON.stringify($json) }}\n}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.POSTPILOT_API_KEY || 'pp_live_secret_n8n_scheduler_api_key_123456' }}"
+            }
+          ]
+        },
+        "sendHeaders": true
+      },
+      "id": "node-log-to-api",
+      "name": "Log Error to Node API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SLACK_ALERT_WEBHOOK_URL || 'https://hooks.slack.com/services/mock' }}",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"\ud83d\udea8 *PostPilot Automation Failure* in `\" + $json.workflowName + \"` at node `\" + $json.nodeName + \"`:\\n> \" + $json.errorMessage\n}"
+      },
+      "id": "node-alert-slack-error",
+      "name": "Send Critical Slack Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        380
+      ]
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Error Diagnostics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Error Diagnostics": {
+      "main": [
+        [
+          {
+            "node": "Log Error to Node API",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Critical Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

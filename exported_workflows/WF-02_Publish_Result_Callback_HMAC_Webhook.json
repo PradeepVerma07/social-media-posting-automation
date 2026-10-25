@@ -1,0 +1,198 @@
+{
+  "name": "WF-02 Publish Result Callback (HMAC Webhook)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "publish-result",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-webhook-trigger",
+      "name": "Webhook: /webhook/publish-result",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "postpilot-publish-result-webhook"
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Verify HMAC-SHA256 Signature with Replay Window Protection\nconst crypto = require('crypto');\n\nconst secret = $env.N8N_HMAC_SECRET || 'hmac_shared_secret_between_node_and_n8n_at_least_32_chars';\nconst headers = $input.first().json.headers;\nconst body = $input.first().json.body;\n\nconst signature = headers['x-postpilot-signature'];\nconst timestamp = parseInt(headers['x-postpilot-timestamp'], 10);\n\nif (!signature || !timestamp) {\n  throw new Error('Unauthorized: Missing signature or timestamp headers');\n}\n\n// Replay protection: check 5-minute window\nconst now = Math.floor(Date.now() / 1000);\nif (Math.abs(now - timestamp) > 300) {\n  throw new Error('Unauthorized: Webhook timestamp expired');\n}\n\nconst payloadString = typeof body === 'string' ? body : JSON.stringify(body);\nconst dataToSign = `${timestamp}.${payloadString}`;\nconst expectedSignature = crypto.createHmac('sha256', secret).update(dataToSign).digest('hex');\n\nif (signature !== expectedSignature) {\n  throw new Error('Unauthorized: Invalid HMAC signature mismatch');\n}\n\nreturn [{ json: body }];"
+      },
+      "id": "node-verify-hmac",
+      "name": "Verify HMAC & Replay Window",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $json.scheduleSpreadsheetId }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.scheduleSheetName || 'Schedule' }}",
+          "mode": "name"
+        },
+        "range": "=M{{ $json.rowIndex }}:S{{ $json.rowIndex }}",
+        "options": {
+          "valueInputMode": "RAW"
+        },
+        "values": [
+          [
+            "={{ $json.overallStatus }}",
+            "={{ $json.firstComment || '' }}",
+            "={{ $json.linkUrl || '' }}",
+            "={{ $json.publishedAtUtc || '' }}",
+            "={{ JSON.stringify($json.platformPostIds || {}) }}",
+            "={{ $json.errorMessage || '' }}",
+            "system"
+          ]
+        ]
+      },
+      "id": "node-update-schedule-sheet",
+      "name": "Update Schedule Sheet Row (M:S)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        640,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2": {
+          "id": "postpilot-google-service-account",
+          "name": "PostPilot Google Service Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $json.reportSpreadsheetId }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.reportTabName || 'Report_2026_11' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "report_id": "={{ 'REP-' + $json.postId + '-' + $json.platform }}",
+            "post_id": "={{ $json.customId }}",
+            "brand_id": "={{ $json.brandId }}",
+            "client_name": "={{ $json.clientName }}",
+            "topic": "={{ $json.topic }}",
+            "platform": "={{ $json.platform }}",
+            "post_type": "={{ $json.postType }}",
+            "scheduled_local": "={{ $json.scheduledLocal }}",
+            "timezone": "={{ $json.timezone }}",
+            "scheduled_utc": "={{ $json.scheduledUtc }}",
+            "attempted_at_utc": "={{ $json.attemptedAtUtc }}",
+            "published_at_utc": "={{ $json.publishedAtUtc }}",
+            "status": "={{ $json.status }}",
+            "attempts": "={{ $json.attempts }}",
+            "platform_post_id": "={{ $json.platformPostId }}",
+            "platform_post_url": "={{ $json.platformPostUrl }}",
+            "error_code": "={{ $json.errorCode }}",
+            "error_message": "={{ $json.errorMessage }}",
+            "latency_seconds": "={{ $json.latencySeconds }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "node-append-report-sheet",
+      "name": "Append to Monthly Report Tab",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        860,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2": {
+          "id": "postpilot-google-service-account",
+          "name": "PostPilot Google Service Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"message\": \"Schedule row updated and report appended successfully.\"\n}",
+        "options": {}
+      },
+      "id": "node-respond-webhook",
+      "name": "Respond to Webhook (200 OK)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1080,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: /webhook/publish-result": {
+      "main": [
+        [
+          {
+            "node": "Verify HMAC & Replay Window",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify HMAC & Replay Window": {
+      "main": [
+        [
+          {
+            "node": "Update Schedule Sheet Row (M:S)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Schedule Sheet Row (M:S)": {
+      "main": [
+        [
+          {
+            "node": "Append to Monthly Report Tab",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append to Monthly Report Tab": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook (200 OK)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

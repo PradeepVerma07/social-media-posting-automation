@@ -1,0 +1,195 @@
+{
+  "name": "WF-04 Sheet \u2194 DB Sync (5-Minute Bi-directional)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "node-trigger-5m",
+      "name": "Every 5 Minutes Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.API_URL || 'http://api:4000' }}/api/v1/brands/active-with-sheets",
+        "method": "GET",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.POSTPILOT_API_KEY || 'pp_live_secret_n8n_scheduler_api_key_123456' }}"
+            }
+          ]
+        },
+        "sendHeaders": true
+      },
+      "id": "node-get-brands",
+      "name": "Fetch Brands & Sheet Config",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "node-batch-sync",
+      "name": "Iterate Brands for Sync",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $json.sheetConfig.scheduleSpreadsheetId }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.sheetConfig.scheduleSheetName || 'Schedule' }}",
+          "mode": "name"
+        },
+        "range": "A2:S",
+        "options": {
+          "dataMode": "autoMap"
+        }
+      },
+      "id": "node-read-sheet-rows",
+      "name": "Read Schedule Rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        860,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2": {
+          "id": "postpilot-google-service-account",
+          "name": "PostPilot Google Service Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Compute row-level hash to detect modifications and prevent sync loops\nconst crypto = require('crypto');\n\nconst brand = $('Iterate Brands for Sync').item.json;\nconst rows = $input.all();\nconst validRowsToSync = [];\n\nfor (const r of rows) {\n  const row = r.json;\n  // Ignore system-written edits to prevent circular sync loops\n  if (row.last_updated_by === 'system') continue;\n\n  const rawString = `${row.post_id}|${row.caption}|${row.scheduled_date}|${row.scheduled_time}|${row.status}`;\n  const checksum = crypto.createHash('sha256').update(rawString).digest('hex').substring(0, 16);\n\n  validRowsToSync.push({\n    json: {\n      ...row,\n      brand_id: brand.id,\n      client_name: brand.name,\n      checksum\n    }\n  });\n}\n\nreturn validRowsToSync;"
+      },
+      "id": "node-checksum-filter",
+      "name": "Checksum & Loop Prevention Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.API_URL || 'http://api:4000' }}/api/v1/posts/bulk-import",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"rows\": {{ JSON.stringify($input.all().map(i => i.json)) }}\n}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.POSTPILOT_API_KEY || 'pp_live_secret_n8n_scheduler_api_key_123456' }}"
+            }
+          ]
+        },
+        "sendHeaders": true
+      },
+      "id": "node-sync-to-postgres",
+      "name": "Sync Modified Rows to Postgres",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Brands & Sheet Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Brands & Sheet Config": {
+      "main": [
+        [
+          {
+            "node": "Iterate Brands for Sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Iterate Brands for Sync": {
+      "main": [
+        [
+          {
+            "node": "Read Schedule Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Schedule Rows": {
+      "main": [
+        [
+          {
+            "node": "Checksum & Loop Prevention Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Checksum & Loop Prevention Filter": {
+      "main": [
+        [
+          {
+            "node": "Sync Modified Rows to Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

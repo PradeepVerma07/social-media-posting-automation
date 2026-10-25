@@ -1,0 +1,279 @@
+{
+  "name": "Social Media Automation Hub - Error Handler & Crash Recovery",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "8a1d2e02-4e3a-4a7f-9988-223344556601",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "sheetId": "={{ $vars.GOOGLE_SHEET_ID || \"1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890\" }}",
+        "sheetName": "Posts",
+        "options": {}
+      },
+      "id": "8a1d2e02-4e3a-4a7f-9988-223344556602",
+      "name": "Sheet - Read Posts for Locked Rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -380,
+        200
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_master_oauth2",
+          "name": "Google Sheets Production Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Identify rows locked by the crashed execution\nconst errorInfo = $('Error Trigger').first().json;\nconst posts = $input.all().map(i => i.json);\nconst crashedExecutionId = errorInfo.execution?.id;\n\nconst lockedPosts = [];\nfor (const p of posts) {\n  if (String(p.locked_by_execution) === String(crashedExecutionId) || (p.status === 'Processing' && !p.posted_at)) {\n    const attempts = parseInt(p.attempt_count || '0', 10);\n    const maxRetries = 3;\n    const nextStatus = attempts + 1 >= maxRetries ? 'Failed' : 'Retrying';\n    lockedPosts.push({\n      ...p,\n      crashedExecutionId,\n      errorNodeName: errorInfo.node?.name || 'Unknown Node',\n      errorMessage: errorInfo.execution?.error?.message || 'Workflow crashed unexpectedly during processing.',\n      nextStatus,\n      attempt_count: attempts + 1\n    });\n  }\n}\n\nreturn lockedPosts.map(p => ({ json: p }));"
+      },
+      "id": "8a1d2e02-4e3a-4a7f-9988-223344556603",
+      "name": "Identify & Unlock Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "sheetId": "={{ $vars.GOOGLE_SHEET_ID || \"1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890\" }}",
+        "sheetName": "Posts",
+        "columnToMatchOn": "post_id",
+        "valueToMatchOn": "={{ $json.post_id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "={{ $json.nextStatus }}"
+            },
+            {
+              "fieldId": "attempt_count",
+              "fieldValue": "={{ $json.attempt_count }}"
+            },
+            {
+              "fieldId": "error_code",
+              "fieldValue": "CRASH_RECOVERED"
+            },
+            {
+              "fieldId": "error_message",
+              "fieldValue": "={{ \"Execution #\" + $json.crashedExecutionId + \" crashed at node \" + $json.errorNodeName + \": \" + $json.errorMessage }}"
+            },
+            {
+              "fieldId": "locked_by_execution",
+              "fieldValue": ""
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8a1d2e02-4e3a-4a7f-9988-223344556604",
+      "name": "Sheet - Reset Locked Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        60,
+        200
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_master_oauth2",
+          "name": "Google Sheets Production Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "={{ $vars.GOOGLE_SHEET_ID || \"1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890\" }}",
+        "sheetName": "Logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "timestamp_utc",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "execution_id",
+              "fieldValue": "={{ $json.crashedExecutionId }}"
+            },
+            {
+              "fieldId": "post_id",
+              "fieldValue": "={{ $json.post_id }}"
+            },
+            {
+              "fieldId": "brand_name",
+              "fieldValue": "={{ $json.brand_name }}"
+            },
+            {
+              "fieldId": "platform",
+              "fieldValue": "={{ $json.platform }}"
+            },
+            {
+              "fieldId": "action",
+              "fieldValue": "ERROR_WORKFLOW_RECOVERY"
+            },
+            {
+              "fieldId": "result",
+              "fieldValue": "RECOVERED"
+            },
+            {
+              "fieldId": "http_status",
+              "fieldValue": 500
+            },
+            {
+              "fieldId": "response_summary",
+              "fieldValue": "={{ \"Unlocked row from crashed execution #\" + $json.crashedExecutionId }}"
+            },
+            {
+              "fieldId": "error_message",
+              "fieldValue": "={{ $json.errorMessage }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8a1d2e02-4e3a-4a7f-9988-223344556605",
+      "name": "Sheet - Append Recovery Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        280,
+        200
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_master_oauth2",
+          "name": "Google Sheets Production Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SLACK_ALERT_WEBHOOK || \"https://hooks.slack.com/services/DUMMY/CRASH/WEBHOOK\" }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: \"\ud83d\udea8 *n8n Social Media Workflow Crash Detected!*\\n\u2022 *Execution ID*: \" + $json.crashedExecutionId + \"\\n\u2022 *Failing Node*: \" + $json.errorNodeName + \"\\n\u2022 *Error*: \" + $json.errorMessage + \"\\n\u2022 *Action Taken*: Unlocked Post #\" + $json.post_id + \" and reset status to \" + $json.nextStatus + \".\" }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "8a1d2e02-4e3a-4a7f-9988-223344556606",
+      "name": "Slack - Alert Crash Incident",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Error Workflow Recovery Engine\nCatches unhandled runtime crashes or server restarts. Finds any rows stuck in \"Processing\" locked by the crashed execution ID and safely releases the lock to \"Retrying\" or \"Failed\" to avoid zombie locks.",
+        "height": 240,
+        "width": 1140,
+        "color": 3
+      },
+      "id": "8a1d2e02-4e3a-4a7f-9988-223344556690",
+      "name": "Sticky Note - Error Workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Sheet - Read Posts for Locked Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet - Read Posts for Locked Rows": {
+      "main": [
+        [
+          {
+            "node": "Identify & Unlock Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Identify & Unlock Rows": {
+      "main": [
+        [
+          {
+            "node": "Sheet - Reset Locked Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet - Reset Locked Row": {
+      "main": [
+        [
+          {
+            "node": "Sheet - Append Recovery Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet - Append Recovery Log": {
+      "main": [
+        [
+          {
+            "node": "Slack - Alert Crash Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

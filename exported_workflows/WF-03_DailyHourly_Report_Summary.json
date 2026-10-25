@@ -1,0 +1,144 @@
+{
+  "name": "WF-03 Daily/Hourly Report Summary",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "node-trigger-hourly",
+      "name": "Hourly Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.API_URL || 'http://api:4000' }}/api/v1/reports/summary",
+        "method": "GET",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.POSTPILOT_API_KEY || 'pp_live_secret_n8n_scheduler_api_key_123456' }}"
+            }
+          ]
+        },
+        "sendHeaders": true
+      },
+      "id": "node-get-summary-metrics",
+      "name": "GET /api/v1/reports/summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Transform summary aggregations for Google Sheets Summary tab\nconst metrics = $input.first().json.data;\n\nreturn [\n  {\n    json: {\n      brand_name: metrics.brandName || 'All Brands',\n      total_scheduled: metrics.totalScheduled || 0,\n      total_published: metrics.totalPublished || 0,\n      total_failed: metrics.totalFailed || 0,\n      success_rate_percent: `${(metrics.successRate || 100).toFixed(1)}%`,\n      avg_latency_seconds: (metrics.avgLatencySeconds || 0).toFixed(2),\n      last_refreshed_utc: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "id": "node-format-summary",
+      "name": "Format Summary Tab Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $json.reportSpreadsheetId }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Summary",
+          "mode": "name"
+        },
+        "range": "A2:G2",
+        "options": {
+          "valueInputMode": "RAW"
+        },
+        "values": [
+          [
+            "={{ $json.brand_name }}",
+            "={{ $json.total_scheduled }}",
+            "={{ $json.total_published }}",
+            "={{ $json.total_failed }}",
+            "={{ $json.success_rate_percent }}",
+            "={{ $json.avg_latency_seconds }}",
+            "={{ $json.last_refreshed_utc }}"
+          ]
+        ]
+      },
+      "id": "node-update-summary-sheet",
+      "name": "Write to Summary Tab in Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        860,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2": {
+          "id": "postpilot-google-service-account",
+          "name": "PostPilot Google Service Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Hourly Trigger": {
+      "main": [
+        [
+          {
+            "node": "GET /api/v1/reports/summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET /api/v1/reports/summary": {
+      "main": [
+        [
+          {
+            "node": "Format Summary Tab Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Summary Tab Data": {
+      "main": [
+        [
+          {
+            "node": "Write to Summary Tab in Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
