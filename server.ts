@@ -10,6 +10,7 @@ const PORT = Number(process.env.PORT) || 3000;
 
 async function startServer() {
   const possibleDistPaths = [
+    path.resolve(process.cwd()),
     path.resolve(process.cwd(), 'dist'),
     path.resolve(process.cwd(), 'server', 'dist', 'public'),
     path.resolve(process.cwd(), 'public_html'),

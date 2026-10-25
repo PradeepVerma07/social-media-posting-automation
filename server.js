@@ -4740,6 +4740,7 @@ var mySQLSyncService = new MySQLSyncService();
 var PORT = Number(process.env.PORT) || 3e3;
 async function startServer() {
   const possibleDistPaths = [
+    path6.resolve(process.cwd()),
     path6.resolve(process.cwd(), "dist"),
     path6.resolve(process.cwd(), "server", "dist", "public"),
     path6.resolve(process.cwd(), "public_html")
