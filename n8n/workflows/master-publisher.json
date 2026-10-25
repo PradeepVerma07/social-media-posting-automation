@@ -1,0 +1,356 @@
+{
+  "name": "Social Media Automation Hub - Main Scheduler & Multi-Platform Publisher",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "node-sched-trigger",
+      "name": "Schedule Trigger (1-Min Cron)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "schedule-post",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-webhook-trigger",
+      "name": "Webhook Trigger (Publish Now)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 500],
+      "webhookId": "schedule-post"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"accepted\",\"message\":\"Claim dispatched immediately\"}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "node-respond-webhook",
+      "name": "Respond 202 Immediately",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [320, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const executionId = String($execution.id);\nconst targetIds = $json.body?.target_ids || [];\nreturn [{ json: { execution_id: executionId, target_ids: targetIds, limit: 10 } }];"
+      },
+      "id": "node-build-claim-payload",
+      "name": "Build Claim Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [340, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BACKEND_INTERNAL_URL || 'http://localhost:3000' }}/internal/jobs/claim",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 15000,
+          "retry": {
+            "retries": 3
+          }
+        }
+      },
+      "id": "node-claim-jobs",
+      "name": "Claim Due Jobs (Atomic DB Lock)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [560, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-has-jobs",
+              "leftValue": "={{ ($json.jobs || []).length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "node-if-jobs",
+      "name": "IF Jobs Found",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "jobs",
+        "options": {}
+      },
+      "id": "node-split-jobs",
+      "name": "Split Jobs",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [1000, 260]
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "id": "node-loop-items",
+      "name": "Loop Over Jobs (Batch 1)",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1220, 260]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BACKEND_INTERNAL_URL || 'http://localhost:3000' }}/internal/n8n/callback",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ target_id: $json.target_id, execution_id: String($execution.id), stage: 'publishing' }) }}",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "node-report-publishing",
+      "name": "Report Stage (Publishing)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 260]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.BACKEND_INTERNAL_URL || 'http://localhost:3000' }}/internal/accounts/{{ $('Loop Over Jobs (Batch 1)').item.json.account_id }}/token",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "node-get-account-token",
+      "name": "Get Account Token Vault",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1660, 260]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v21.0/{{ $('Loop Over Jobs (Batch 1)').item.json.external_id }}/photos",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ url: $('Loop Over Jobs (Batch 1)').item.json.media_urls[0], caption: $('Loop Over Jobs (Batch 1)').item.json.caption, access_token: $json.access_token }) }}",
+        "options": {
+          "onError": "continueErrorOutput"
+        }
+      },
+      "id": "node-publish-meta-photo",
+      "name": "Meta Graph API (Publish Photo)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1880, 260]
+    },
+    {
+      "parameters": {
+        "jsCode": "const loopItem = $('Loop Over Jobs (Batch 1)').item.json;\nconst tokenData = $('Get Account Token Vault').item.json;\nconst metaRes = $json;\n\n// Check if error output\nif (metaRes.error || metaRes.statusCode >= 400) {\n  const err = metaRes.error || metaRes;\n  return [{\n    json: {\n      target_id: loopItem.target_id,\n      execution_id: String($execution.id),\n      stage: 'failed',\n      error_code: err.code || 500,\n      error_subcode: err.error_subcode || 0,\n      http_status: metaRes.statusCode || 500,\n      error_message: err.message || JSON.stringify(err)\n    }\n  }];\n}\n\n// Succeeded!\nconst postId = metaRes.post_id || metaRes.id;\nconst permalink = `https://facebook.com/${postId}`;\n\nreturn [{\n  json: {\n    target_id: loopItem.target_id,\n    execution_id: String($execution.id),\n    stage: 'succeeded',\n    platform_post_id: postId,\n    post_url: permalink\n  }\n}];"
+      },
+      "id": "node-normalize-result",
+      "name": "Normalize Result (Strip Token)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2100, 260]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BACKEND_INTERNAL_URL || 'http://localhost:3000' }}/internal/n8n/callback",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 10000,
+          "retry": {
+            "retries": 5
+          }
+        }
+      },
+      "id": "node-report-result",
+      "name": "Report Final Result (Signed)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2320, 260]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (1-Min Cron)": {
+      "main": [
+        [
+          {
+            "node": "Build Claim Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger (Publish Now)": {
+      "main": [
+        [
+          {
+            "node": "Respond 202 Immediately",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Claim Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Claim Payload": {
+      "main": [
+        [
+          {
+            "node": "Claim Due Jobs (Atomic DB Lock)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim Due Jobs (Atomic DB Lock)": {
+      "main": [
+        [
+          {
+            "node": "IF Jobs Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Jobs Found": {
+      "main": [
+        [
+          {
+            "node": "Split Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Jobs": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Jobs (Batch 1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Jobs (Batch 1)": {
+      "main": [
+        [
+          {
+            "node": "Report Stage (Publishing)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report Stage (Publishing)": {
+      "main": [
+        [
+          {
+            "node": "Get Account Token Vault",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Account Token Vault": {
+      "main": [
+        [
+          {
+            "node": "Meta Graph API (Publish Photo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Meta Graph API (Publish Photo)": {
+      "main": [
+        [
+          {
+            "node": "Normalize Result (Strip Token)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Result (Strip Token)": {
+      "main": [
+        [
+          {
+            "node": "Report Final Result (Signed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report Final Result (Signed)": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Jobs (Batch 1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Kolkata",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "executionTimeout": 300
+  },
+  "id": "Utaz0U82aZQZ7uHF"
+}

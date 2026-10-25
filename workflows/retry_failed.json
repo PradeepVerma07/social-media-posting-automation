@@ -1,0 +1,274 @@
+{
+  "name": "Social Media Automation Hub - Retry Failed Posts",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "7b1d3f03-3e4a-4a8f-9988-334455667701",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "path": "retry-posts",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "allEntries",
+        "options": {}
+      },
+      "id": "7b1d3f03-3e4a-4a8f-9988-334455667702",
+      "name": "Webhook - Manual or API Retry",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -600,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "sheetId": "={{ $vars.GOOGLE_SHEET_ID || \"1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890\" }}",
+        "sheetName": "Posts",
+        "options": {}
+      },
+      "id": "7b1d3f03-3e4a-4a8f-9988-334455667703",
+      "name": "Sheet - Read Failed Posts",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -340,
+        250
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_master_oauth2",
+          "name": "Google Sheets Production Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter posts to retry based on webhook input or default retryable error criteria\nconst posts = $input.all().map(i => i.json);\nlet filterPostIds = [];\n\ntry {\n  const webhookData = $('Webhook - Manual or API Retry').first()?.json?.body;\n  if (webhookData && webhookData.post_ids && Array.isArray(webhookData.post_ids)) {\n    filterPostIds = webhookData.post_ids.map(String);\n  }\n} catch (e) {\n  // Manual trigger run\n}\n\nconst retryableErrors = ['RATE_LIMIT', 'PLATFORM_ERROR', 'CRASH_RECOVERED', 'TIMEOUT', 'UNKNOWN'];\nconst postsToRequeue = [];\n\nfor (const post of posts) {\n  const postId = String(post.post_id);\n  const status = String(post.status || '').trim();\n  const errorCode = String(post.error_code || '').trim();\n\n  // If specific post IDs were requested via webhook\n  if (filterPostIds.length > 0) {\n    if (filterPostIds.includes(postId)) {\n      postsToRequeue.push({\n        ...post,\n        requeueReason: 'MANUAL_TARGETED_RETRY'\n      });\n    }\n  } else {\n    // Default bulk retry: all Failed posts with transient/retryable error codes\n    if (status === 'Failed' && retryableErrors.includes(errorCode)) {\n      postsToRequeue.push({\n        ...post,\n        requeueReason: `AUTO_TRANSIENT_RETRY (${errorCode})`\n      });\n    }\n  }\n}\n\nreturn postsToRequeue.map(p => ({ json: p }));"
+      },
+      "id": "7b1d3f03-3e4a-4a8f-9988-334455667704",
+      "name": "Filter Eligible Posts to Requeue",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -100,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "sheetId": "={{ $vars.GOOGLE_SHEET_ID || \"1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890\" }}",
+        "sheetName": "Posts",
+        "columnToMatchOn": "post_id",
+        "valueToMatchOn": "={{ $json.post_id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "Scheduled"
+            },
+            {
+              "fieldId": "attempt_count",
+              "fieldValue": 0
+            },
+            {
+              "fieldId": "error_code",
+              "fieldValue": ""
+            },
+            {
+              "fieldId": "error_message",
+              "fieldValue": "={{ \"Requeued for publishing: \" + $json.requeueReason }}"
+            },
+            {
+              "fieldId": "locked_by_execution",
+              "fieldValue": ""
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7b1d3f03-3e4a-4a8f-9988-334455667705",
+      "name": "Sheet - Reset to Scheduled",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        140,
+        250
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_master_oauth2",
+          "name": "Google Sheets Production Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "={{ $vars.GOOGLE_SHEET_ID || \"1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890\" }}",
+        "sheetName": "Logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "timestamp_utc",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "execution_id",
+              "fieldValue": "={{ $execution.id }}"
+            },
+            {
+              "fieldId": "post_id",
+              "fieldValue": "={{ $json.post_id }}"
+            },
+            {
+              "fieldId": "brand_name",
+              "fieldValue": "={{ $json.brand_name }}"
+            },
+            {
+              "fieldId": "platform",
+              "fieldValue": "={{ $json.platform }}"
+            },
+            {
+              "fieldId": "action",
+              "fieldValue": "MANUAL_RETRY_REQUEUE"
+            },
+            {
+              "fieldId": "result",
+              "fieldValue": "REQUEUED"
+            },
+            {
+              "fieldId": "http_status",
+              "fieldValue": 200
+            },
+            {
+              "fieldId": "response_summary",
+              "fieldValue": "={{ \"Reset post status to Scheduled: \" + $json.requeueReason }}"
+            },
+            {
+              "fieldId": "error_message",
+              "fieldValue": ""
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7b1d3f03-3e4a-4a8f-9988-334455667706",
+      "name": "Sheet - Append Retry Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        380,
+        250
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_master_oauth2",
+          "name": "Google Sheets Production Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Retry Failed Posts Workflow\nProvides manual or webhook-triggered requeuing of posts back to \"Scheduled\" status with attempt_count reset to 0. Supports targeted post_ids or bulk transient error recovery.",
+        "height": 220,
+        "width": 1040,
+        "color": 2
+      },
+      "id": "7b1d3f03-3e4a-4a8f-9988-334455667790",
+      "name": "Sticky Note - Retry Workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        50
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Sheet - Read Failed Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Manual or API Retry": {
+      "main": [
+        [
+          {
+            "node": "Sheet - Read Failed Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet - Read Failed Posts": {
+      "main": [
+        [
+          {
+            "node": "Filter Eligible Posts to Requeue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Eligible Posts to Requeue": {
+      "main": [
+        [
+          {
+            "node": "Sheet - Reset to Scheduled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet - Reset to Scheduled": {
+      "main": [
+        [
+          {
+            "node": "Sheet - Append Retry Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "Retry"
+    },
+    {
+      "name": "Ops Tools"
+    },
+    {
+      "name": "Production"
+    }
+  ]
+}

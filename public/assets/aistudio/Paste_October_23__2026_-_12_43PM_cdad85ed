@@ -1,0 +1,1246 @@
+Act as a senior full-stack architect, React developer, Node.js developer, UI/UX designer, database engineer, DevOps engineer, and n8n automation specialist.
+
+Build a complete, production-ready social-media automation dashboard named:
+
+CI360 AUTOMATION HUB
+
+The dashboard must connect securely to existing n8n workflows and allow users to create, approve, schedule, monitor, and report social-media posts from one interface.
+
+IMPORTANT RULES
+
+1. Do not recreate n8n’s visual workflow editor.
+2. The dashboard must control n8n using:
+   - Production webhook URLs for business actions
+   - n8n REST API for workflows and executions
+3. Never expose the n8n API key, webhook secret, database credentials, or platform access tokens in React.
+4. All protected communication must pass through the Node.js backend.
+5. Do not hardcode mock data in production pages.
+6. Use a real MySQL database.
+7. Build responsive layouts for desktop, tablet, and mobile.
+8. Use only open-source packages unless clearly documented.
+9. Preserve clean separation between frontend, backend, database, and n8n integrations.
+10. Generate the complete project, not only a UI demonstration.
+
+==================================================
+1. TECHNOLOGY STACK
+==================================================
+
+Frontend:
+- React 19
+- Vite
+- TypeScript
+- React Router
+- Tailwind CSS
+- shadcn/ui
+- TanStack Query
+- React Hook Form
+- Zod validation
+- Recharts
+- Lucide React icons
+- Socket.IO Client
+- date-fns
+- Axios or Fetch wrapper
+
+Backend:
+- Node.js
+- Express.js
+- TypeScript
+- MySQL 8
+- mysql2 connection pool
+- Socket.IO
+- JWT access and refresh tokens
+- HTTP-only secure cookies
+- Argon2id password hashing
+- Zod request validation
+- Helmet
+- CORS
+- Express Rate Limit
+- Pino structured logging
+- Multer for controlled uploads
+- Nodemailer for alerts
+- node-cron only for dashboard maintenance tasks, not social posting
+
+Automation:
+- Existing self-hosted n8n instance
+- n8n production webhooks
+- n8n REST API
+- Google Sheets integration
+- Email approval integration
+- Social-platform nodes or API requests inside n8n
+
+Hosting target:
+- React and Node.js Web App on Hostinger
+- Hostinger MySQL database
+- HTTPS domain
+- n8n may be hosted separately on a VPS or supported Node environment
+
+==================================================
+2. PROJECT ARCHITECTURE
+==================================================
+
+Create a monorepo:
+
+ci360-automation-hub/
+  client/
+  server/
+  database/
+  docs/
+  .env.example
+  package.json
+  README.md
+
+Frontend structure:
+
+client/src/
+  api/
+  assets/
+  components/
+  features/
+    auth/
+    dashboard/
+    posts/
+    approvals/
+    calendar/
+    brands/
+    accounts/
+    workflows/
+    executions/
+    reports/
+    notifications/
+    settings/
+  hooks/
+  layouts/
+  pages/
+  routes/
+  schemas/
+  stores/
+  styles/
+  types/
+  utils/
+
+Backend structure:
+
+server/src/
+  config/
+  controllers/
+  middleware/
+  routes/
+  services/
+    auth/
+    n8n/
+    posts/
+    approvals/
+    reports/
+    notifications/
+  repositories/
+  sockets/
+  jobs/
+  validators/
+  utils/
+  types/
+  app.ts
+  server.ts
+
+Use feature-based modules and reusable components. Avoid oversized files and duplicate logic.
+
+==================================================
+3. USER ROLES AND PERMISSIONS
+==================================================
+
+Create role-based access control.
+
+Super Admin:
+- Full system access
+- Manage users, roles, brands, accounts, workflows and settings
+- View security and audit logs
+- Activate or deactivate integrations
+
+Admin:
+- Manage brands and team members
+- Create and schedule posts
+- Approve or reject content
+- View all executions and reports
+- Retry failed jobs
+
+Content Manager:
+- Create and edit posts
+- Upload media
+- Generate or revise captions
+- Submit posts for approval
+- View assigned brands
+
+Approver:
+- View pending posts
+- Approve, reject or request revision
+- Add approval comments
+- View previous versions
+
+Analyst:
+- Read-only access to analytics, reports and execution history
+
+Client:
+- View only assigned brands
+- Review and approve assigned content
+- Cannot view credentials, other brands or system settings
+
+Every backend route must enforce authentication and permission checks.
+
+==================================================
+4. AUTHENTICATION
+==================================================
+
+Create:
+
+- Login using email and password
+- Forgot-password flow
+- Secure password-reset token
+- Access token with a short expiration
+- Refresh token rotation
+- HTTP-only, Secure and SameSite cookies
+- Logout from current device
+- Logout from all devices
+- Account lockout after repeated failed attempts
+- Optional two-factor-authentication-ready architecture
+- Session list with device and last activity
+- Audit trail for login, logout and password changes
+
+Never store JWT tokens in localStorage.
+
+==================================================
+5. APPLICATION LAYOUT
+==================================================
+
+Create a premium SaaS dashboard.
+
+Visual direction:
+- Professional digital-agency dashboard
+- Font: Poppins
+- Background: #F6F8FC
+- Main text: #101828
+- Muted text: #667085
+- Primary blue: #1336E8
+- Cyan accent: #08C5E1
+- Success: #12B76A
+- Warning: #F79009
+- Error: #F04438
+- White cards
+- Subtle borders and shadows
+- Rounded corners between 12px and 18px
+- Clear spacing and strong information hierarchy
+
+Desktop:
+- Collapsible left sidebar
+- Sticky top header
+- Main workspace
+- Optional right-side activity drawer
+
+Mobile:
+- Compact top header
+- Drawer navigation
+- Bottom navigation for Dashboard, Calendar, Create, Approvals and More
+- Touch targets at least 44px
+- Tables change into readable cards
+
+Sidebar navigation:
+- Overview
+- Content
+- Content Calendar
+- Create Post
+- Approval Queue
+- Published Posts
+- Brands
+- Social Accounts
+- Automations
+- Workflow Executions
+- Analytics
+- Reports
+- Notifications
+- Team
+- Audit Logs
+- Settings
+
+Header:
+- Global search
+- Brand selector
+- Date-range selector
+- n8n connection indicator
+- Notification bell
+- User profile menu
+
+==================================================
+6. OVERVIEW DASHBOARD
+==================================================
+
+Add KPI cards:
+
+- Posts scheduled
+- Posts published
+- Pending approvals
+- Rejected posts
+- Failed automations
+- Active workflows
+- Connected platforms
+- Total engagement
+
+Add widgets:
+
+- Publishing performance chart
+- Posts by platform
+- Approval status breakdown
+- Upcoming scheduled posts
+- Recent automation executions
+- Failed executions requiring attention
+- Recent team activity
+- Platform connection health
+- Best-performing content
+- Brand performance selector
+
+Filters:
+- Brand
+- Platform
+- Country
+- Date range
+- Post status
+
+Do not use fake analytics in production. Show useful empty states until data is available.
+
+==================================================
+7. CONTENT MANAGEMENT
+==================================================
+
+Create a central content table with:
+
+- Media thumbnail
+- Post title
+- Brand
+- Caption preview
+- Platform
+- Country/timezone
+- Scheduled date and time
+- Approval status
+- Publishing status
+- Assigned approver
+- Last updated
+- Actions menu
+
+Content statuses:
+
+- Draft
+- In Review
+- Revision Requested
+- Approved
+- Rejected
+- Scheduled
+- Processing
+- Published
+- Partially Published
+- Failed
+- Cancelled
+
+Actions:
+- View
+- Edit
+- Duplicate
+- Submit for approval
+- Approve
+- Reject
+- Request revision
+- Schedule
+- Publish now
+- Cancel schedule
+- Retry
+- Archive
+
+Include bulk actions with confirmation dialogs and authorization checks.
+
+==================================================
+8. CREATE POST SCREEN
+==================================================
+
+Create a multi-step post composer.
+
+Step 1: Brand and campaign
+- Brand
+- Campaign
+- Post title
+- Internal tags
+- Country
+- Timezone
+
+Step 2: Platform selection
+- LinkedIn
+- Facebook
+- Instagram
+- X
+- Optional future YouTube support
+
+Allow selecting multiple platforms.
+
+Step 3: Media
+- Upload image or video
+- Import Google Drive public/share link
+- Media preview
+- File validation
+- Image aspect-ratio information
+- Video duration and size
+- Alt text
+- Remove or replace media
+
+Step 4: Caption
+- Master caption
+- Platform-specific caption overrides
+- Hashtags
+- Discovery keywords
+- Link
+- First comment
+- Character counters
+- Emoji support
+- Preview for each platform
+
+Step 5: Schedule
+- Publish now
+- Select date and time
+- Timezone
+- Repeat disabled by default
+- Prevent past dates
+- Warn about schedule conflicts
+
+Step 6: Approval
+- Assign approver
+- Add internal note
+- Submit for approval or save as draft
+
+Use autosave with visible “Saved” status. Maintain version history for caption, media and schedule changes.
+
+==================================================
+9. WHATSAPP/INSTAGRAM-STYLE APPROVAL COMMENTS
+==================================================
+
+Inside each content item, create a chat-style discussion panel:
+
+- User avatars
+- Message bubbles
+- Timestamps
+- Read status
+- Typing indicator
+- Attachments
+- Mentions
+- Reply to message
+- Edit own recent comment
+- Delete according to permission
+- System messages for status changes
+- Real-time updates through Socket.IO
+
+This is an internal approval conversation, not a public social-media chat.
+
+==================================================
+10. APPROVAL SYSTEM
+==================================================
+
+Approval queue must include:
+
+- Pending review
+- Revision requested
+- Approved
+- Rejected
+- Overdue
+
+Approval detail page:
+- Full post preview
+- Master and platform-specific captions
+- Media preview
+- Schedule
+- Previous versions
+- Reviewer discussion
+- Approve button
+- Reject button requiring a reason
+- Request-revision button requiring comments
+- Reassign approver
+- Approval activity timeline
+
+Rules:
+- Only authorized users can approve
+- Approved content becomes locked
+- Editing approved content returns it to review
+- Every change must be recorded
+- Publishing requires final approval unless a Super Admin overrides it
+- All overrides must be audited
+
+Email approval links must use signed, expiring tokens. A user must authenticate before a final approval action.
+
+==================================================
+11. CONTENT CALENDAR
+==================================================
+
+Create:
+- Month view
+- Week view
+- Day view
+- Agenda view
+
+Calendar features:
+- Platform icons
+- Brand colours
+- Status colours
+- Drag-and-drop rescheduling
+- Confirmation before changing approved content
+- Click to open details
+- Quick-create action
+- Filter by brand, platform, country and status
+- Detect schedule collisions
+- Display time in the selected timezone
+
+Persist schedule changes to MySQL and then call the appropriate n8n webhook.
+
+==================================================
+12. N8N INTEGRATION
+==================================================
+
+Create a dedicated backend n8n service.
+
+Environment variables:
+
+N8N_BASE_URL=
+N8N_API_KEY=
+N8N_WEBHOOK_BASE_URL=
+N8N_WEBHOOK_SECRET=
+N8N_TIMEOUT_MS=15000
+
+Backend responsibilities:
+- Validate user permissions
+- Validate and sanitize webhook payloads
+- Attach webhook authentication
+- Set an idempotency key
+- Call n8n
+- Handle timeouts
+- Retry only safe operations
+- Store the external execution ID
+- Normalize n8n responses
+- Log success and failure safely
+- Never log secrets or tokens
+
+Create webhook mappings:
+
+POST /api/automations/create-post
+→ /webhook/ci360/create-post
+
+POST /api/automations/request-approval
+→ /webhook/ci360/request-approval
+
+POST /api/automations/revise-post
+→ /webhook/ci360/revise-post
+
+POST /api/automations/schedule-post
+→ /webhook/ci360/schedule-post
+
+POST /api/automations/publish-now
+→ /webhook/ci360/publish-now
+
+POST /api/automations/retry-publication
+→ /webhook/ci360/retry-publication
+
+POST /api/integrations/n8n/callback
+→ Receive secured n8n execution updates
+
+Each outbound request must contain:
+
+{
+  "requestId": "UUID",
+  "idempotencyKey": "UUID",
+  "postId": 123,
+  "brandId": 10,
+  "requestedBy": 7,
+  "timestamp": "ISO_DATE",
+  "data": {}
+}
+
+Secure webhooks using an HMAC SHA-256 signature and timestamp. Reject callbacks with an invalid signature or stale timestamp.
+
+==================================================
+13. N8N WORKFLOW BEHAVIOUR
+==================================================
+
+The primary workflow should:
+
+1. Receive a webhook request.
+2. Verify the secret/signature.
+3. Validate required fields.
+4. Retrieve the approved post.
+5. Confirm the post is still approved.
+6. Retrieve media securely.
+7. Prepare platform-specific payloads.
+8. Publish to every selected platform.
+9. Capture the response for each platform.
+10. Update the dashboard through a callback webhook.
+11. Write reporting information to MySQL or Google Sheets.
+12. Send success/failure notifications.
+13. Return an execution ID immediately for long-running jobs.
+
+Use one parent orchestration workflow and separate sub-workflows for:
+- LinkedIn publishing
+- Facebook publishing
+- Instagram publishing
+- X publishing
+- Email approval
+- Google Sheets synchronization
+- Reporting
+- Failure notification
+
+A failure on one platform must not erase successful results from other platforms. Save per-platform results.
+
+==================================================
+14. GOOGLE SHEETS INTEGRATION
+==================================================
+
+Support importing and synchronizing a planning sheet with columns:
+
+- external_id
+- post_url
+- media_url
+- brand
+- campaign
+- platform
+- country
+- timezone
+- schedule_time
+- caption
+- hashtags
+- keywords
+- approval_status
+- rejection_reason
+- publishing_status
+- published_url
+- execution_id
+- error_message
+- updated_at
+
+Requirements:
+- Avoid duplicate imports using external_id
+- Validate dates and required fields
+- Mark invalid rows
+- Sync dashboard changes safely
+- Keep MySQL as the application source of truth
+- Use Google Sheets as an import/export and collaboration channel
+- Record last synchronization time
+- Show row-level sync errors
+
+==================================================
+15. AUTOMATIONS PAGE
+==================================================
+
+Display:
+- Workflow name
+- n8n workflow ID
+- Active/inactive status
+- Last execution
+- Last result
+- Success rate
+- Average duration
+- Failure count
+- Associated brands
+- Available action
+
+Actions:
+- Execute supported workflow
+- View executions
+- Activate/deactivate if permitted
+- Open workflow in n8n
+- Test connection
+- Retry a failed execution
+
+Do not allow arbitrary workflow execution. Maintain an allowlist of dashboard-accessible workflow IDs.
+
+==================================================
+16. EXECUTION MONITORING
+==================================================
+
+Execution list:
+- Execution ID
+- Workflow
+- Post
+- Brand
+- Trigger type
+- Started time
+- Finished time
+- Duration
+- Status
+- Initiated by
+
+Statuses:
+- Queued
+- Running
+- Success
+- Partial Success
+- Failed
+- Cancelled
+
+Execution detail:
+- Sanitized input
+- Workflow progress timeline
+- Per-platform results
+- Published links
+- Error summary
+- Retry action
+- Related post
+- Raw JSON for administrators only
+
+Use Socket.IO to update execution status without refreshing the page.
+
+Do not expose credentials, request authorization headers, access tokens or sensitive node data.
+
+==================================================
+17. SOCIAL ACCOUNT MANAGEMENT
+==================================================
+
+Create a connection screen for:
+- LinkedIn
+- Facebook
+- Instagram
+- X
+
+Display:
+- Platform
+- Account/page name
+- Profile image
+- Connection status
+- Token expiry status
+- Last successful publication
+- Last error
+- Reconnect button
+- Disconnect button
+
+Store credentials encrypted at rest or keep them only inside n8n’s credentials manager. Prefer n8n credential management. Never return tokens to the browser.
+
+==================================================
+18. BRANDS MANAGEMENT
+==================================================
+
+Brand fields:
+- Name
+- Slug
+- Logo
+- Primary colour
+- Secondary colour
+- Timezone
+- Country
+- Default approver
+- Default hashtags
+- Default keywords
+- Connected social accounts
+- Active status
+
+Users must only see brands assigned to them unless they have global permission.
+
+==================================================
+19. ANALYTICS AND REPORTS
+==================================================
+
+Analytics:
+- Total published posts
+- Reach
+- Impressions
+- Engagement
+- Engagement rate
+- Likes
+- Comments
+- Shares
+- Saves
+- Clicks
+- Video views
+- Follower growth
+- Success/failure rate by platform
+- Approval turnaround time
+
+Filters:
+- Date range
+- Brand
+- Platform
+- Campaign
+- Country
+
+Reports:
+- Daily report
+- Weekly report
+- Monthly report
+- Brand report
+- Platform report
+- Automation-health report
+
+Allow exports:
+- CSV
+- XLSX
+- PDF
+
+Clearly label missing or unavailable platform metrics. Never manufacture performance figures.
+
+==================================================
+20. NOTIFICATIONS
+==================================================
+
+Create:
+- In-app notifications
+- Email notifications
+- Optional webhook notifications
+
+Events:
+- Post submitted
+- Approval requested
+- Post approved
+- Post rejected
+- Revision requested
+- Post scheduled
+- Post published
+- Partial failure
+- Complete failure
+- Token expiry warning
+- Workflow disconnected
+
+Support read/unread state and notification preferences.
+
+==================================================
+21. DATABASE SCHEMA
+==================================================
+
+Create migrations and indexes for:
+
+users
+roles
+permissions
+user_roles
+role_permissions
+refresh_tokens
+password_reset_tokens
+brands
+brand_users
+social_accounts
+campaigns
+posts
+post_platforms
+post_media
+post_versions
+post_comments
+post_approvals
+post_schedules
+workflow_mappings
+workflow_executions
+platform_publications
+analytics_snapshots
+notifications
+webhook_events
+idempotency_keys
+audit_logs
+app_settings
+
+Important relationships:
+- A post belongs to a brand.
+- A post can target multiple platforms.
+- A post can contain multiple media items.
+- Every edit creates a version.
+- Each platform publication has an independent result.
+- Every sensitive action creates an audit record.
+
+Add indexes for:
+- Email
+- Brand ID
+- Status
+- Scheduled time
+- Platform
+- External execution ID
+- Created date
+- Idempotency key
+
+Store all database timestamps in UTC. Convert them for display using the selected timezone.
+
+==================================================
+22. API ROUTES
+==================================================
+
+Create versioned routes under /api/v1.
+
+Authentication:
+POST /auth/login
+POST /auth/refresh
+POST /auth/logout
+POST /auth/forgot-password
+POST /auth/reset-password
+GET  /auth/me
+
+Posts:
+GET    /posts
+POST   /posts
+GET    /posts/:id
+PATCH  /posts/:id
+DELETE /posts/:id
+POST   /posts/:id/duplicate
+POST   /posts/:id/submit
+POST   /posts/:id/approve
+POST   /posts/:id/reject
+POST   /posts/:id/request-revision
+POST   /posts/:id/schedule
+POST   /posts/:id/publish
+POST   /posts/:id/retry
+GET    /posts/:id/versions
+GET    /posts/:id/comments
+POST   /posts/:id/comments
+
+Brands:
+GET    /brands
+POST   /brands
+GET    /brands/:id
+PATCH  /brands/:id
+DELETE /brands/:id
+
+Workflows:
+GET  /workflows
+GET  /workflows/:id
+POST /workflows/:id/execute
+POST /workflows/:id/activate
+POST /workflows/:id/deactivate
+GET  /workflows/:id/executions
+
+Executions:
+GET  /executions
+GET  /executions/:id
+POST /executions/:id/retry
+
+Reports:
+GET  /analytics/overview
+GET  /analytics/platforms
+GET  /analytics/content
+POST /reports/generate
+GET  /reports/:id/download
+
+Integrations:
+POST /integrations/google-sheets/import
+POST /integrations/google-sheets/sync
+POST /integrations/n8n/test
+POST /integrations/n8n/callback
+
+Use pagination, sorting, filtering and consistent response structures.
+
+==================================================
+23. SECURITY REQUIREMENTS
+==================================================
+
+Implement:
+- Argon2id password hashing
+- JWT rotation
+- HTTP-only cookies
+- CSRF protection where appropriate
+- Strict CORS allowlist
+- Helmet security headers
+- Rate limiting
+- Login-specific rate limiting
+- Request size limits
+- Zod validation
+- SQL parameterization
+- XSS-safe rendering
+- File MIME inspection
+- File size restrictions
+- Randomized upload names
+- Private upload directory
+- Signed media URLs
+- HMAC webhook verification
+- Replay-attack protection
+- Idempotency protection
+- Encrypted sensitive configuration
+- Audit logging
+- No secrets in frontend builds
+- No sensitive values in logs
+- Authorization on every resource
+- Brand-level tenant isolation
+
+Provide .env.example using placeholders only. Never commit actual secrets.
+
+==================================================
+24. RELIABILITY
+==================================================
+
+Implement:
+- MySQL connection pooling
+- Transactions for approval and scheduling operations
+- Idempotent publishing
+- Structured error handling
+- Request IDs
+- Graceful server shutdown
+- Health checks
+- Readiness checks
+- Automatic safe retries with exponential backoff
+- Dead-letter/failure tracking
+- Duplicate-publishing prevention
+- Partial-success handling
+- Pagination for large datasets
+
+Health endpoints:
+GET /health
+GET /ready
+
+==================================================
+25. PERFORMANCE AND ACCESSIBILITY
+==================================================
+
+Performance:
+- Route-based code splitting
+- Lazy loading
+- Optimized images
+- WebP/AVIF previews
+- Paginated tables
+- Debounced search
+- Query caching
+- Avoid unnecessary React renders
+- Database query indexes
+- Skeleton loading states
+
+Accessibility:
+- WCAG 2.2 AA target
+- Keyboard navigation
+- Visible focus states
+- Semantic HTML
+- Form labels and descriptions
+- Accessible dialogs
+- Sufficient colour contrast
+- Screen-reader status messages
+- Reduced-motion support
+
+==================================================
+26. TESTING
+==================================================
+
+Add:
+- Backend unit tests
+- API integration tests
+- Frontend component tests
+- Authentication tests
+- Permission tests
+- Approval-flow tests
+- Scheduling tests
+- Webhook-signature tests
+- Idempotency tests
+- n8n timeout/failure tests
+- End-to-end tests using Playwright
+
+Critical E2E flow:
+
+Login
+→ create post
+→ upload media
+→ select platforms
+→ submit for approval
+→ approve
+→ schedule
+→ trigger n8n
+→ receive callback
+→ show published/failed result
+→ view report
+
+==================================================
+27. ENVIRONMENT FILE
+==================================================
+
+Generate this .env.example:
+
+NODE_ENV=development
+PORT=3000
+CLIENT_URL=http://localhost:5173
+APP_URL=http://localhost:3000
+
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=ci360_automation
+DB_USER=
+DB_PASSWORD=
+DB_CONNECTION_LIMIT=5
+
+JWT_ACCESS_SECRET=
+JWT_REFRESH_SECRET=
+ACCESS_TOKEN_TTL=15m
+REFRESH_TOKEN_TTL=30d
+
+COOKIE_NAME=ci360_session
+COOKIE_SECURE=false
+COOKIE_SAME_SITE=lax
+
+N8N_BASE_URL=
+N8N_API_KEY=
+N8N_WEBHOOK_BASE_URL=
+N8N_WEBHOOK_SECRET=
+N8N_TIMEOUT_MS=15000
+
+UPLOAD_DIR=./data/private-uploads
+MAX_IMAGE_MB=8
+MAX_VIDEO_MB=50
+MAX_DOCUMENT_MB=15
+
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM=
+
+LOG_LEVEL=info
+
+==================================================
+28. HOSTINGER DEPLOYMENT
+==================================================
+
+Prepare deployment instructions for a Hostinger Node.js Web App:
+
+1. Build the React frontend.
+2. Serve client/dist from Express in production.
+3. Compile the server TypeScript into server/dist.
+4. Use the correct entry file:
+   server/dist/server.js
+5. Confirm server/tsconfig.json contains:
+
+{
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  }
+}
+
+6. Add scripts:
+
+"build": "npm run build -w client && npm run build -w server"
+"start": "node server/dist/server.js"
+
+7. Include:
+   - Environment import file
+   - MySQL import SQL
+   - Hostinger startup instructions
+   - Domain and HTTPS configuration
+   - SPA routing fallback
+   - Upload-directory permissions
+   - Production CORS configuration
+   - n8n callback URL configuration
+
+If persistent Socket.IO connections are unsupported by the selected shared-hosting plan, use short polling for dashboard execution updates or recommend moving the Node/n8n services to a VPS. Do not silently assume WebSocket support.
+
+==================================================
+29. REQUIRED DOCUMENTATION
+==================================================
+
+Create:
+
+README.md
+docs/INSTALLATION.md
+docs/HOSTINGER_DEPLOYMENT.md
+docs/N8N_SETUP.md
+docs/GOOGLE_SHEETS_SETUP.md
+docs/SOCIAL_ACCOUNT_SETUP.md
+docs/API.md
+docs/SECURITY.md
+docs/USER_GUIDE.md
+docs/TROUBLESHOOTING.md
+
+Explain:
+- Installation
+- Database migration
+- Creating the first admin
+- Connecting n8n
+- Mapping allowed workflows
+- Creating webhook secrets
+- Google OAuth setup
+- Social account connections
+- Hostinger deployment
+- Backup and recovery
+- Token renewal
+- Common errors
+
+==================================================
+30. DELIVERY REQUIREMENTS
+==================================================
+
+Deliver:
+- Complete working source code
+- React dashboard
+- Node.js API
+- MySQL schema and migrations
+- n8n integration layer
+- Seed script with a development admin only
+- Responsive UI
+- Test suite
+- Deployment instructions
+- Environment example
+- API documentation
+- No TypeScript errors
+- No broken imports
+- No hardcoded secrets
+- No placeholder buttons
+- No fake successful operations
+- No unfinished TODO items in critical flows
+
+Before declaring completion, run:
+
+npm install
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+
+Verify that:
+- client/dist exists
+- server/dist exists
+- server/dist/server.js exists
+- Production start command works
+- Login works
+- Permissions work
+- Post approval works
+- Schedule validation works
+- n8n test connection works
+- Webhook callback verification works
+- Execution statuses update correctly
+- No credentials appear in the browser bundle
+
+==================================================
+31. IMPLEMENTATION ORDER
+==================================================
+
+Build the application in these phases:
+
+Phase 1:
+- Project setup
+- Database
+- Authentication
+- Roles and permissions
+- Base dashboard layout
+
+Phase 2:
+- Brands
+- Users
+- Content creation
+- Media handling
+- Content calendar
+
+Phase 3:
+- Approval workflow
+- Version history
+- Comments
+- Notifications
+
+Phase 4:
+- n8n webhooks
+- n8n API
+- Workflow execution monitoring
+- Secure callbacks
+
+Phase 5:
+- Google Sheets synchronization
+- Social account status
+- Analytics and reports
+
+Phase 6:
+- Testing
+- Security review
+- Performance optimization
+- Hostinger deployment documentation
+
+At the end of every phase:
+1. Show created files.
+2. Explain database changes.
+3. List completed features.
+4. Run applicable tests.
+5. Fix all errors before continuing.
+6. Do not erase or overwrite completed working functionality.
+
+Start by inspecting the current repository. If it contains an existing project, document its structure and preserve any working configuration unless explicitly instructed to replace it. Then create a concise implementation plan and begin Phase 1.

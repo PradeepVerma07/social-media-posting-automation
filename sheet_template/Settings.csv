@@ -1,0 +1,12 @@
+key,value
+sheet_id,1t4TsrPeKjI5FKM5u1oByldtfhpzDN_iRm1mD7zOr31A
+max_retries,3
+retry_delay_minutes,15
+poll_interval_minutes,5
+missed_window_hours,24
+alert_email,pradeepofficial8795@gmail.com
+slack_webhook,
+facebook_page_id,1454740611044963
+facebook_page_name,Flower plant
+instagram_business_id,17841439037630316
+instagram_handle,ciflow904

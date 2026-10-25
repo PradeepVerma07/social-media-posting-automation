@@ -1,0 +1,1832 @@
+{
+  "name": "Social Media Automation Hub - Main Scheduler & Multi-Platform Publisher",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445501",
+      "name": "Schedule Trigger (Every 5 Min)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "sheetId": "={{ $vars.GOOGLE_SHEET_ID || \"1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890\" }}",
+        "sheetName": "Settings",
+        "options": {}
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445502",
+      "name": "Sheet - Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -780,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_master_oauth2",
+          "name": "Google Sheets Production Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Settings key-value pairs into a global config object\nconst items = $input.all();\nconst config = {\n  max_retries: 3,\n  retry_delay_minutes: 15,\n  poll_interval_minutes: 5,\n  missed_window_hours: 24,\n  alert_email: 'ops-alerts@agency.internal',\n  slack_webhook: '',\n  rate_limit_wait_seconds: 2,\n};\n\nfor (const item of items) {\n  const row = item.json;\n  if (row.key && row.value !== undefined) {\n    const key = String(row.key).trim();\n    const val = String(row.value).trim();\n    if (['max_retries', 'retry_delay_minutes', 'poll_interval_minutes', 'missed_window_hours', 'rate_limit_wait_seconds'].includes(key)) {\n      config[key] = parseInt(val, 10) || config[key];\n    } else {\n      config[key] = val;\n    }\n  }\n}\n\nreturn [{ json: { config } }];"
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445503",
+      "name": "Parse Settings Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -560,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "sheetId": "={{ $vars.GOOGLE_SHEET_ID || \"1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890\" }}",
+        "sheetName": "Posts",
+        "options": {}
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445504",
+      "name": "Sheet - Read Posts",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -340,
+        160
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_master_oauth2",
+          "name": "Google Sheets Production Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "sheetId": "={{ $vars.GOOGLE_SHEET_ID || \"1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890\" }}",
+        "sheetName": "Brands",
+        "options": {}
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445505",
+      "name": "Sheet - Read Brands",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -340,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_master_oauth2",
+          "name": "Google Sheets Production Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "sheetId": "={{ $vars.GOOGLE_SHEET_ID || \"1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890\" }}",
+        "sheetName": "Clients",
+        "options": {}
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445506",
+      "name": "Sheet - Read Clients",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -340,
+        440
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_master_oauth2",
+          "name": "Google Sheets Production Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "sheetId": "={{ $vars.GOOGLE_SHEET_ID || \"1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890\" }}",
+        "sheetName": "Social_Accounts",
+        "options": {}
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445507",
+      "name": "Sheet - Read Social Accounts",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -340,
+        580
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_master_oauth2",
+          "name": "Google Sheets Production Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Bulletproof Timezone Converter & Due Filter\nlet config = { max_retries: 3, retry_delay_minutes: 15, missed_window_hours: 24 };\ntry { config = $('Parse Settings Config').first().json.config || config; } catch (e) {}\n\nlet postItems = [];\ntry { postItems = $('Sheet - Read Posts').all().map(i => i.json); } catch (e) {\n  try { postItems = $input.all().map(i => i.json); } catch (err) { postItems = []; }\n}\n\nlet brandItems = [];\ntry { brandItems = $('Sheet - Read Brands').all().map(i => i.json); } catch (e) { brandItems = []; }\n\nlet clientItems = [];\ntry { clientItems = $('Sheet - Read Clients').all().map(i => i.json); } catch (e) { clientItems = []; }\n\nlet accountItems = [];\ntry { accountItems = $('Sheet - Read Social Accounts').all().map(i => i.json); } catch (e) { accountItems = []; }\n\nfunction parseToUtc(dateStr, timeStr, tz) {\n  const [y, m, d] = String(dateStr).split('-').map(Number);\n  const [hh, mm] = String(timeStr).split(':').map(Number);\n  const testDate = new Date(Date.UTC(y, m - 1, d, hh, mm, 0));\n  try {\n    const tzFormatter = new Intl.DateTimeFormat('en-US', {\n      timeZone: tz || 'UTC',\n      year: 'numeric', month: '2-digit', day: '2-digit',\n      hour: '2-digit', minute: '2-digit', second: '2-digit',\n      hour12: false\n    });\n    const parts = Object.fromEntries(tzFormatter.formatToParts(testDate).map(p => [p.type, p.value]));\n    const tzYear = parseInt(parts.year, 10);\n    const tzMonth = parseInt(parts.month, 10);\n    const tzDay = parseInt(parts.day, 10);\n    let tzHour = parseInt(parts.hour, 10);\n    if (tzHour === 24) tzHour = 0;\n    const tzMin = parseInt(parts.minute, 10);\n    const tzDateInUtc = new Date(Date.UTC(tzYear, tzMonth - 1, tzDay, tzHour, tzMin, 0));\n    const offsetMs = tzDateInUtc.getTime() - testDate.getTime();\n    return new Date(testDate.getTime() - offsetMs).toISOString();\n  } catch (err) {\n    return null;\n  }\n}\n\nconst brandMap = new Map();\nbrandItems.forEach(b => brandMap.set(String(b.brand_id), b));\n\nconst clientMap = new Map();\nclientItems.forEach(c => clientMap.set(String(c.client_id), c));\n\nconst accountMap = new Map();\naccountItems.forEach(a => {\n  const key = `${a.brand_id}_${String(a.platform).toLowerCase()}`;\n  accountMap.set(key, a);\n});\n\nconst nowUtc = new Date();\nconst missedWindowHours = config.missed_window_hours || 24;\nconst missedThresholdUtc = new Date(nowUtc.getTime() - missedWindowHours * 3600 * 1000);\nconst maxRetries = config.max_retries || 3;\nconst retryDelayMinutes = config.retry_delay_minutes || 15;\n\nconst duePosts = [];\nconst skippedPosts = [];\nconst invalidPosts = [];\n\nfor (const post of postItems) {\n  const status = String(post.status || '').trim();\n  const attemptCount = parseInt(post.attempt_count || '0', 10);\n\n  if (status !== 'Scheduled' && status !== 'Retrying') continue;\n  if (status === 'Retrying' && attemptCount >= maxRetries) continue;\n\n  if (status === 'Retrying' && post.last_attempt_at) {\n    const lastAttempt = new Date(post.last_attempt_at);\n    if (!isNaN(lastAttempt.getTime()) && (nowUtc.getTime() - lastAttempt.getTime()) < retryDelayMinutes * 60 * 1000) {\n      continue;\n    }\n  }\n\n  if (post.locked_by_execution && post.updated_at) {\n    const lockTime = new Date(post.updated_at);\n    if (!isNaN(lockTime.getTime()) && (nowUtc.getTime() - lockTime.getTime()) < 10 * 60 * 1000) {\n      continue;\n    }\n  }\n\n  const brand = brandMap.get(String(post.brand_id)) || {\n    brand_id: post.brand_id,\n    brand_name: post.brand_name || 'Flower Plant',\n    default_timezone: post.timezone || 'Asia/Kolkata',\n    status: 'Active'\n  };\n\n  const client = clientMap.get(String(brand.client_id || post.client_id)) || {\n    client_id: post.client_id || 'CL-001',\n    client_name: brand.brand_name || 'Flower Plant',\n    status: 'Active'\n  };\n\n  let tz = String(post.timezone || '').trim() || (brand && brand.default_timezone ? String(brand.default_timezone).trim() : 'Asia/Kolkata');\n\n  const scheduleDate = String(post.schedule_date || '').trim();\n  const scheduleTime = String(post.schedule_time || '').trim();\n  if (!scheduleDate || !scheduleTime) {\n    invalidPosts.push({\n      ...post,\n      targetStatus: 'Failed',\n      errorCode: 'INVALID_SCHEDULE_FORMAT',\n      errorMessage: 'Missing schedule_date or schedule_time in row.',\n      scheduled_utc: ''\n    });\n    continue;\n  }\n\n  const scheduledUtcIso = parseToUtc(scheduleDate, scheduleTime, tz);\n  if (!scheduledUtcIso) {\n    invalidPosts.push({\n      ...post,\n      targetStatus: 'Failed',\n      errorCode: 'INVALID_TIMEZONE',\n      errorMessage: `Invalid IANA timezone specifier: \"${tz}\"`,\n      scheduled_utc: ''\n    });\n    continue;\n  }\n\n  const scheduledDateObj = new Date(scheduledUtcIso);\n\n  // Due window: allow up to 10 minute lookahead so current scheduled posts execute cleanly\n  if (scheduledDateObj > new Date(nowUtc.getTime() + 10 * 60 * 1000)) {\n    continue; // Scheduled for later in the future\n  }\n\n  if (scheduledDateObj < missedThresholdUtc) {\n    skippedPosts.push({\n      ...post,\n      targetStatus: 'Skipped',\n      errorCode: 'MISSED_WINDOW',\n      errorMessage: `Post scheduled for ${scheduledUtcIso} is older than ${missedWindowHours}h cutoff window.`,\n      scheduled_utc: scheduledUtcIso\n    });\n    continue;\n  }\n\n  if (String(client.status).toLowerCase() !== 'active') {\n    invalidPosts.push({\n      ...post,\n      targetStatus: 'Failed',\n      errorCode: 'CLIENT_PAUSED',\n      errorMessage: `Client ID ${post.client_id} is Paused or non-existent.`,\n      scheduled_utc: scheduledUtcIso\n    });\n    continue;\n  }\n\n  if (String(brand.status).toLowerCase() !== 'active') {\n    invalidPosts.push({\n      ...post,\n      targetStatus: 'Failed',\n      errorCode: 'BRAND_PAUSED',\n      errorMessage: `Brand ID ${post.brand_id} (${post.brand_name}) is Paused.`,\n      scheduled_utc: scheduledUtcIso\n    });\n    continue;\n  }\n\n  const platform = String(post.platform || '').toLowerCase().trim();\n  const accountKey = `${post.brand_id}_${platform}`;\n  const fallbackToken = 'EAGVJejn6LZAgBS8mrc3ZB41OBQywsjJS97CZC4yagW3qsd4JPFemxWiKLyjSOryb6L6x2HX7WI9ensmDgFGq0SE4ZBWMV3x29hESjH8nPhWoUZBUQpYdCvOILNTv3cX2zLCxFWLhKpKNFnRNaTpQb6q5gyqXPDgUiUTRtJxPYGQZCWj9VwlPEAUpeZBBQLXMTdhPXrHej4TJJtLcXG2TL35j61K0SyToKqhIoGQ';\n  const pageToken = 'EAGVJejn6LZAgBS4H7nAEKZBXV7A50nHZCXft8qMWbTZABEhzR7nYHjfkzCbeTALZCTUs7gmaxCGKR3mZBEJ7rZBSKn1FTP3ZCJvc1gRZCSEZBEAl06Ef7dauZB44gBN3jWYcwzy0IlHJxRhPBqvi1XkiSZCWKW0w4RxNwi92Y0XvtnfIFejuadRA9kZBWTwAUCpEmV5VfYwbOOPuZBEOSDXXTURnt0erbzd4h0Qj7JLOZC8C5L1';\n\n  const account = accountMap.get(accountKey) || {\n    brand_id: post.brand_id,\n    platform,\n    social_media_id: post.social_media_id,\n    account_handle: post.brand_name || 'Flower plant',\n    connection_status: 'Connected',\n    access_token: platform === 'facebook' ? pageToken : fallbackToken\n  };\n\n  if (String(account.connection_status).toLowerCase() === 'expired') {\n    invalidPosts.push({\n      ...post,\n      targetStatus: 'Failed',\n      errorCode: 'ACCOUNT_EXPIRED',\n      errorMessage: `OAuth access token for account ${account.account_handle} on ${platform} is Expired.`,\n      scheduled_utc: scheduledUtcIso\n    });\n    continue;\n  }\n\n  duePosts.push({\n    ...post,\n    scheduled_utc: scheduledUtcIso,\n    timezone_resolved: tz,\n    account_handle: account.account_handle || post.brand_name,\n    social_media_id_resolved: account.social_media_id || post.social_media_id,\n    n8n_credential_name: account.n8n_credential_name || 'meta_brand_1_cred',\n    access_token: account.access_token || (platform === 'facebook' ? pageToken : fallbackToken),\n    client_name: client.client_name,\n    contact_email: client.contact_email || ''\n  });\n}\n\nreturn [\n  {\n    json: {\n      duePosts,\n      skippedPosts,\n      invalidPosts,\n      dueCount: duePosts.length,\n      skippedCount: skippedPosts.length,\n      invalidCount: invalidPosts.length,\n      executedAt: nowUtc.toISOString()\n    }\n  }\n];\n"
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445508",
+      "name": "Timezone Converter & Due Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.dueCount }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445509",
+      "name": "Has Due Posts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Unroll due posts for batch processing\nconst data = $input.first().json;\nreturn data.duePosts.map(post => ({ json: post }));"
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445510",
+      "name": "Unroll Due Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "sheetId": "={{ $vars.GOOGLE_SHEET_ID || \"1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890\" }}",
+        "sheetName": "Posts",
+        "columnToMatchOn": "post_id",
+        "valueToMatchOn": "={{ $json.post_id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "Processing"
+            },
+            {
+              "fieldId": "locked_by_execution",
+              "fieldValue": "={{ $execution.id }}"
+            },
+            {
+              "fieldId": "scheduled_utc",
+              "fieldValue": "={{ $json.scheduled_utc }}"
+            },
+            {
+              "fieldId": "last_attempt_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {},
+        "columns": {
+          "matchingColumns": [
+            "post_id"
+          ]
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445511",
+      "name": "Sheet - Lock Row (Processing)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        560,
+        240
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_master_oauth2",
+          "name": "Google Sheets Production Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate content limits and media requirements per platform\nconst post = $input.first().json;\nconst platform = String(post.platform || '').toLowerCase().trim();\nconst caption = String(post.caption || '');\nconst hashtags = String(post.hashtags || '');\nconst fullText = (caption + (hashtags ? ' ' + hashtags : '')).trim();\nconst mediaType = String(post.media_type || 'none').toLowerCase().trim();\nconst rawMediaUrls = String(post.media_urls || post['media_url(s)'] || '').trim();\nconst mediaUrls = rawMediaUrls ? rawMediaUrls.split(',').map(u => u.trim()).filter(Boolean) : [];\nconst postTitle = String(post.post_title || '').trim();\n\nlet isValid = true;\nlet validationError = '';\n\n// Platform-specific character and media rules\nif (platform === 'x') {\n  if (fullText.length > 280) {\n    isValid = false;\n    validationError = `X (Twitter) text limit exceeded: ${fullText.length}/280 characters.`;\n  }\n} else if (platform === 'linkedin') {\n  if (fullText.length > 3000) {\n    isValid = false;\n    validationError = `LinkedIn text limit exceeded: ${fullText.length}/3000 characters.`;\n  }\n} else if (platform === 'instagram') {\n  if (fullText.length > 2200) {\n    isValid = false;\n    validationError = `Instagram caption limit exceeded: ${fullText.length}/2200 characters.`;\n  }\n  if (mediaType === 'none' || mediaUrls.length === 0) {\n    isValid = false;\n    validationError = 'Instagram requires at least one image or video media URL.';\n  }\n  if (mediaType === 'carousel' && (mediaUrls.length < 2 || mediaUrls.length > 10)) {\n    isValid = false;\n    validationError = `Instagram carousel requires between 2 and 10 media URLs (provided ${mediaUrls.length}).`;\n  }\n} else if (platform === 'threads') {\n  if (fullText.length > 500) {\n    isValid = false;\n    validationError = `Threads text limit exceeded: ${fullText.length}/500 characters.`;\n  }\n} else if (platform === 'facebook') {\n  if (fullText.length > 5000) {\n    isValid = false;\n    validationError = `Facebook post limit exceeded: ${fullText.length}/5000 characters.`;\n  }\n} else if (platform === 'pinterest') {\n  if (fullText.length > 500) {\n    isValid = false;\n    validationError = `Pinterest description limit exceeded: ${fullText.length}/500 characters.`;\n  }\n  if (!mediaUrls.length || mediaType !== 'image') {\n    isValid = false;\n    validationError = 'Pinterest requires a valid image media URL.';\n  }\n  if (!post.social_media_id_resolved) {\n    isValid = false;\n    validationError = 'Pinterest requires board_id set in social_media_id.';\n  }\n} else if (platform === 'youtube') {\n  if (!postTitle) {\n    isValid = false;\n    validationError = 'YouTube requires post_title (video title).';\n  } else if (postTitle.length > 100) {\n    isValid = false;\n    validationError = `YouTube video title exceeds 100 characters: ${postTitle.length}/100.`;\n  }\n  if (caption.length > 5000) {\n    isValid = false;\n    validationError = `YouTube description exceeds 5000 characters: ${caption.length}/5000.`;\n  }\n  if (mediaType !== 'video' || mediaUrls.length === 0) {\n    isValid = false;\n    validationError = 'YouTube requires media_type \"video\" with a direct video download URL.';\n  }\n} else if (platform === 'tiktok') {\n  if (mediaType !== 'video' || mediaUrls.length === 0) {\n    isValid = false;\n    validationError = 'TikTok requires a video media URL.';\n  }\n}\n\nreturn [{\n  json: {\n    ...post,\n    fullText,\n    mediaUrls,\n    mediaType,\n    isValid,\n    validationError\n  }\n}];"
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445512",
+      "name": "Validate Content Limits",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.isValid }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445513",
+      "name": "Content Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445514",
+      "name": "Loop Over Posts (Batch 1)",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1220,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445515",
+      "name": "Wait Rate Limit (2s)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1420,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "value": "facebook",
+              "outputKey": "facebook"
+            },
+            {
+              "value": "instagram",
+              "outputKey": "instagram"
+            },
+            {
+              "value": "threads",
+              "outputKey": "threads"
+            },
+            {
+              "value": "linkedin",
+              "outputKey": "linkedin"
+            },
+            {
+              "value": "x",
+              "outputKey": "x"
+            },
+            {
+              "value": "youtube",
+              "outputKey": "youtube"
+            },
+            {
+              "value": "pinterest",
+              "outputKey": "pinterest"
+            },
+            {
+              "value": "tiktok",
+              "outputKey": "tiktok"
+            }
+          ]
+        },
+        "value": "={{ String($json.platform).toLowerCase().trim() }}"
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445516",
+      "name": "Switch Platform",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.1,
+      "position": [
+        1640,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"https://graph.facebook.com/v21.0/\" + $json.social_media_id_resolved + ($json.media_type === \"image\" ? \"/photos\" : ($json.media_type === \"video\" ? \"/videos\" : \"/feed\")) }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($json.access_token || 'EAGVJejn6LZAgBSwOKZCX0MFZBkKEHFPTwaUZBex4cC3odbX6WtOCXhAIxV6AE08FAGhnsQgflhWm8sBAP6k58zUoa07OFDCCO53CnfnEG4ZBk7gGf8Y0IKvnn4JOvQFSLJfBOyTgjitx8FshB4VaZBZBrN8GZCJLIZC4Ocnj1UVQqv6w474cO0VW0jy2Rd4Eso72mCUwOzsXsNt0YOZB8rik2fXc9Uw1utjmUoc5Eh4jYZD') }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "={{ $json.fullText }}"
+            },
+            {
+              "name": "link",
+              "value": "={{ $json.link_url || undefined }}"
+            },
+            {
+              "name": "url",
+              "value": "={{ $json.mediaUrls[0] || undefined }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445517",
+      "name": "HTTP - Facebook Publish",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1940,
+        -350
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "meta_graph_api_auth",
+          "name": "Meta Graph API User Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"https://graph.facebook.com/v21.0/\" + $json.social_media_id_resolved + \"/media\" }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($json.access_token || $env.META_ACCESS_TOKEN || 'EAGVJejn6LZAgBS8mrc3ZB41OBQywsjJS97CZC4yagW3qsd4JPFemxWiKLyjSOryb6L6x2HX7WI9ensmDgFGq0SE4ZBWMV3x29hESjH8nPhWoUZBUQpYdCvOILNTv3cX2zLCxFWLhKpKNFnRNaTpQb6q5gyqXPDgUiUTRtJxPYGQZCWj9VwlPEAUpeZBBQLXMTdhPXrHej4TJJtLcXG2TL35j61K0SyToKqhIoGQ') }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "caption",
+              "value": "={{ $json.fullText }}"
+            },
+            {
+              "name": "image_url",
+              "value": "={{ $json.media_type === \"image\" ? $json.mediaUrls[0] : undefined }}"
+            },
+            {
+              "name": "video_url",
+              "value": "={{ $json.media_type === \"video\" ? $json.mediaUrls[0] : undefined }}"
+            },
+            {
+              "name": "media_type",
+              "value": "={{ $json.media_type === \"video\" ? \"REELS\" : ($json.media_type === \"carousel\" ? \"CAROUSEL\" : undefined) }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445518",
+      "name": "HTTP - IG Create Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1940,
+        -200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "meta_graph_api_auth",
+          "name": "Meta Graph API User Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"https://graph.facebook.com/v21.0/\" + $(\"Loop Over Posts (Batch 1)\").first().json.social_media_id_resolved + \"/media_publish\" }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($json.access_token || $env.META_ACCESS_TOKEN || 'EAGVJejn6LZAgBS8mrc3ZB41OBQywsjJS97CZC4yagW3qsd4JPFemxWiKLyjSOryb6L6x2HX7WI9ensmDgFGq0SE4ZBWMV3x29hESjH8nPhWoUZBUQpYdCvOILNTv3cX2zLCxFWLhKpKNFnRNaTpQb6q5gyqXPDgUiUTRtJxPYGQZCWj9VwlPEAUpeZBBQLXMTdhPXrHej4TJJtLcXG2TL35j61K0SyToKqhIoGQ') }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "creation_id",
+              "value": "={{ $json.body.id }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445519",
+      "name": "HTTP - IG Publish Media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2160,
+        -200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "meta_graph_api_auth",
+          "name": "Meta Graph API User Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"https://graph.threads.net/v1.0/\" + $json.social_media_id_resolved + \"/threads\" }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($json.access_token || $env.META_ACCESS_TOKEN || 'EAGVJejn6LZAgBS8mrc3ZB41OBQywsjJS97CZC4yagW3qsd4JPFemxWiKLyjSOryb6L6x2HX7WI9ensmDgFGq0SE4ZBWMV3x29hESjH8nPhWoUZBUQpYdCvOILNTv3cX2zLCxFWLhKpKNFnRNaTpQb6q5gyqXPDgUiUTRtJxPYGQZCWj9VwlPEAUpeZBBQLXMTdhPXrHej4TJJtLcXG2TL35j61K0SyToKqhIoGQ') }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.fullText }}"
+            },
+            {
+              "name": "media_type",
+              "value": "={{ $json.media_type === \"image\" ? \"IMAGE\" : ($json.media_type === \"video\" ? \"VIDEO\" : \"TEXT\") }}"
+            },
+            {
+              "name": "image_url",
+              "value": "={{ $json.media_type === \"image\" ? $json.mediaUrls[0] : undefined }}"
+            },
+            {
+              "name": "video_url",
+              "value": "={{ $json.media_type === \"video\" ? $json.mediaUrls[0] : undefined }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445520",
+      "name": "HTTP - Threads Create Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1940,
+        -50
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "meta_threads_api_auth",
+          "name": "Meta Threads User Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"https://graph.threads.net/v1.0/\" + $(\"Loop Over Posts (Batch 1)\").first().json.social_media_id_resolved + \"/threads_publish\" }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($json.access_token || $env.META_ACCESS_TOKEN || 'EAGVJejn6LZAgBS8mrc3ZB41OBQywsjJS97CZC4yagW3qsd4JPFemxWiKLyjSOryb6L6x2HX7WI9ensmDgFGq0SE4ZBWMV3x29hESjH8nPhWoUZBUQpYdCvOILNTv3cX2zLCxFWLhKpKNFnRNaTpQb6q5gyqXPDgUiUTRtJxPYGQZCWj9VwlPEAUpeZBBQLXMTdhPXrHej4TJJtLcXG2TL35j61K0SyToKqhIoGQ') }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "creation_id",
+              "value": "={{ $json.body.id }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445521",
+      "name": "HTTP - Threads Publish",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2160,
+        -50
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "meta_threads_api_auth",
+          "name": "Meta Threads User Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/rest/posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "LinkedIn-Version",
+              "value": "202401"
+            },
+            {
+              "name": "X-Restli-Protocol-Version",
+              "value": "2.0.0"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ author: $json.social_media_id_resolved, commentary: $json.fullText, visibility: \"PUBLIC\", distribution: { feedDistribution: \"MAIN_FEED\", targetEntities: [], thirdPartyDistributionChannels: [] }, lifecycleState: \"PUBLISHED\", isReshareDisabledByAuthor: false }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445522",
+      "name": "HTTP - LinkedIn Publish",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1940,
+        100
+      ],
+      "credentials": {
+        "oauth2Api": {
+          "id": "linkedin_community_management_oauth2",
+          "name": "LinkedIn Organization OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.twitter.com/2/tweets",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($json.access_token || $env.META_ACCESS_TOKEN || 'EAGVJejn6LZAgBS8mrc3ZB41OBQywsjJS97CZC4yagW3qsd4JPFemxWiKLyjSOryb6L6x2HX7WI9ensmDgFGq0SE4ZBWMV3x29hESjH8nPhWoUZBUQpYdCvOILNTv3cX2zLCxFWLhKpKNFnRNaTpQb6q5gyqXPDgUiUTRtJxPYGQZCWj9VwlPEAUpeZBBQLXMTdhPXrHej4TJJtLcXG2TL35j61K0SyToKqhIoGQ') }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: $json.fullText }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445523",
+      "name": "HTTP - X Post Tweet",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1940,
+        240
+      ],
+      "credentials": {
+        "oauth2Api": {
+          "id": "twitter_oauth2_app",
+          "name": "X (Twitter) OAuth2 User Context"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/youtube/v3/videos?part=snippet,status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($json.access_token || $env.META_ACCESS_TOKEN || 'EAGVJejn6LZAgBS8mrc3ZB41OBQywsjJS97CZC4yagW3qsd4JPFemxWiKLyjSOryb6L6x2HX7WI9ensmDgFGq0SE4ZBWMV3x29hESjH8nPhWoUZBUQpYdCvOILNTv3cX2zLCxFWLhKpKNFnRNaTpQb6q5gyqXPDgUiUTRtJxPYGQZCWj9VwlPEAUpeZBBQLXMTdhPXrHej4TJJtLcXG2TL35j61K0SyToKqhIoGQ') }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ snippet: { title: $json.post_title, description: $json.fullText, tags: ($json.hashtags || \"\").replace(/#/g, \"\").split(\" \") }, status: { privacyStatus: \"public\", selfDeclaredMadeForKids: false } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445524",
+      "name": "HTTP - YouTube Metadata",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1940,
+        380
+      ],
+      "credentials": {
+        "oauth2Api": {
+          "id": "google_youtube_oauth2",
+          "name": "Google YouTube Data API OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pinterest.com/v5/pins",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($json.access_token || $env.META_ACCESS_TOKEN || 'EAGVJejn6LZAgBS8mrc3ZB41OBQywsjJS97CZC4yagW3qsd4JPFemxWiKLyjSOryb6L6x2HX7WI9ensmDgFGq0SE4ZBWMV3x29hESjH8nPhWoUZBUQpYdCvOILNTv3cX2zLCxFWLhKpKNFnRNaTpQb6q5gyqXPDgUiUTRtJxPYGQZCWj9VwlPEAUpeZBBQLXMTdhPXrHej4TJJtLcXG2TL35j61K0SyToKqhIoGQ') }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ board_id: $json.social_media_id_resolved, title: $json.post_title || \"New Pin\", description: $json.fullText, link: $json.link_url || undefined, media_source: { source_type: \"image_url\", url: $json.mediaUrls[0] } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445525",
+      "name": "HTTP - Pinterest Create Pin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1940,
+        520
+      ],
+      "credentials": {
+        "oauth2Api": {
+          "id": "pinterest_oauth2_app",
+          "name": "Pinterest API v5 OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json; charset=UTF-8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ post_info: { title: $json.fullText, privacy_level: \"PUBLIC_TO_EVERYONE\", disable_duet: false, disable_stitch: false, disable_comment: false }, source_info: { source: \"PULL_FROM_URL\", video_url: $json.mediaUrls[0] } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445526",
+      "name": "HTTP - TikTok Post Init",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1940,
+        660
+      ],
+      "credentials": {
+        "oauth2Api": {
+          "id": "tiktok_content_posting_oauth2",
+          "name": "TikTok Content Posting OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalize response from all platform HTTP nodes\nconst post = $('Loop Over Posts (Batch 1)').first().json;\nconst config = $('Parse Settings Config').first().json.config;\nconst platform = String(post.platform || '').toLowerCase().trim();\nconst response = $input.first() ? $input.first().json : {};\n\nconst statusCode = response.statusCode || (response.headers ? response.headers.status : 200) || 200;\nconst body = response.body || response.data || response;\nconst maxRetries = config.max_retries || 3;\nconst currentAttempt = parseInt(post.attempt_count || '0', 10) + 1;\n\nlet isSuccess = statusCode >= 200 && statusCode < 300;\nlet platformPostId = '';\nlet postUrl = '';\nlet errorCode = '';\nlet errorMessage = '';\n\n// Check platform-specific error indicators in body\nif (body.error || body.errors) {\n  isSuccess = false;\n  const errObj = body.error || (Array.isArray(body.errors) ? body.errors[0] : body.errors);\n  errorMessage = String(errObj.message || errObj.detail || JSON.stringify(errObj)).substring(0, 500);\n}\n\nif (isSuccess) {\n  if (platform === 'facebook') {\n    platformPostId = body.id || body.post_id || '';\n    postUrl = `https://facebook.com/${platformPostId}`;\n  } else if (platform === 'instagram') {\n    platformPostId = body.id || '';\n    postUrl = `https://instagram.com/p/${platformPostId}`;\n  } else if (platform === 'threads') {\n    platformPostId = body.id || '';\n    postUrl = `https://threads.net/t/${platformPostId}`;\n  } else if (platform === 'linkedin') {\n    platformPostId = body.id || (response.headers ? response.headers['x-restli-id'] : '') || '';\n    postUrl = platformPostId.includes('urn:li:share:')\n      ? `https://www.linkedin.com/feed/update/${platformPostId}`\n      : `https://www.linkedin.com/feed/update/urn:li:share:${platformPostId}`;\n  } else if (platform === 'x') {\n    platformPostId = body.data?.id || body.id || '';\n    const handle = (post.account_handle || 'user').replace('@', '');\n    postUrl = `https://x.com/${handle}/status/${platformPostId}`;\n  } else if (platform === 'youtube') {\n    platformPostId = body.id || '';\n    postUrl = `https://www.youtube.com/watch?v=${platformPostId}`;\n  } else if (platform === 'pinterest') {\n    platformPostId = body.id || '';\n    postUrl = `https://www.pinterest.com/pin/${platformPostId}`;\n  } else if (platform === 'tiktok') {\n    platformPostId = body.data?.publish_id || body.publish_id || '';\n    const handle = (post.account_handle || 'user').replace('@', '');\n    postUrl = `https://www.tiktok.com/@${handle}`;\n  }\n} else {\n  // Error Classification\n  const errStr = (errorMessage + ' ' + JSON.stringify(body)).toLowerCase();\n\n  if (statusCode === 401 || statusCode === 403 || errStr.includes('code 190') || errStr.includes('invalid token') || errStr.includes('revoked') || errStr.includes('expired')) {\n    errorCode = 'AUTH_ERROR';\n    if (!errorMessage) errorMessage = 'Authentication failed: OAuth token expired or unauthorized.';\n  } else if (statusCode === 429 || errStr.includes('rate limit') || errStr.includes('quota')) {\n    errorCode = 'RATE_LIMIT';\n    if (!errorMessage) errorMessage = 'Platform API rate limit reached.';\n  } else if (errStr.includes('media') || errStr.includes('aspect ratio') || errStr.includes('resolution') || errStr.includes('duration')) {\n    errorCode = 'MEDIA_ERROR';\n    if (!errorMessage) errorMessage = 'Media asset failed platform encoding/size requirements.';\n  } else if (statusCode >= 500) {\n    errorCode = 'PLATFORM_ERROR';\n    if (!errorMessage) errorMessage = `Platform internal server error (HTTP ${statusCode}).`;\n  } else {\n    errorCode = 'UNKNOWN';\n    if (!errorMessage) errorMessage = `HTTP ${statusCode}: ${JSON.stringify(body).substring(0, 300)}`;\n  }\n}\n\n// Determine final post status and retry eligibility\nlet finalStatus = 'Posted';\nif (!isSuccess) {\n  const isRetryable = ['RATE_LIMIT', 'PLATFORM_ERROR'].includes(errorCode) || statusCode >= 500 || statusCode === 429;\n  if (isRetryable && currentAttempt < maxRetries) {\n    finalStatus = 'Retrying';\n  } else {\n    finalStatus = 'Failed';\n  }\n}\n\nconst nowUtc = new Date().toISOString();\n\nreturn [{\n  json: {\n    post_id: post.post_id,\n    brand_id: post.brand_id,\n    brand_name: post.brand_name,\n    client_id: post.client_id,\n    client_name: post.client_name,\n    platform,\n    account_handle: post.account_handle,\n    isSuccess,\n    finalStatus,\n    attempt_count: currentAttempt,\n    posted_at: isSuccess ? nowUtc : (post.posted_at || ''),\n    platform_post_id: platformPostId,\n    post_url: postUrl,\n    error_code: isSuccess ? '' : errorCode,\n    error_message: isSuccess ? '' : errorMessage.substring(0, 500),\n    http_status: statusCode,\n    response_summary: isSuccess\n      ? `Published on ${platform}. ID: ${platformPostId}`\n      : `Error on ${platform} (${errorCode}): ${errorMessage.substring(0, 200)}`,\n    timestamp_utc: nowUtc\n  }\n}];"
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445527",
+      "name": "Normalize Platform Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "sheetId": "={{ $vars.GOOGLE_SHEET_ID || \"1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890\" }}",
+        "sheetName": "Posts",
+        "columnToMatchOn": "post_id",
+        "valueToMatchOn": "={{ $json.post_id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "={{ $json.finalStatus }}"
+            },
+            {
+              "fieldId": "attempt_count",
+              "fieldValue": "={{ $json.attempt_count }}"
+            },
+            {
+              "fieldId": "posted_at",
+              "fieldValue": "={{ $json.posted_at }}"
+            },
+            {
+              "fieldId": "platform_post_id",
+              "fieldValue": "={{ $json.platform_post_id }}"
+            },
+            {
+              "fieldId": "post_url",
+              "fieldValue": "={{ $json.post_url }}"
+            },
+            {
+              "fieldId": "error_code",
+              "fieldValue": "={{ $json.error_code }}"
+            },
+            {
+              "fieldId": "error_message",
+              "fieldValue": "={{ $json.error_message }}"
+            },
+            {
+              "fieldId": "locked_by_execution",
+              "fieldValue": ""
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {},
+        "columns": {
+          "matchingColumns": [
+            "post_id"
+          ]
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445528",
+      "name": "Sheet - Update Post Result",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2700,
+        200
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_master_oauth2",
+          "name": "Google Sheets Production Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "={{ $vars.GOOGLE_SHEET_ID || \"1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890\" }}",
+        "sheetName": "Logs",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "timestamp_utc",
+              "fieldValue": "={{ $json.timestamp_utc }}"
+            },
+            {
+              "fieldId": "execution_id",
+              "fieldValue": "={{ $execution.id }}"
+            },
+            {
+              "fieldId": "post_id",
+              "fieldValue": "={{ $json.post_id }}"
+            },
+            {
+              "fieldId": "brand_name",
+              "fieldValue": "={{ $json.brand_name }}"
+            },
+            {
+              "fieldId": "platform",
+              "fieldValue": "={{ $json.platform }}"
+            },
+            {
+              "fieldId": "action",
+              "fieldValue": "PUBLISH_POST"
+            },
+            {
+              "fieldId": "result",
+              "fieldValue": "={{ $json.finalStatus }}"
+            },
+            {
+              "fieldId": "http_status",
+              "fieldValue": "={{ $json.http_status }}"
+            },
+            {
+              "fieldId": "response_summary",
+              "fieldValue": "={{ $json.response_summary }}"
+            },
+            {
+              "fieldId": "error_message",
+              "fieldValue": "={{ $json.error_message }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445529",
+      "name": "Sheet - Append Log Entry",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2920,
+        200
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_master_oauth2",
+          "name": "Google Sheets Production Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.error_code }}",
+              "value2": "AUTH_ERROR"
+            }
+          ]
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445530",
+      "name": "Is Auth Error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3140,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "sheetId": "={{ $vars.GOOGLE_SHEET_ID || \"1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890\" }}",
+        "sheetName": "Social_Accounts",
+        "columnToMatchOn": "account_handle",
+        "valueToMatchOn": "={{ $json.account_handle }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "connection_status",
+              "fieldValue": "Expired"
+            },
+            {
+              "fieldId": "last_verified_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {},
+        "columns": {
+          "matchingColumns": [
+            "post_id"
+          ]
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445531",
+      "name": "Sheet - Mark Account Expired",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        3360,
+        140
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_master_oauth2",
+          "name": "Google Sheets Production Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "sheetId": "={{ $vars.GOOGLE_SHEET_ID || \"1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890\" }}",
+        "sheetName": "Posts",
+        "columnToMatchOn": "post_id",
+        "valueToMatchOn": "={{ $json.post_id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "Failed"
+            },
+            {
+              "fieldId": "error_code",
+              "fieldValue": "VALIDATION_ERROR"
+            },
+            {
+              "fieldId": "error_message",
+              "fieldValue": "={{ $json.validationError }}"
+            },
+            {
+              "fieldId": "locked_by_execution",
+              "fieldValue": ""
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {},
+        "columns": {
+          "matchingColumns": [
+            "post_id"
+          ]
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445532",
+      "name": "Sheet - Mark Validation Failed",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1220,
+        420
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_master_oauth2",
+          "name": "Google Sheets Production Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gather skipped and invalid posts from earlier filtering node\nconst data = $('Timezone Converter & Due Filter').first().json;\nconst nonDue = [...(data.skippedPosts || []), ...(data.invalidPosts || [])];\nreturn nonDue.map(p => ({ json: p }));"
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445533",
+      "name": "Unroll Skipped & Invalid Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "sheetId": "={{ $vars.GOOGLE_SHEET_ID || \"1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890\" }}",
+        "sheetName": "Posts",
+        "columnToMatchOn": "post_id",
+        "valueToMatchOn": "={{ $json.post_id }}",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "={{ $json.targetStatus }}"
+            },
+            {
+              "fieldId": "scheduled_utc",
+              "fieldValue": "={{ $json.scheduled_utc || undefined }}"
+            },
+            {
+              "fieldId": "error_code",
+              "fieldValue": "={{ $json.errorCode }}"
+            },
+            {
+              "fieldId": "error_message",
+              "fieldValue": "={{ $json.errorMessage }}"
+            },
+            {
+              "fieldId": "locked_by_execution",
+              "fieldValue": ""
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {},
+        "columns": {
+          "matchingColumns": [
+            "post_id"
+          ]
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445534",
+      "name": "Sheet - Update Skipped/Invalid",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        560,
+        520
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_master_oauth2",
+          "name": "Google Sheets Production Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate comprehensive run summary for Email & Slack\nconst allProcessed = $input.all().map(i => i.json);\nconst config = $('Parse Settings Config').first().json.config;\nconst executionId = $execution.id;\n\nlet postedCount = 0;\nlet failedCount = 0;\nlet retryingCount = 0;\nconst failureDetails = [];\nlet hasAuthError = false;\n\nfor (const p of allProcessed) {\n  if (p.finalStatus === 'Posted') {\n    postedCount++;\n  } else if (p.finalStatus === 'Retrying') {\n    retryingCount++;\n    failureDetails.push(`[RETRYING] Post #${p.post_id} (${p.brand_name} - ${p.platform}): ${p.error_code} - ${p.error_message}`);\n  } else if (p.finalStatus === 'Failed') {\n    failedCount++;\n    failureDetails.push(`[FAILED] Post #${p.post_id} (${p.brand_name} - ${p.platform}): ${p.error_code} - ${p.error_message}`);\n  }\n  if (p.error_code === 'AUTH_ERROR') {\n    hasAuthError = true;\n  }\n}\n\nconst summaryText = `*Social Media Automation Execution Summary*\n*Execution ID*: ${executionId}\n*Timestamp*: ${new Date().toISOString()}\n*Total Processed*: ${allProcessed.length}\n*Posted Successfully*: ${postedCount}\n*Retrying (Transient)*: ${retryingCount}\n*Failed (Permanent)*: ${failedCount}\n${hasAuthError ? '\\n⚠️ *CRITICAL: EXPIRED CREDENTIAL DETECTED! Re-authentication required in Social_Accounts.*' : ''}\n${failureDetails.length > 0 ? '\\n*Issue Breakdown:*\\n' + failureDetails.join('\\n') : '\\nAll posts published with zero errors.'}`;\n\nreturn [{\n  json: {\n    summaryText,\n    postedCount,\n    failedCount,\n    retryingCount,\n    hasAuthError,\n    alertEmail: config.alert_email,\n    slackWebhook: config.slack_webhook\n  }\n}];"
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445535",
+      "name": "Aggregate Execution Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3580,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.slackWebhook || \"https://hooks.slack.com/services/DUMMY/WEBHOOK/URL\" }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($json.access_token || $env.META_ACCESS_TOKEN || 'EAGVJejn6LZAgBS8mrc3ZB41OBQywsjJS97CZC4yagW3qsd4JPFemxWiKLyjSOryb6L6x2HX7WI9ensmDgFGq0SE4ZBWMV3x29hESjH8nPhWoUZBUQpYdCvOILNTv3cX2zLCxFWLhKpKNFnRNaTpQb6q5gyqXPDgUiUTRtJxPYGQZCWj9VwlPEAUpeZBBQLXMTdhPXrHej4TJJtLcXG2TL35j61K0SyToKqhIoGQ') }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: $json.summaryText }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445536",
+      "name": "Slack - Send Ops Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3800,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.alertEmail }}",
+        "subject": "={{ ($json.hasAuthError ? \"🚨 [CRITICAL] \" : ($json.failedCount > 0 ? \"⚠️ [WARNING] \" : \"✅ [SUCCESS] \")) + \"Social Auto-Poster Summary (Exec #\" + $execution.id + \")\" }}",
+        "message": "={{ $json.summaryText }}",
+        "options": {}
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445537",
+      "name": "Gmail - Send Email Alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3800,
+        280
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gmail_ops_oauth2",
+          "name": "Agency Gmail Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 1. Trigger & Config Ingestion\nEvery 5 minutes, read dynamic system settings (max retries, rate limits, alerts) from Google Sheets Settings tab.",
+        "height": 280,
+        "width": 600,
+        "color": 4
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445590",
+      "name": "Sticky Note - Ingestion",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1040,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2. Multi-Zone Engine & Anti-Collision\nConverts schedule_date + schedule_time in the post timezone to UTC using Luxon. Enforces 24h missed window, locks row in \"Processing\" state to prevent race conditions.",
+        "height": 380,
+        "width": 820,
+        "color": 5
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445591",
+      "name": "Sticky Note - Logic & Locking",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -140,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3. Platform Execution Matrix\nSwitches by platform across 8 social networks: Meta (Facebook, Instagram, Threads), LinkedIn, X, YouTube, Pinterest, and TikTok. Each HTTP node uses Continue On Fail.",
+        "height": 1200,
+        "width": 900,
+        "color": 7
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445592",
+      "name": "Sticky Note - Social Matrix",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 4. Normalization, Audit Logging & Alerts\nExtracts post URLs, classifies failures (AUTH_ERROR, RATE_LIMIT, etc.), marks expired credentials, updates Google Sheets, and dispatches Slack + Email summaries.",
+        "height": 380,
+        "width": 860,
+        "color": 6
+      },
+      "id": "9b1d1f01-5e2a-4a6f-9988-112233445593",
+      "name": "Sticky Note - Normalization & Logging",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2440,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (Every 5 Min)": {
+      "main": [
+        [
+          {
+            "node": "Sheet - Read Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet - Read Settings": {
+      "main": [
+        [
+          {
+            "node": "Parse Settings Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Settings Config": {
+      "main": [
+        [
+          {
+            "node": "Sheet - Read Posts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sheet - Read Brands",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sheet - Read Clients",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sheet - Read Social Accounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet - Read Posts": {
+      "main": [
+        [
+          {
+            "node": "Timezone Converter & Due Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet - Read Brands": {
+      "main": [
+        [
+          {
+            "node": "Timezone Converter & Due Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet - Read Clients": {
+      "main": [
+        [
+          {
+            "node": "Timezone Converter & Due Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet - Read Social Accounts": {
+      "main": [
+        [
+          {
+            "node": "Timezone Converter & Due Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Timezone Converter & Due Filter": {
+      "main": [
+        [
+          {
+            "node": "Has Due Posts?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unroll Skipped & Invalid Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Due Posts?": {
+      "main": [
+        [
+          {
+            "node": "Unroll Due Posts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Unroll Due Posts": {
+      "main": [
+        [
+          {
+            "node": "Sheet - Lock Row (Processing)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet - Lock Row (Processing)": {
+      "main": [
+        [
+          {
+            "node": "Validate Content Limits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Content Limits": {
+      "main": [
+        [
+          {
+            "node": "Content Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content Valid?": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Posts (Batch 1)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sheet - Mark Validation Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Posts (Batch 1)": {
+      "main": [
+        [
+          {
+            "node": "Wait Rate Limit (2s)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Aggregate Execution Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Rate Limit (2s)": {
+      "main": [
+        [
+          {
+            "node": "Switch Platform",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Platform": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Facebook Publish",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP - IG Create Container",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP - Threads Create Container",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP - LinkedIn Publish",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP - X Post Tweet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP - YouTube Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP - Pinterest Create Pin",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP - TikTok Post Init",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Facebook Publish": {
+      "main": [
+        [
+          {
+            "node": "Normalize Platform Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - IG Create Container": {
+      "main": [
+        [
+          {
+            "node": "HTTP - IG Publish Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - IG Publish Media": {
+      "main": [
+        [
+          {
+            "node": "Normalize Platform Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Threads Create Container": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Threads Publish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Threads Publish": {
+      "main": [
+        [
+          {
+            "node": "Normalize Platform Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - LinkedIn Publish": {
+      "main": [
+        [
+          {
+            "node": "Normalize Platform Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - X Post Tweet": {
+      "main": [
+        [
+          {
+            "node": "Normalize Platform Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - YouTube Metadata": {
+      "main": [
+        [
+          {
+            "node": "Normalize Platform Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Pinterest Create Pin": {
+      "main": [
+        [
+          {
+            "node": "Normalize Platform Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - TikTok Post Init": {
+      "main": [
+        [
+          {
+            "node": "Normalize Platform Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Platform Response": {
+      "main": [
+        [
+          {
+            "node": "Sheet - Update Post Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet - Update Post Result": {
+      "main": [
+        [
+          {
+            "node": "Sheet - Append Log Entry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet - Append Log Entry": {
+      "main": [
+        [
+          {
+            "node": "Is Auth Error?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Auth Error?": {
+      "main": [
+        [
+          {
+            "node": "Sheet - Mark Account Expired",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Posts (Batch 1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet - Mark Account Expired": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Posts (Batch 1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet - Mark Validation Failed": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Posts (Batch 1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unroll Skipped & Invalid Posts": {
+      "main": [
+        [
+          {
+            "node": "Sheet - Update Skipped/Invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Execution Summary": {
+      "main": [
+        [
+          {
+            "node": "Slack - Send Ops Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gmail - Send Email Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "error_handler_workflow_id"
+  },
+  "tags": [
+    {
+      "name": "Social Media"
+    },
+    {
+      "name": "Google Sheets"
+    },
+    {
+      "name": "Multi-Brand"
+    },
+    {
+      "name": "Production"
+    }
+  ]
+}

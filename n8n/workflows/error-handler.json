@@ -1,0 +1,48 @@
+{
+  "name": "CI360 Error Handler & Dead Letter Pipeline",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "node-error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BACKEND_INTERNAL_URL || 'http://localhost:3000' }}/internal/n8n/callback",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ target_id: $json.execution?.target_id || 'UNKNOWN', execution_id: String($json.execution?.id), stage: 'execution_crashed', error_message: $json.execution?.error?.message || 'Workflow execution crashed unexpectedly' }) }}",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "node-report-crash",
+      "name": "Report Crash to Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [360, 300]
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Report Crash to Backend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Kolkata"
+  },
+  "id": "WF-ERROR-HANDLER"
+}

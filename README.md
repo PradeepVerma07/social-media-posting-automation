@@ -1,0 +1,108 @@
+# CI360 Automation Hub — Production Core (v2)
+
+**Multi-Tenant Social Media Scheduling, Approval & Self-Hosted Automation Platform**
+
+CI360 Automation Hub combines a modern React dashboard with a durable Node.js backend, a live bidirectional Google Sheets mirror, a self-hosted n8n automation engine, and direct Meta Graph API publishing to Facebook Pages and Instagram Business accounts.
+
+---
+
+## What Changed in v2 (Production Architecture)
+
+| Area | v1 Limitation | v2 Production Fix |
+|---|---|---|
+| **Data Persistence** | In-memory DB lost on restart | Durable SQLite in WAL mode (`database/ci360.sqlite`) |
+| **Job Locking** | Non-atomic cell writing in Sheets | Single DB transaction (`BEGIN IMMEDIATE`) via `/internal/jobs/claim` |
+| **Crash Protection** | Blind retries causing duplicate posts | Stale locks move to `NeedsVerification`; backend verifies Meta before retry |
+| **n8n Integration** | Direct file inspection via Python script | n8n Public REST API + signed per-stage callbacks (`/internal/n8n/callback`) |
+| **Live Updates** | 10-second polling | Server-Sent Events (SSE) stream (`/api/v1/events`) pushes updates < 2s |
+| **Token Security** | Plaintext tokens in Google Sheets | AES-256-GCM encryption at rest; Sheets holds only account ID |
+| **Timezone Precision** | Client-dependent Date math | Centralized UTC core with Luxon localization (`Asia/Kolkata` IST default) |
+| **Sheets Sync** | Direct blocking API calls | Outbox pattern with batch updates & 60s reconciliation safety net |
+
+---
+
+## Quickstart Setup (< 30 Minutes)
+
+### 1. Prerequisites
+- Node.js 20+ (Node 24 recommended with built-in `node:sqlite`)
+- n8n instance (local or self-hosted)
+
+### 2. Installation
+```bash
+git clone <repo-url>
+cd n8n-Workflow-Studio-&-Self-Hosting-Hub
+npm install
+```
+
+### 3. Environment Configuration
+Copy `.env.example` to `.env`:
+```bash
+cp .env.example .env
+```
+Key configuration items:
+- `TOKEN_ENCRYPTION_KEY`: 32-byte secret for encrypting Meta OAuth tokens.
+- `GOOGLE_SPREADSHEET_ID`: Your Google Sheet ID.
+- `N8N_BASE_URL`: e.g. `http://localhost:5678`.
+- `DEFAULT_TIMEZONE`: e.g. `Asia/Kolkata` (UTC+5:30).
+
+### 4. Seed the Database
+Initializes the SQLite schema and seeds demo tenant (`CL-001`), brand (`BR-001`), encrypted social account (`ACC-001`), and sample posts:
+```bash
+npm run seed
+```
+
+### 5. Run the Automated Test Suite
+Verifies timezone conversion, state machine transitions, Meta error classifications, and AES-256-GCM token encryption:
+```bash
+npm test
+```
+
+### 6. Start the Development Server
+Runs both backend API and Vite frontend on port 3000:
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+## n8n Workflows
+
+Pre-configured workflows are located in the `n8n/workflows/` directory:
+- [`master-publisher.json`](n8n/workflows/master-publisher.json): Master publisher workflow (`Utaz0U82aZQZ7uHF`) implementing atomic job claims, Meta Graph API publishing, and signed callbacks.
+- [`error-handler.json`](n8n/workflows/error-handler.json): Error trigger workflow catching execution crashes.
+
+Import these workflows directly into your n8n workspace via **Workflows > Import from File**.
+
+---
+
+## Google Sheets Apps Script Integration
+
+For sub-second synchronization of edits made directly in Google Sheets:
+1. Open your Google Sheet > **Extensions** > **Apps Script**.
+2. Paste [`apps-script/onEdit.gs`](apps-script/onEdit.gs).
+3. Set `BACKEND_WEBHOOK_URL` to `https://your-domain.com/api/v1/webhooks/sheets` and `HMAC_SECRET` to match `SHEETS_WEBHOOK_SECRET`.
+4. Add an installable **On Edit** trigger.
+
+---
+
+## Architecture & API Overview
+
+### Internal Endpoints (Private Network / HMAC-Signed)
+- `POST /internal/jobs/claim`: Atomic claim of due scheduled jobs.
+- `GET /internal/accounts/:id/token`: Retrieves decrypted token in memory for executor.
+- `POST /internal/n8n/callback`: Reports stages (`publishing`, `succeeded`, `failed`, `execution_crashed`).
+
+### Public REST Endpoints (`/api/v1`)
+- `GET /api/v1/posts`: Fetches all posts with target statuses and IST display dates.
+- `POST /api/v1/posts`: Creates post and targets; enqueues Sheets outbox entry.
+- `PATCH /api/v1/posts/:id`: Updates post with `If-Match` version locking.
+- `POST /api/v1/posts/:id/publish-now`: Instant publish override triggering n8n webhook.
+- `GET /api/v1/events`: Server-Sent Events stream for live UI updates.
+- `GET /api/v1/healthz`: Liveness check.
+- `GET /api/v1/readyz`: Readiness check with database verification.
+
+---
+
+## License
+Apache-2.0
