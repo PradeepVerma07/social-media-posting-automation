@@ -21,7 +21,12 @@ import {
   Sliders,
   Send,
   Webhook as WebhookIcon,
-  LayoutGrid
+  LayoutGrid,
+  ShieldAlert,
+  Globe,
+  Copy,
+  Check,
+  ArrowRight
 } from 'lucide-react';
 import { api } from '../../api/client';
 import { WorkflowMapping } from '../../../server/src/types';
@@ -73,6 +78,37 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
     { id: 'E1KqIhWMSvoQCw4J', name: 'WF-01 Scheduler (1-Minute Cron)' },
     { id: 'nRmUm34gWBdx778T', name: 'PostPilot Master Production Pipeline' },
   ]);
+  // n8n connection URL (supports local dev or Cloudflare / remote tunnel URL)
+  const [n8nBaseUrl, setN8nBaseUrl] = useState<string>(() => {
+    return localStorage.getItem('ci360_n8n_url') || 'http://localhost:5678';
+  });
+  const [tunnelInput, setTunnelInput] = useState<string>(() => {
+    const saved = localStorage.getItem('ci360_n8n_url');
+    return (saved && saved.startsWith('https://')) ? saved : '';
+  });
+  const [copiedTunnelCmd, setCopiedTunnelCmd] = useState(false);
+
+  const isHttpsParent = typeof window !== 'undefined' && window.location.protocol === 'https:';
+  const isLocalOrInsecureN8n = n8nBaseUrl.startsWith('http://') || n8nBaseUrl.includes('localhost') || n8nBaseUrl.includes('127.0.0.1');
+  const isBlockedByBrowser = isHttpsParent && isLocalOrInsecureN8n;
+
+  const handleSaveTunnelUrl = (url: string) => {
+    const trimmed = url.trim().replace(/\/$/, '');
+    if (trimmed) {
+      localStorage.setItem('ci360_n8n_url', trimmed);
+      setN8nBaseUrl(trimmed);
+    } else {
+      localStorage.removeItem('ci360_n8n_url');
+      setN8nBaseUrl('http://localhost:5678');
+    }
+  };
+
+  const handleCopyTunnelCmd = () => {
+    navigator.clipboard.writeText('npx cloudflared tunnel --url http://localhost:5678');
+    setCopiedTunnelCmd(true);
+    setTimeout(() => setCopiedTunnelCmd(false), 2000);
+  };
+
   const [isTriggeringLiveRun, setIsTriggeringLiveRun] = useState(false);
   const [liveExecutionMessage, setLiveExecutionMessage] = useState<string | null>(null);
 
@@ -597,15 +633,14 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
                     <span>{isTriggeringLiveRun ? 'Running...' : 'Run Live Workflow'}</span>
                   </button>
 
-                  <a
-                    href={`http://localhost:5678/workflow/${selectedRealWfId}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-3.5 py-1.5 bg-white/10 hover:bg-white/15 border border-white/15 text-white rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm"
+                  <button
+                    type="button"
+                    onClick={() => window.open(`${n8nBaseUrl.replace(/\/$/, '')}/workflow/${selectedRealWfId}`, '_blank', 'noopener,noreferrer')}
+                    className="px-3.5 py-1.5 bg-white/10 hover:bg-white/15 border border-white/15 text-white rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
                   >
-                    <span>Fullscreen n8n</span>
+                    <span>Launch in n8n Tab</span>
                     <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+                  </button>
                 </>
               ) : (
                 <>
@@ -677,33 +712,177 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
           {canvasMode === 'live-runtime' ? (
             /* LIVE EMBEDDED REAL N8N WORKFLOW RUNTIME */
             <div className="space-y-3">
-              <div className="relative rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950 h-[760px] w-full">
-                <iframe
-                  src={`http://localhost:5678/workflow/${selectedRealWfId}`}
-                  title="Live Real n8n Workflow Runtime Automation"
-                  className="w-full h-full border-0 bg-slate-950"
-                  allow="clipboard-read; clipboard-write"
-                />
-              </div>
+              {isBlockedByBrowser ? (
+                /* HYBRID BROWSER RESTRICTION HELPER CARD */
+                <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6 sm:p-8 text-white shadow-2xl space-y-6">
+                  {/* Notice Header */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-semibold font-mono">
+                          <ShieldAlert className="w-3.5 h-3.5" />
+                          <span>CHROME PRIVATE NETWORK ACCESS</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-medium font-mono">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>n8n RUNNING ON :5678</span>
+                        </span>
+                      </div>
+                      <h2 className="text-xl font-bold tracking-tight text-white pt-1">
+                        Local n8n Hybrid Connection
+                      </h2>
+                      <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
+                        This dashboard is served over secure production HTTPS (<strong className="text-white">360.webtrionix.com</strong>).
+                        Modern browsers strictly block public HTTPS websites from embedding local HTTP devices (<strong className="text-amber-300">http://localhost:5678</strong>) inside an iframe for security.
+                      </p>
+                    </div>
 
-              {/* Live Runtime Information Bar */}
-              <div className="bg-white p-4 rounded-xl border border-[#EAECF0] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-[#667085]">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-[#101828]">Live n8n Runtime:</span>
-                  <span>Directly connected to live instance at <strong className="text-[#101828]">http://localhost:5678</strong>. Full node editing, live executions, and credential configurations are synchronized in real time.</span>
+                    <button
+                      type="button"
+                      onClick={() => setCanvasMode('native-canvas')}
+                      className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors flex items-center gap-2 shrink-0 cursor-pointer border border-slate-700"
+                    >
+                      <Layers className="w-4 h-4 text-[#FF6D5A]" />
+                      <span>Switch to Visual Canvas</span>
+                    </button>
+                  </div>
+
+                  {/* Actions Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {/* OPTION 1: 1-Click Launch in New Tab */}
+                    <div className="bg-slate-900/90 rounded-xl p-5 border border-slate-800 flex flex-col justify-between space-y-4 hover:border-slate-700 transition-colors">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-emerald-400 font-mono">OPTION 1 (INSTANT)</span>
+                          <span className="text-[10px] text-slate-400 font-mono">Zero Setup Needed</span>
+                        </div>
+                        <h3 className="text-sm font-bold text-white">Open in Dedicated n8n Tab</h3>
+                        <p className="text-xs text-slate-400 leading-relaxed">
+                          Opening in a browser tab bypasses iframe restrictions completely. You get the full visual editor, credential setup, node execution, and debug logging.
+                        </p>
+                      </div>
+
+                      <div className="space-y-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => window.open(`${n8nBaseUrl.replace(/\/$/, '')}/workflow/${selectedRealWfId}`, '_blank', 'noopener,noreferrer')}
+                          className="w-full h-11 px-4 rounded-xl bg-gradient-to-r from-[#FF6D5A] to-[#EA4B71] hover:from-[#ff5943] hover:to-[#df3860] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer"
+                        >
+                          <span>Launch Current Workflow in n8n</span>
+                          <ExternalLink className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => window.open(n8nBaseUrl, '_blank', 'noopener,noreferrer')}
+                          className="w-full h-9 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
+                        >
+                          <Globe className="w-3.5 h-3.5 text-slate-400" />
+                          <span>Open n8n Home Dashboard (:5678)</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* OPTION 2: Secure HTTPS Tunnel (Cloudflare) */}
+                    <div className="bg-slate-900/90 rounded-xl p-5 border border-slate-800 flex flex-col justify-between space-y-4 hover:border-slate-700 transition-colors">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-[#1336E8] font-mono">OPTION 2 (EMBED IN IFRAME)</span>
+                          <span className="text-[10px] text-emerald-400 font-mono">100% Free Tunnel</span>
+                        </div>
+                        <h3 className="text-sm font-bold text-white">Embed via Cloudflare Tunnel</h3>
+                        <p className="text-xs text-slate-400 leading-relaxed">
+                          Want n8n embedded right inside this window? Run Cloudflare Tunnel on your computer to assign n8n a secure HTTPS domain:
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        {/* Terminal Command */}
+                        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between font-mono text-[11px] text-emerald-300">
+                          <div className="flex items-center gap-2 truncate">
+                            <Terminal className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">npx cloudflared tunnel --url http://localhost:5678</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleCopyTunnelCmd}
+                            className="text-xs font-sans text-slate-400 hover:text-white flex items-center gap-1 ml-2 shrink-0 cursor-pointer"
+                          >
+                            {copiedTunnelCmd ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span>{copiedTunnelCmd ? 'Copied' : 'Copy'}</span>
+                          </button>
+                        </div>
+
+                        {/* Tunnel Input */}
+                        <div className="flex gap-2">
+                          <input
+                            type="url"
+                            value={tunnelInput}
+                            onChange={e => setTunnelInput(e.target.value)}
+                            placeholder="Paste https://xxx.trycloudflare.com"
+                            className="flex-1 h-9 px-3 bg-slate-950 border border-slate-700 rounded-lg text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-[#FF6D5A]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSaveTunnelUrl(tunnelInput)}
+                            className="px-3.5 h-9 bg-[#1336E8] hover:bg-[#0F29B8] text-white rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer"
+                          >
+                            Connect
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Architecture & MySQL Sync Footnote */}
+                  <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-400">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                      <span>
+                        <strong className="text-white">Hostinger MySQL Synced:</strong> Both this dashboard and your local n8n connect to <code className="text-emerald-300 font-mono">u245050038_ci360</code>. Workflows query and publish scheduled posts continuously.
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-mono text-slate-500 shrink-0">Polling Interval: 15s</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <a
-                    href="http://localhost:5678"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[#1336E8] font-semibold hover:underline flex items-center gap-1"
-                  >
-                    <span>Open in new tab</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
+              ) : (
+                /* LIVE IFRAME VIEW WHEN ACCESS IS COMPATIBLE (LOCALHOST OR HTTPS TUNNEL) */
+                <div className="space-y-3">
+                  <div className="relative rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950 h-[760px] w-full">
+                    <iframe
+                      src={`${n8nBaseUrl.replace(/\/$/, '')}/workflow/${selectedRealWfId}`}
+                      title="Live Real n8n Workflow Runtime Automation"
+                      className="w-full h-full border-0 bg-slate-950"
+                      allow="clipboard-read; clipboard-write"
+                    />
+                  </div>
+
+                  {/* Live Runtime Information Bar */}
+                  <div className="bg-white p-4 rounded-xl border border-[#EAECF0] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-[#667085]">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-[#101828]">Live n8n Runtime:</span>
+                      <span>Connected to <strong className="text-[#101828] font-mono">{n8nBaseUrl}</strong>. Workflows and credentials sync in real time.</span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleSaveTunnelUrl('')}
+                        className="text-[#667085] hover:text-[#101828] hover:underline"
+                        title="Reset connection to default localhost:5678"
+                      >
+                        Reset URL
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => window.open(`${n8nBaseUrl.replace(/\/$/, '')}/workflow/${selectedRealWfId}`, '_blank', 'noopener,noreferrer')}
+                        className="text-[#1336E8] font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>Open in new tab</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ) : (
             /* NATIVE VISUAL GRAPH */
