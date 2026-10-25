@@ -85,17 +85,44 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
     { id: 'nRmUm34gWBdx778T', name: 'PostPilot Master Production Pipeline' },
   ]);
 
-  // Read the n8n public URL from environment variable VITE_N8N_URL (do not hardcode quick tunnel URLs)
-  const n8nBaseUrl = (
-    import.meta.env.VITE_N8N_URL ||
-    (window as any).__N8N_URL__ ||
-    localStorage.getItem('ci360_n8n_url') ||
-    'http://localhost:5678'
-  ).replace(/\/$/, '');
+  // Resolve dynamic n8n public URL from environment or backend (auto-purging any stale trycloudflare URLs)
+  const resolveInitialN8nUrl = () => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ci360_n8n_url');
+      if (
+        saved &&
+        (saved.includes('trycloudflare.com') ||
+          (window.location.hostname.includes('webtrionix.com') && saved.includes('localhost')))
+      ) {
+        localStorage.removeItem('ci360_n8n_url');
+      } else if (saved && saved.startsWith('http')) {
+        return saved.replace(/\/$/, '');
+      }
+    }
+    const envUrl = import.meta.env.VITE_N8N_URL;
+    if (envUrl && typeof envUrl === 'string' && envUrl.startsWith('http') && !envUrl.includes('trycloudflare.com')) {
+      return envUrl.replace(/\/$/, '');
+    }
+    const winUrl = typeof window !== 'undefined' ? (window as any).__N8N_URL__ : undefined;
+    if (winUrl && typeof winUrl === 'string' && winUrl.startsWith('http')) {
+      return winUrl.replace(/\/$/, '');
+    }
+    return 'https://n8n.webtrionix.com';
+  };
+
+  const [n8nBaseUrl, setN8nBaseUrl] = useState<string>(resolveInitialN8nUrl);
 
   const currentIframeUrl = selectedRealWfId
     ? `${n8nBaseUrl}/workflow/${selectedRealWfId}`
     : `${n8nBaseUrl}/home/workflows`;
+
+  const handleResetToProduction = () => {
+    const prodUrl = 'https://n8n.webtrionix.com';
+    localStorage.setItem('ci360_n8n_url', prodUrl);
+    setN8nBaseUrl(prodUrl);
+    setIframeKey(k => k + 1);
+    setIframeStatus('loading');
+  };
 
   const [isTriggeringLiveRun, setIsTriggeringLiveRun] = useState(false);
   const [liveExecutionMessage, setLiveExecutionMessage] = useState<string | null>(null);
@@ -128,6 +155,22 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
       .then(res => {
         if (res && res.workflows && res.workflows.length > 0) {
           setInstalledRealWorkflows(res.workflows);
+        }
+      })
+      .catch(() => {});
+
+    // Automatically sync active n8n URL from backend health endpoint
+    api.getN8nHealth()
+      .then(res => {
+        if (res && res.url && !res.url.includes('trycloudflare.com')) {
+          const cleanUrl = res.url.replace(/\/$/, '');
+          setN8nBaseUrl(prev => {
+            if (prev !== cleanUrl) {
+              localStorage.setItem('ci360_n8n_url', cleanUrl);
+              return cleanUrl;
+            }
+            return prev;
+          });
         }
       })
       .catch(() => {});
@@ -607,7 +650,7 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
               {/* Status Badge */}
               <div className="flex items-center gap-2 px-3 py-1 bg-emerald-950/80 rounded-lg border border-emerald-800/80 text-[11px] font-mono text-emerald-300">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>REAL N8N RUNTIME ACTIVE (:5678)</span>
+                <span>REAL N8N RUNTIME ACTIVE ({n8nBaseUrl.replace(/^https?:\/\//, '')})</span>
               </div>
             </div>
 
@@ -782,6 +825,16 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
                     <span className="text-xs font-mono text-slate-400 truncate max-w-xs md:max-w-md">
                       {n8nBaseUrl}
                     </span>
+                    {n8nBaseUrl !== 'https://n8n.webtrionix.com' && (
+                      <button
+                        type="button"
+                        onClick={handleResetToProduction}
+                        className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-semibold hover:bg-emerald-500/30 transition-colors cursor-pointer"
+                        title="Switch to production AWS EC2 instance https://n8n.webtrionix.com"
+                      >
+                        Connect to n8n.webtrionix.com
+                      </button>
+                    )}
                   </div>
                   <h3 className="text-base font-bold text-white">n8n Visual Workflow Editor</h3>
                 </div>
@@ -875,6 +928,16 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                       <span>Reload Iframe</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleResetToProduction}
+                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                      title="Switch URL to https://n8n.webtrionix.com and refresh iframe"
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      <span>Connect to n8n.webtrionix.com</span>
                     </button>
 
                     <div className="flex items-center gap-2 text-[11px] text-amber-300 font-mono ml-auto">

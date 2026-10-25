@@ -45,13 +45,22 @@ interface N8nSessionState {
 
 const PRESET_INSTANCES = [
   {
+    id: 'aws_ec2',
+    name: 'Production AWS EC2 n8n',
+    url: 'https://n8n.webtrionix.com',
+    desc: 'Live production n8n workspace with SSL & reverse proxy on AWS EC2.',
+    type: 'self_hosted',
+    badge: 'Production Live',
+    badgeClass: 'bg-[#ECFDF3] text-[#027A48] border-[#A6F4C5]',
+  },
+  {
     id: 'local_studio',
     name: 'Built-in Workflow Studio (:3000)',
     url: 'http://localhost:3000',
     desc: 'Interactive visual workflow canvas, event triggers, and automated orchestration engine.',
     type: 'self_hosted',
     badge: 'Live Built-in / Ready',
-    badgeClass: 'bg-[#ECFDF3] text-[#027A48] border-[#A6F4C5]',
+    badgeClass: 'bg-[#EFF8FF] text-[#1336E8] border-[#B2DDFF]',
   },
   {
     id: 'docker',
@@ -69,7 +78,7 @@ const PRESET_INSTANCES = [
     desc: 'Official managed cloud instance with zero maintenance.',
     type: 'n8n_cloud',
     badge: 'Cloud Hosted',
-    badgeClass: 'bg-[#EFF8FF] text-[#1336E8] border-[#B2DDFF]',
+    badgeClass: 'bg-[#F9F5FF] text-[#6941C6] border-[#E9D7FE]',
   },
 ];
 
@@ -89,8 +98,22 @@ export const N8nDirectLoginPage: React.FC<N8nDirectLoginPageProps> = ({
     lastConnected: new Date().toISOString(),
   });
 
+  const resolveDefaultUrl = () => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ci360_n8n_url');
+      if (
+        saved &&
+        !saved.includes('trycloudflare.com') &&
+        (saved.startsWith('https://') || window.location.hostname === 'localhost')
+      ) {
+        return saved;
+      }
+    }
+    return import.meta.env.VITE_N8N_URL || 'https://n8n.webtrionix.com';
+  };
+
   const [authMethod, setAuthMethod] = useState<'credentials' | 'apikey' | 'sso'>('credentials');
-  const [instanceUrl, setInstanceUrl] = useState('http://localhost:5678');
+  const [instanceUrl, setInstanceUrl] = useState(resolveDefaultUrl);
   const [email, setEmail] = useState('admin@ci360.internal');
   const [password, setPassword] = useState('••••••••••••');
   const [apiKey, setApiKey] = useState('n8n_api_key_ci360_live_sec772983');
@@ -111,8 +134,18 @@ export const N8nDirectLoginPage: React.FC<N8nDirectLoginPageProps> = ({
     api.getN8nSession()
       .then(data => {
         setSession(data);
-        if (data.instanceUrl) setInstanceUrl(data.instanceUrl);
+        if (data.instanceUrl && !data.instanceUrl.includes('trycloudflare.com')) {
+          setInstanceUrl(data.instanceUrl);
+        }
         if (data.email) setEmail(data.email);
+      })
+      .catch(() => {});
+
+    api.getN8nHealth()
+      .then(res => {
+        if (res && res.url && !res.url.includes('trycloudflare.com')) {
+          setInstanceUrl(res.url);
+        }
       })
       .catch(() => {});
 
@@ -402,7 +435,7 @@ export const N8nDirectLoginPage: React.FC<N8nDirectLoginPageProps> = ({
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#FF6D5A]/10 text-[#FF6D5A]">
                   STEP 1: OWNER SETUP
                 </span>
-                <span className="text-[11px] text-[#667085] font-mono">http://localhost:5678</span>
+                <span className="text-[11px] text-[#667085] font-mono">{instanceUrl}</span>
               </div>
               <h3 className="text-sm font-bold text-[#101828]">Real n8n Sign-Up First</h3>
               <p className="text-xs text-[#667085]">
@@ -412,7 +445,7 @@ export const N8nDirectLoginPage: React.FC<N8nDirectLoginPageProps> = ({
 
             <div className="space-y-2 pt-2">
               <a
-                href="https://greatly-mazda-behalf-derby.trycloudflare.com/home/workflows"
+                href={`${(instanceUrl || 'https://n8n.webtrionix.com').replace(/\/$/, '')}/home/workflows`}
                 target="_blank"
                 rel="noreferrer"
                 className="w-full h-11 px-4 rounded-xl bg-gradient-to-r from-[#FF6D5A] to-[#EA4B71] hover:from-[#ff5943] hover:to-[#df3860] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"

@@ -63,13 +63,28 @@ export const Header: React.FC<HeaderProps> = ({
     error?: string;
   }>({ reachable: false, status: 'checking' });
 
-  // Resolve dynamic n8n public URL from environment
-  const n8nBaseUrl = (
-    import.meta.env.VITE_N8N_URL ||
-    (window as any).__N8N_URL__ ||
-    localStorage.getItem('ci360_n8n_url') ||
-    'http://localhost:5678'
-  ).replace(/\/$/, '');
+  // Resolve dynamic n8n public URL from environment or backend
+  const resolveInitialN8nUrl = () => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ci360_n8n_url');
+      if (
+        saved &&
+        (saved.includes('trycloudflare.com') ||
+          (window.location.hostname.includes('webtrionix.com') && saved.includes('localhost')))
+      ) {
+        localStorage.removeItem('ci360_n8n_url');
+      } else if (saved && saved.startsWith('http')) {
+        return saved.replace(/\/$/, '');
+      }
+    }
+    const envUrl = import.meta.env.VITE_N8N_URL;
+    if (envUrl && typeof envUrl === 'string' && envUrl.startsWith('http') && !envUrl.includes('trycloudflare.com')) {
+      return envUrl.replace(/\/$/, '');
+    }
+    return 'https://n8n.webtrionix.com';
+  };
+
+  const [n8nBaseUrl, setN8nBaseUrl] = useState<string>(resolveInitialN8nUrl);
 
   // Real backend health check GET {N8N_URL}/healthz via /api/v1/n8n/health
   useEffect(() => {
@@ -78,6 +93,11 @@ export const Header: React.FC<HeaderProps> = ({
       try {
         const res = await api.getN8nHealth();
         if (!isMounted) return;
+        if (res.url && !res.url.includes('trycloudflare.com')) {
+          const cleanUrl = res.url.replace(/\/$/, '');
+          setN8nBaseUrl(cleanUrl);
+          localStorage.setItem('ci360_n8n_url', cleanUrl);
+        }
         if (res.reachable) {
           setN8nHealth({ reachable: true, status: 'connected', latencyMs: res.latencyMs });
         } else if (res.status === 'unauthorized') {
