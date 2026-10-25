@@ -13,7 +13,8 @@ import {
   KeyRound,
   LogOut,
   LogIn,
-  Upload
+  Upload,
+  ExternalLink
 } from 'lucide-react';
 import { Brand, InAppNotification, RoleName, User } from '../../../server/src/types';
 import { formatISTTime } from '../../utils/timezone';
@@ -173,6 +174,19 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right: n8n Status, Date Range, Notifications & User */}
       <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+        {/* Direct n8n Workflows Link */}
+        <a
+          href="https://greatly-mazda-behalf-derby.trycloudflare.com/home/workflows"
+          target="_blank"
+          rel="noreferrer"
+          className="h-8 px-2 sm:px-2.5 rounded-lg border border-[#D0D5DD] bg-white hover:bg-[#F2F4F7] flex items-center gap-1.5 text-[11px] font-semibold text-[#101828] transition-colors shrink-0 shadow-xs"
+          title="Open live n8n Workflows in new tab"
+        >
+          <span className="w-2 h-2 rounded-full bg-[#FF6D5A]"></span>
+          <span className="hidden sm:inline font-mono">n8n Workflows</span>
+          <ExternalLink className="w-3 h-3 text-[#667085]" />
+        </a>
+
         {/* n8n Status Pill */}
         <button
           onClick={onOpenN8nStatus}

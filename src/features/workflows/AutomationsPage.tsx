@@ -88,20 +88,21 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
     { id: 'nRmUm34gWBdx778T', name: 'PostPilot Master Production Pipeline' },
   ]);
 
+  // Active live Cloudflare tunnel URL for n8n workflows
+  const ACTIVE_CLOUDFLARE_URL = 'https://greatly-mazda-behalf-derby.trycloudflare.com';
+  const ACTIVE_WORKFLOWS_URL = 'https://greatly-mazda-behalf-derby.trycloudflare.com/home/workflows';
+
   // n8n connection URL (supports local dev or custom Cloudflare / remote tunnel URL)
   const [n8nBaseUrl, setN8nBaseUrl] = useState<string>(() => {
     const saved = localStorage.getItem('ci360_n8n_url');
     if (saved && !saved.includes('tin-holdings-postcards-paragraph')) {
       return saved;
     }
-    if (saved) {
-      localStorage.removeItem('ci360_n8n_url');
-    }
-    return 'http://localhost:5678';
+    return ACTIVE_CLOUDFLARE_URL;
   });
   const [tunnelInput, setTunnelInput] = useState<string>(() => {
     const saved = localStorage.getItem('ci360_n8n_url');
-    return (saved && saved.startsWith('https://') && !saved.includes('tin-holdings-postcards-paragraph')) ? saved : '';
+    return (saved && saved.startsWith('https://') && !saved.includes('tin-holdings-postcards-paragraph')) ? saved : ACTIVE_CLOUDFLARE_URL;
   });
   const [copiedTunnelCmd, setCopiedTunnelCmd] = useState(false);
 
@@ -111,14 +112,14 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
 
   const getExternalWfUrl = () => {
     if (n8nBaseUrl && n8nBaseUrl.startsWith('https://')) {
-      return `${n8nBaseUrl.replace(/\/$/, '')}/workflow/${selectedRealWfId}`;
+      return `${n8nBaseUrl.replace(/\/$/, '')}/home/workflows`;
     }
     return `http://localhost:5678/workflow/${selectedRealWfId}`;
   };
 
   const getExternalHomeUrl = () => {
     if (n8nBaseUrl && n8nBaseUrl.startsWith('https://')) {
-      return n8nBaseUrl;
+      return `${n8nBaseUrl.replace(/\/$/, '')}/home/workflows`;
     }
     return 'http://localhost:5678';
   };
@@ -665,26 +666,28 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
                     <span>{isTriggeringLiveRun ? 'Running...' : 'Run Live Workflow'}</span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => window.open(getExternalWfUrl(), '_blank', 'noopener,noreferrer')}
-                    className="px-3.5 py-1.5 bg-gradient-to-r from-[#FF6D5A] to-[#EA4B71] hover:from-[#ff5943] hover:to-[#df3860] text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  <a
+                    href={ACTIVE_WORKFLOWS_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3.5 py-1.5 bg-gradient-to-r from-[#FF6D5A] to-[#EA4B71] hover:from-[#ff5943] hover:to-[#df3860] text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
                   >
-                    <span>Launch in n8n Tab</span>
+                    <span>Open n8n Workflows</span>
                     <ExternalLink className="w-3.5 h-3.5" />
-                  </button>
+                  </a>
                 </>
               ) : (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => window.open(getExternalWfUrl(), '_blank', 'noopener,noreferrer')}
-                    className="px-3 py-1.5 bg-gradient-to-r from-[#FF6D5A] to-[#EA4B71] hover:from-[#ff5943] hover:to-[#df3860] text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
-                    title="Launch real workflow in n8n (:5678)"
+                  <a
+                    href={ACTIVE_WORKFLOWS_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3.5 py-1.5 bg-gradient-to-r from-[#FF6D5A] to-[#EA4B71] hover:from-[#ff5943] hover:to-[#df3860] text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                    title="Open live n8n workflows in new tab"
                   >
-                    <span>Launch n8n (:5678)</span>
+                    <span>Open n8n Workflows</span>
                     <ExternalLink className="w-3.5 h-3.5" />
-                  </button>
+                  </a>
 
                   <button
                     onClick={() => setIsLibraryOpen(true)}
@@ -891,7 +894,7 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
                 <div className="space-y-3">
                   <div className="relative rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950 h-[760px] w-full">
                     <iframe
-                      src={`${n8nBaseUrl.replace(/\/$/, '')}/workflow/${selectedRealWfId}`}
+                      src={n8nBaseUrl.startsWith('https://') ? `${n8nBaseUrl.replace(/\/$/, '')}/home/workflows` : `${n8nBaseUrl.replace(/\/$/, '')}/workflow/${selectedRealWfId}`}
                       title="Live Real n8n Workflow Runtime Automation"
                       className="w-full h-full border-0 bg-slate-950"
                       allow="clipboard-read; clipboard-write"
@@ -913,14 +916,15 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
                       >
                         Reset URL
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => window.open(`${n8nBaseUrl.replace(/\/$/, '')}/workflow/${selectedRealWfId}`, '_blank', 'noopener,noreferrer')}
+                      <a
+                        href={ACTIVE_WORKFLOWS_URL}
+                        target="_blank"
+                        rel="noreferrer"
                         className="text-[#1336E8] font-semibold hover:underline flex items-center gap-1 cursor-pointer"
                       >
                         <span>Open in new tab</span>
                         <ExternalLink className="w-3 h-3" />
-                      </button>
+                      </a>
                     </div>
                   </div>
                 </div>

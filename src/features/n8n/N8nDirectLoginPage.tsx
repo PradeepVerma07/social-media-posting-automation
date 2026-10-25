@@ -411,13 +411,22 @@ export const N8nDirectLoginPage: React.FC<N8nDirectLoginPageProps> = ({
             </div>
 
             <div className="space-y-2 pt-2">
+              <a
+                href="https://greatly-mazda-behalf-derby.trycloudflare.com/home/workflows"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full h-11 px-4 rounded-xl bg-gradient-to-r from-[#FF6D5A] to-[#EA4B71] hover:from-[#ff5943] hover:to-[#df3860] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+              >
+                <span>Open n8n Workflows</span>
+                <ExternalLink className="w-4 h-4" />
+              </a>
               <button
                 type="button"
                 onClick={() => window.open('http://localhost:5678', '_blank', 'noopener,noreferrer')}
-                className="w-full h-11 px-4 rounded-xl bg-gradient-to-r from-[#FF6D5A] to-[#EA4B71] hover:from-[#ff5943] hover:to-[#df3860] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+                className="w-full h-9 px-3 rounded-xl border border-[#D0D5DD] bg-white hover:bg-slate-50 text-[11px] font-semibold text-[#344054] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
-                <span>Open Real n8n Sign-Up (:5678)</span>
-                <ExternalLink className="w-4 h-4" />
+                <span>Open Local n8n (:5678)</span>
+                <ExternalLink className="w-3.5 h-3.5 text-[#667085]" />
               </button>
               <button
                 type="button"
