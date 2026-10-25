@@ -122,7 +122,12 @@ publicRouter.post('/n8n/logout', (req: Request, res: Response) => {
  * Probes GET {N8N_URL}/healthz with X-N8N-API-KEY. Never assumes connected.
  */
 publicRouter.get('/n8n/health', async (req: Request, res: Response) => {
-  const n8nUrl = (process.env.N8N_PUBLIC_URL || process.env.N8N_BASE_URL || 'http://localhost:5678').replace(/\/$/, '');
+  const n8nUrl = (
+    process.env.N8N_PUBLIC_URL ||
+    process.env.VITE_N8N_URL ||
+    process.env.N8N_BASE_URL ||
+    'https://home-taking-refers-rating.trycloudflare.com'
+  ).replace(/\/$/, '');
   const apiKey = process.env.N8N_API_KEY || '';
   const start = performance.now();
 
@@ -178,7 +183,12 @@ publicRouter.get('/n8n/health', async (req: Request, res: Response) => {
 });
 
 publicRouter.post('/integrations/n8n/test', async (req: Request, res: Response) => {
-  const n8nUrl = (process.env.N8N_PUBLIC_URL || process.env.N8N_BASE_URL || 'http://localhost:5678').replace(/\/$/, '');
+  const n8nUrl = (
+    process.env.N8N_PUBLIC_URL ||
+    process.env.VITE_N8N_URL ||
+    process.env.N8N_BASE_URL ||
+    'https://home-taking-refers-rating.trycloudflare.com'
+  ).replace(/\/$/, '');
   const apiKey = process.env.N8N_API_KEY || '';
   const start = performance.now();
 
@@ -222,7 +232,12 @@ publicRouter.post('/integrations/n8n/test', async (req: Request, res: Response) 
  */
 publicRouter.post('/workflows/:id/execute', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const n8nUrl = (process.env.N8N_PUBLIC_URL || process.env.N8N_BASE_URL || 'http://localhost:5678').replace(/\/$/, '');
+  const n8nUrl = (
+    process.env.N8N_PUBLIC_URL ||
+    process.env.VITE_N8N_URL ||
+    process.env.N8N_BASE_URL ||
+    'https://home-taking-refers-rating.trycloudflare.com'
+  ).replace(/\/$/, '');
   const apiKey = process.env.N8N_API_KEY || '';
 
   const workflowIdMap: Record<string, string> = {
