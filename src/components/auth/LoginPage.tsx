@@ -9,12 +9,11 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  User,
-  Building2,
   Facebook,
   Instagram,
   Linkedin,
-  Youtube
+  Youtube,
+  Sparkles
 } from 'lucide-react';
 import { User as UserModel } from '../../../server/src/types';
 import { api } from '../../api/client';
@@ -136,12 +135,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
     }
   };
 
-  const handleAutoFillAdmin = () => {
-    setIdentifier('pradeepofficial8795@gmail.com');
-    setPassword('Admin@123');
-    setErrorMsg(null);
-  };
-
   return (
     <div className="min-h-screen w-screen flex flex-col items-center justify-between bg-[#08070E] text-white p-4 sm:p-6 lg:p-10 relative overflow-x-hidden font-sans select-none">
       {/* Background Decorative Gradients & Grid Pattern */}
@@ -156,7 +149,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
       <div className="absolute -top-32 -right-32 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-rose-600/10 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Top Header: Brand, Title & Gateway Pill (Image 2) */}
+      {/* Top Header: Brand, Title & Gateway Pill */}
       <header className="w-full max-w-5xl flex flex-col items-center text-center pt-2 sm:pt-4 z-10 animate-in fade-in duration-300">
         <div className="flex items-center justify-center gap-3 mb-2">
           <img
@@ -188,83 +181,106 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
         </div>
       </header>
 
-      {/* Main Two-Column Showcase & Login Section (Image 4) */}
+      {/* Main Two-Column Showcase & Login Section */}
       <main className="w-full max-w-5xl my-auto py-8 sm:py-12 z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
-          {/* Left Column: Product Showcase & Timeline (ScoreItAI / Webtrionix Style) */}
-          <div className="lg:col-span-7 space-y-7 animate-in fade-in slide-in-from-left duration-300">
-            {/* Meet Badge */}
-            <div className="inline-flex items-center px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300 text-xs font-medium">
-              <span>Meet Webtrionix 360</span>
-            </div>
-
+          {/* Left Column: Automation Workflow Timeline (Matching Uploaded Design) */}
+          <div className="lg:col-span-7 space-y-6 animate-in fade-in slide-in-from-left duration-300 relative">
             {/* Main Headline */}
             <div>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-[1.15]">
-                Know why your <br />
+              <h2 className="text-3xl sm:text-4xl lg:text-[42px] font-extrabold tracking-tight text-white leading-[1.18]">
+                Know how your <br className="hidden sm:inline" />
                 <span className="bg-gradient-to-r from-[#F06A6A] via-[#E85D75] to-[#B368E8] bg-clip-text text-transparent">
-                  content performs
+                  automation workflow works
                 </span>
               </h2>
-              <p className="text-sm sm:text-base text-slate-400 mt-3 max-w-md leading-relaxed">
-                Scored per post, with the evidence attached. Multi-channel publishing and automated intelligence.
+              <p className="text-xs sm:text-sm text-slate-400 mt-2.5 max-w-lg leading-relaxed">
+                Seamlessly create, schedule, publish, and track your content across multiple platforms automatically.
               </p>
             </div>
 
-            {/* Vertical Timeline with Steps */}
-            <div className="relative pl-2 space-y-6">
-              {/* Connected Line */}
-              <div className="absolute left-[21px] top-4 bottom-4 w-[2px] bg-white/10" />
+            {/* Vertical Workflow Steps (1 to 5) with Connected Line */}
+            <div className="relative pl-1 space-y-5">
+              {/* Connected Vertical Line */}
+              <div className="absolute left-[18px] top-3 bottom-3 w-[2px] bg-white/10" />
 
-              {/* Step 1 */}
-              <div className="relative flex items-start gap-4">
+              {/* Step 1: Connect your accounts */}
+              <div className="relative flex items-start gap-3.5">
                 <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#E85D75] to-[#B368E8] text-white flex items-center justify-center font-bold text-xs shrink-0 z-10 shadow-md">
                   1
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-white">Connect your accounts</h3>
-                  <div className="flex items-center gap-3 mt-1.5 text-slate-300">
+                  <h3 className="text-sm font-bold text-white">Connect your accounts</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Link your social media pages to get started.</p>
+                  <div className="flex items-center gap-2.5 mt-2 text-slate-300">
                     <span className="p-1 rounded-lg bg-pink-500/10 border border-pink-500/20 text-pink-400">
-                      <Instagram className="w-4 h-4" />
+                      <Instagram className="w-3.5 h-3.5" />
                     </span>
                     <span className="p-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400">
-                      <Facebook className="w-4 h-4" />
+                      <Facebook className="w-3.5 h-3.5" />
                     </span>
                     <span className="p-1 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400">
-                      <Youtube className="w-4 h-4" />
+                      <Youtube className="w-3.5 h-3.5" />
                     </span>
                     <span className="p-1 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400">
-                      <Linkedin className="w-4 h-4" />
+                      <Linkedin className="w-3.5 h-3.5" />
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Step 2 */}
-              <div className="relative flex items-start gap-4">
+              {/* Step 2: Automate & Schedule */}
+              <div className="relative flex items-start gap-3.5">
                 <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#E85D75] to-[#B368E8] text-white flex items-center justify-center font-bold text-xs shrink-0 z-10 shadow-md">
                   2
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-white">Quality and performance</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Two scores, meant to disagree</p>
+                  <h3 className="text-sm font-bold text-white">Automate &amp; Schedule</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Plan and schedule your posts ahead of time with automation.</p>
                 </div>
               </div>
 
-              {/* Step 3 */}
-              <div className="relative flex items-start gap-4">
+              {/* Step 3: Multi-Channel Publishing */}
+              <div className="relative flex items-start gap-3.5">
                 <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#E85D75] to-[#B368E8] text-white flex items-center justify-center font-bold text-xs shrink-0 z-10 shadow-md">
                   3
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-white">Findings show their sample</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Every claim names the posts behind it</p>
+                  <h3 className="text-sm font-bold text-white">Multi-Channel Publishing</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Your content goes live across all connected platforms simultaneously.</p>
+                </div>
+              </div>
+
+              {/* Step 4: Performance Reports */}
+              <div className="relative flex items-start gap-3.5">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#E85D75] to-[#B368E8] text-white flex items-center justify-center font-bold text-xs shrink-0 z-10 shadow-md">
+                  4
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Performance Reports</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Track and analyze how your posts are performing in real-time.</p>
+                </div>
+              </div>
+
+              {/* Step 5: Optimized Content Creation */}
+              <div className="relative flex items-start gap-3.5">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#E85D75] to-[#B368E8] text-white flex items-center justify-center font-bold text-xs shrink-0 z-10 shadow-md">
+                  5
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Optimized Content Creation</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Create better content like images based on performance insights.</p>
                 </div>
               </div>
             </div>
+
+            {/* Subtle decorative sparkle star */}
+            <div className="absolute right-4 bottom-2 text-white/20 pointer-events-none">
+              <Sparkles className="w-6 h-6 animate-pulse" />
+            </div>
           </div>
 
-          {/* Right Column: Card with Offset Cyan Accent Border (Image 4 & Image 1) */}
+          {/* Right Column: Clean Login Card with Offset Cyan Accent Border */}
           <div className="lg:col-span-5 w-full max-w-md mx-auto space-y-4 animate-in fade-in slide-in-from-right duration-300">
             <h2 className="text-2xl font-bold text-white tracking-tight">
               {authMode === 'signin' ? 'Sign in' : 'Create an account'}
@@ -338,7 +354,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
                           type="button"
                           onClick={() =>
                             alert(
-                              'Please contact your Webtrionix system administrator (pradeepofficial8795@gmail.com) for password resets.'
+                              'Please contact your Webtrionix system administrator for password resets.'
                             )
                           }
                           className="text-xs text-[#E85D75] hover:underline cursor-pointer"
@@ -352,7 +368,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="w-full h-11 mt-1 rounded-full bg-gradient-to-r from-[#F06A6A] via-[#E85D75] to-[#B368E8] hover:opacity-95 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-pink-500/20 hover:shadow-pink-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      className="w-full h-11 mt-2 rounded-full bg-gradient-to-r from-[#F06A6A] via-[#E85D75] to-[#B368E8] hover:opacity-95 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-pink-500/20 hover:shadow-pink-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                     >
                       {isLoading ? (
                         <>
@@ -442,30 +458,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
                     </button>
                   </form>
                 )}
-
-                {/* Admin Account Auto-Fill Box (Image 1) */}
-                <div className="p-3 rounded-xl bg-[#171B26] border border-slate-700/60 flex items-center justify-between text-xs mt-3">
-                  <div className="space-y-0.5 font-mono">
-                    <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">
-                      ADMIN ACCOUNT
-                    </span>
-                    <span className="text-slate-100 text-xs block font-mono">pradeepofficial8795@gmail.com</span>
-                    <span className="text-slate-400 text-xs font-mono">
-                      Pass: <span className="text-blue-400">Admin@123</span>
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleAutoFillAdmin}
-                    className="px-3.5 py-1.5 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 font-semibold text-xs transition-colors cursor-pointer border border-blue-500/40"
-                  >
-                    Auto-fill
-                  </button>
-                </div>
               </div>
             </div>
 
-            {/* Bottom Toggle Link (Image 4) */}
+            {/* Bottom Toggle Link */}
             <div className="text-xs text-center text-slate-400 pt-1">
               {authMode === 'signin' ? (
                 <span>
@@ -503,7 +499,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
         </div>
       </main>
 
-      {/* Footer Info: Encryption & Copyright (Image 3) */}
+      {/* Footer Info: Encryption & Copyright */}
       <footer className="w-full max-w-5xl text-center pb-2 sm:pb-4 space-y-1 text-slate-500 text-xs z-10 animate-in fade-in duration-300">
         <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
           <Shield className="w-3.5 h-3.5 text-blue-400" />
