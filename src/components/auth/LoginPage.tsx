@@ -20,9 +20,10 @@ import { api } from '../../api/client';
 
 interface LoginPageProps {
   onLoginSuccess: (user: User, token: string) => void;
+  onNavigateToRegister?: () => void;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigateToRegister }) => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -239,6 +240,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 </>
               )}
             </button>
+
+            {onNavigateToRegister && (
+              <div className="pt-3 text-center border-t border-slate-700/60 mt-3">
+                <p className="text-xs text-slate-400">
+                  New brand or agency client?{' '}
+                  <button
+                    type="button"
+                    onClick={onNavigateToRegister}
+                    className="font-bold text-blue-400 hover:text-blue-300 underline cursor-pointer"
+                  >
+                    Register Brand Account
+                  </button>
+                </p>
+              </div>
+            )}
           </form>
         </div>
 

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { NavigationTab } from './Sidebar';
 import { RoleName } from '../../../server/src/types';
-import { getRolePermissions } from '../../utils/rbac';
+import { getRolePermissions, isTabAllowed } from '../../utils/rbac';
 
 interface MobileBottomNavProps {
   activeTab: NavigationTab;
@@ -32,27 +32,31 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-[#EAECF0] z-30 flex items-center justify-around px-2 shadow-lg">
-      <button
-        onClick={() => onSelectTab('overview')}
-        className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors ${
-          activeTab === 'overview' ? 'text-[#1336E8]' : 'text-[#667085]'
-        }`}
-      >
-        <LayoutDashboard className="w-5 h-5" />
-        <span className="text-[10px] font-semibold mt-0.5">Overview</span>
-      </button>
+      {isTabAllowed('overview', currentRole) && (
+        <button
+          onClick={() => onSelectTab('overview')}
+          className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors ${
+            activeTab === 'overview' ? 'text-[#1336E8]' : 'text-[#667085]'
+          }`}
+        >
+          <LayoutDashboard className="w-5 h-5" />
+          <span className="text-[10px] font-semibold mt-0.5">Overview</span>
+        </button>
+      )}
 
-      <button
-        onClick={() => onSelectTab('content')}
-        className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors ${
-          activeTab === 'content' ? 'text-[#1336E8]' : 'text-[#667085]'
-        }`}
-      >
-        <FileText className="w-5 h-5" />
-        <span className="text-[10px] font-semibold mt-0.5">Content</span>
-      </button>
+      {isTabAllowed('content', currentRole) && (
+        <button
+          onClick={() => onSelectTab('content')}
+          className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors ${
+            activeTab === 'content' ? 'text-[#1336E8]' : 'text-[#667085]'
+          }`}
+        >
+          <FileText className="w-5 h-5" />
+          <span className="text-[10px] font-semibold mt-0.5">Content</span>
+        </button>
+      )}
 
-      {permissions.canCreatePost ? (
+      {permissions.canCreatePost && isTabAllowed('create', currentRole) ? (
         <button
           onClick={() => onSelectTab('create')}
           className="flex flex-col items-center justify-center -mt-4 cursor-pointer"
@@ -63,7 +67,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           </div>
           <span className="text-[10px] font-bold text-[#1336E8] mt-0.5">Create</span>
         </button>
-      ) : (
+      ) : isTabAllowed('analytics', currentRole) ? (
         <button
           onClick={() => onSelectTab('analytics')}
           className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors ${
@@ -73,26 +77,28 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           <BarChart3 className="w-5 h-5" />
           <span className="text-[10px] font-semibold mt-0.5">Analytics</span>
         </button>
+      ) : null}
+
+      {isTabAllowed('approvals', currentRole) && (
+        <button
+          onClick={() => onSelectTab('approvals')}
+          className={`flex flex-col items-center justify-center flex-1 py-1 relative transition-colors ${
+            activeTab === 'approvals' ? 'text-[#1336E8]' : 'text-[#667085]'
+          }`}
+        >
+          <div className="relative">
+            <CheckSquare className="w-5 h-5" />
+            {pendingApprovalsCount > 0 && (
+              <span className="absolute -top-1 -right-2 w-4 h-4 bg-[#F04438] text-white rounded-full text-[9px] font-bold flex items-center justify-center">
+                {pendingApprovalsCount}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] font-semibold mt-0.5">Queue</span>
+        </button>
       )}
 
-      <button
-        onClick={() => onSelectTab('approvals')}
-        className={`flex flex-col items-center justify-center flex-1 py-1 relative transition-colors ${
-          activeTab === 'approvals' ? 'text-[#1336E8]' : 'text-[#667085]'
-        }`}
-      >
-        <div className="relative">
-          <CheckSquare className="w-5 h-5" />
-          {pendingApprovalsCount > 0 && (
-            <span className="absolute -top-1 -right-2 w-4 h-4 bg-[#F04438] text-white rounded-full text-[9px] font-bold flex items-center justify-center">
-              {pendingApprovalsCount}
-            </span>
-          )}
-        </div>
-        <span className="text-[10px] font-semibold mt-0.5">Queue</span>
-      </button>
-
-      {permissions.canManageTeam ? (
+      {permissions.canManageTeam && isTabAllowed('team', currentRole) ? (
         <button
           onClick={() => onSelectTab('team')}
           className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors ${
@@ -102,7 +108,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           <Users className="w-5 h-5" />
           <span className="text-[10px] font-semibold mt-0.5">Team</span>
         </button>
-      ) : (
+      ) : isTabAllowed('calendar', currentRole) ? (
         <button
           onClick={() => onSelectTab('calendar')}
           className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors ${
@@ -112,7 +118,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           <Calendar className="w-5 h-5" />
           <span className="text-[10px] font-semibold mt-0.5">Calendar</span>
         </button>
-      )}
+      ) : null}
 
       <button
         onClick={onOpenMenu}

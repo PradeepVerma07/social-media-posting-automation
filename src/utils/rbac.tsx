@@ -209,6 +209,7 @@ export const getRolePermissions = (role: RoleName): RolePermissionConfig => {
 };
 
 export const isTabAllowed = (tab: NavigationTab, role: RoleName): boolean => {
+  if (tab === 'register') return true;
   const config = getRolePermissions(role);
   return config.allowedTabs.includes(tab);
 };

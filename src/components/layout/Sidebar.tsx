@@ -40,7 +40,8 @@ export type NavigationTab =
   | 'sheets'
   | 'team'
   | 'audit'
-  | 'settings';
+  | 'settings'
+  | 'register';
 
 interface SidebarProps {
   activeTab: NavigationTab;

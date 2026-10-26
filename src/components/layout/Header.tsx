@@ -14,11 +14,14 @@ import {
   LogOut,
   LogIn,
   Upload,
-  ExternalLink
+  ExternalLink,
+  Sparkles,
+  Building2
 } from 'lucide-react';
 import { Brand, InAppNotification, RoleName, User } from '../../../server/src/types';
 import { formatISTTime } from '../../utils/timezone';
 import { api } from '../../api/client';
+import { getRolePermissions } from '../../utils/rbac';
 
 interface HeaderProps {
   brands: Brand[];
@@ -34,6 +37,7 @@ interface HeaderProps {
   onUpdateCurrentUserImage?: (dataUrl: string) => void;
   onOpenChangePassword?: () => void;
   onOpenLoginModal?: () => void;
+  onOpenRegisterBrand?: () => void;
   onSignOut?: () => void;
 }
 
@@ -51,8 +55,10 @@ export const Header: React.FC<HeaderProps> = ({
   onUpdateCurrentUserImage,
   onOpenChangePassword,
   onOpenLoginModal,
+  onOpenRegisterBrand,
   onSignOut,
 }) => {
+  const permissions = getRolePermissions(currentRole);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [dateRange] = useState('Last 30 Days');
@@ -239,56 +245,72 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Right: n8n Status, Date Range, Notifications & User */}
+      {/* Right: n8n Status, Register Brand, Date Range, Notifications & User */}
       <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-        {/* Direct n8n Workflows Link (opens in new tab) */}
-        <a
-          href={`${n8nBaseUrl}/home/workflows`}
-          target="_blank"
-          rel="noreferrer"
-          className="h-8 px-2 sm:px-2.5 rounded-lg border border-[#D0D5DD] bg-white hover:bg-[#F2F4F7] flex items-center gap-1.5 text-[11px] font-semibold text-[#101828] transition-colors shrink-0 shadow-xs"
-          title={`Open live n8n Workflows in new tab (${n8nBaseUrl})`}
-        >
-          <span className="w-2 h-2 rounded-full bg-[#FF6D5A]"></span>
-          <span className="hidden sm:inline font-mono">n8n Workflows</span>
-          <ExternalLink className="w-3 h-3 text-[#667085]" />
-        </a>
+        {/* Direct n8n Workflows Link (opens in new tab) - Only if role has automation permissions */}
+        {permissions.canAccessAutomations && (
+          <a
+            href={`${n8nBaseUrl}/home/workflows`}
+            target="_blank"
+            rel="noreferrer"
+            className="h-8 px-2 sm:px-2.5 rounded-lg border border-[#D0D5DD] bg-white hover:bg-[#F2F4F7] flex items-center gap-1.5 text-[11px] font-semibold text-[#101828] transition-colors shrink-0 shadow-xs"
+            title={`Open live n8n Workflows in new tab (${n8nBaseUrl})`}
+          >
+            <span className="w-2 h-2 rounded-full bg-[#FF6D5A]"></span>
+            <span className="hidden sm:inline font-mono">n8n Workflows</span>
+            <ExternalLink className="w-3 h-3 text-[#667085]" />
+          </a>
+        )}
 
-        {/* Real n8n Health Status Pill */}
-        <button
-          onClick={onOpenN8nStatus}
-          className="h-8 px-2 sm:px-2.5 rounded-lg border border-[#D0D5DD] bg-[#F6F8FC] hover:bg-[#F2F4F7] flex items-center gap-1.5 text-[11px] font-medium text-[#344054] transition-colors shrink-0"
-          title={
-            n8nHealth.status === 'connected'
-              ? `n8n Connected (${n8nHealth.latencyMs}ms) via ${n8nBaseUrl}`
-              : n8nHealth.status === 'unauthorized'
-              ? `n8n Auth Required: ${n8nHealth.error}`
-              : n8nHealth.status === 'unreachable'
-              ? `n8n Offline: ${n8nHealth.error || 'Server unreachable'}`
-              : 'Checking n8n connection...'
-          }
-        >
-          <span
-            className={`w-2 h-2 rounded-full ring-2 ${
+        {/* Real n8n Health Status Pill - Only if role has automation permissions */}
+        {permissions.canAccessAutomations && (
+          <button
+            onClick={onOpenN8nStatus}
+            className="h-8 px-2 sm:px-2.5 rounded-lg border border-[#D0D5DD] bg-[#F6F8FC] hover:bg-[#F2F4F7] flex items-center gap-1.5 text-[11px] font-medium text-[#344054] transition-colors shrink-0"
+            title={
               n8nHealth.status === 'connected'
-                ? 'bg-[#12B76A] ring-[#12B76A]/20'
-                : n8nHealth.status === 'checking'
-                ? 'bg-amber-400 ring-amber-400/20 animate-pulse'
+                ? `n8n Connected (${n8nHealth.latencyMs}ms) via ${n8nBaseUrl}`
                 : n8nHealth.status === 'unauthorized'
-                ? 'bg-amber-500 ring-amber-500/20'
-                : 'bg-rose-500 ring-rose-500/20'
-            }`}
-          ></span>
-          <span className="hidden sm:inline font-mono">
-            {n8nHealth.status === 'connected'
-              ? `n8n Connected${n8nHealth.latencyMs ? ` (${n8nHealth.latencyMs}ms)` : ''}`
-              : n8nHealth.status === 'checking'
-              ? 'n8n Checking...'
-              : n8nHealth.status === 'unauthorized'
-              ? 'n8n Auth Key Err'
-              : 'n8n Disconnected'}
-          </span>
-        </button>
+                ? `n8n Auth Required: ${n8nHealth.error}`
+                : n8nHealth.status === 'unreachable'
+                ? `n8n Offline: ${n8nHealth.error || 'Server unreachable'}`
+                : 'Checking n8n connection...'
+            }
+          >
+            <span
+              className={`w-2 h-2 rounded-full ring-2 ${
+                n8nHealth.status === 'connected'
+                  ? 'bg-[#12B76A] ring-[#12B76A]/20'
+                  : n8nHealth.status === 'checking'
+                  ? 'bg-amber-400 ring-amber-400/20 animate-pulse'
+                  : n8nHealth.status === 'unauthorized'
+                  ? 'bg-amber-500 ring-amber-500/20'
+                  : 'bg-rose-500 ring-rose-500/20'
+              }`}
+            ></span>
+            <span className="hidden sm:inline font-mono">
+              {n8nHealth.status === 'connected'
+                ? `n8n Connected${n8nHealth.latencyMs ? ` (${n8nHealth.latencyMs}ms)` : ''}`
+                : n8nHealth.status === 'checking'
+                ? 'n8n Checking...'
+                : n8nHealth.status === 'unauthorized'
+                ? 'n8n Auth Key Err'
+                : 'n8n Disconnected'}
+            </span>
+          </button>
+        )}
+
+        {/* Quick Brand Onboarding Trigger */}
+        {onOpenRegisterBrand && (
+          <button
+            onClick={onOpenRegisterBrand}
+            className="h-8 px-2.5 sm:px-3 rounded-xl bg-gradient-to-r from-[#1336E8]/10 to-[#08C5E1]/15 hover:from-[#1336E8]/20 hover:to-[#08C5E1]/25 border border-[#1336E8]/30 text-[#1336E8] text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+            title="Register a new Brand & configure channels"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-[#1336E8]" />
+            <span className="hidden sm:inline">Register Brand</span>
+          </button>
+        )}
 
         {/* Date Range Selector (Hidden on mobile & tablet) */}
         <div className="hidden 2xl:flex items-center gap-1.5 h-8 px-2.5 bg-[#F6F8FC] border border-[#D0D5DD] rounded-lg text-xs font-medium text-[#344054]">
@@ -445,6 +467,19 @@ export const Header: React.FC<HeaderProps> = ({
                     <KeyRound className="w-3.5 h-3.5 text-[#1336E8]" />
                     <span>Change Password</span>
                   </button>
+                  {onOpenRegisterBrand && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        onOpenRegisterBrand();
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#1336E8] hover:bg-blue-50 transition-colors flex items-center gap-2 cursor-pointer"
+                    >
+                      <Building2 className="w-3.5 h-3.5 text-[#1336E8]" />
+                      <span>Onboard New Brand</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {

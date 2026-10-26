@@ -39,7 +39,8 @@ import { N8nDirectLoginPage } from './features/n8n/N8nDirectLoginPage';
 import { LoginPage } from './components/auth/LoginPage';
 import { LoginModal } from './components/auth/LoginModal';
 import { ChangePasswordModal } from './components/auth/ChangePasswordModal';
-import { isTabAllowed, RestrictedAccess } from './utils/rbac';
+import { isTabAllowed, getRolePermissions } from './utils/rbac';
+import { BrandRegistrationPage } from './features/onboarding/BrandRegistrationPage';
 
 const VALID_TABS: NavigationTab[] = [
   'overview',
@@ -58,13 +59,25 @@ const VALID_TABS: NavigationTab[] = [
   'team',
   'audit',
   'settings',
+  'register',
 ];
 
 const getInitialTab = (): NavigationTab => {
   if (typeof window !== 'undefined') {
-    // 1. Check URL Hash (e.g. #/brands, #/accounts, #brands, #accounts)
+    // 0. Check Query Parameter or Path for Registration Portal (?page=register or /register)
+    if (
+      window.location.search.includes('register') ||
+      window.location.search.includes('onboard') ||
+      window.location.pathname.includes('/register') ||
+      window.location.pathname.includes('/onboard')
+    ) {
+      return 'register';
+    }
+
+    // 1. Check URL Hash (e.g. #/brands, #/accounts, #register)
     const rawHash = window.location.hash.replace(/^#\/?/, '').trim().toLowerCase();
     if (rawHash) {
+      if (rawHash === 'register' || rawHash === 'onboarding' || rawHash === 'join') return 'register';
       if (rawHash === 'social' || rawHash === 'social-accounts' || rawHash === 'accounts') return 'accounts';
       if (rawHash === 'brand' || rawHash === 'brands') return 'brands';
       if (rawHash === 'workflow' || rawHash === 'workflows' || rawHash === 'automations' || rawHash === 'canvas') return 'automations';
@@ -580,15 +593,30 @@ export default function App() {
     api.getAuditLogs().then(setAuditLogs).catch(() => {});
   };
 
+  // Dynamic role enforcement: ensure activeTab is always permitted for currentRole with ZERO roadblock screens
+  useEffect(() => {
+    if (activeTab === 'register') return;
+    if (!isTabAllowed(activeTab, currentRole)) {
+      const allowed = getRolePermissions(currentRole).allowedTabs;
+      const target = allowed.includes('overview') ? 'overview' : (allowed[0] || 'overview');
+      setActiveTab(target);
+    }
+  }, [currentRole, activeTab]);
+
   const handleTabChange = (tab: NavigationTab) => {
-    setActiveTab(tab);
+    let targetTab = tab;
+    if (tab !== 'register' && !isTabAllowed(tab, currentRole)) {
+      const allowed = getRolePermissions(currentRole).allowedTabs;
+      targetTab = allowed.includes('overview') ? 'overview' : (allowed[0] || 'overview');
+    }
+    setActiveTab(targetTab);
     setIsMobileMenuOpen(false);
     if (typeof window !== 'undefined') {
       try {
-        localStorage.setItem('ci360_active_tab', tab);
+        localStorage.setItem('ci360_active_tab', targetTab);
       } catch {}
       if (window.history) {
-        const url = tab === 'overview' ? '/' : `/#/${tab}`;
+        const url = targetTab === 'overview' ? '/' : `/#/${targetTab}`;
         window.history.replaceState(null, '', url);
       }
     }
@@ -630,9 +658,40 @@ export default function App() {
 
   const pendingApprovalsCount = posts.filter(p => p.approvalStatus === 'in_review').length;
 
+  // Public Brand Registration Portal (Accessible whether logged in or as guest)
+  if (activeTab === 'register') {
+    return (
+      <BrandRegistrationPage
+        onRegistrationSuccess={(newUser, newBrand, token) => {
+          try {
+            localStorage.setItem('ci360_auth_user', JSON.stringify(newUser));
+            localStorage.setItem('ci360_auth_token', token);
+            localStorage.removeItem('ci360_is_signed_out');
+          } catch {}
+          setCurrentUser(newUser);
+          setCurrentRole(newUser.role);
+          setSelectedBrandId(newBrand.id);
+          setBrands(prev => [newBrand, ...prev]);
+          handleTabChange('overview');
+          loadInitialData();
+        }}
+        onGoHome={() => handleTabChange('overview')}
+        onGoToLogin={() => {
+          handleTabChange('overview');
+          setIsLoginModalOpen(true);
+        }}
+      />
+    );
+  }
+
   // Dedicated Enterprise Login Page: Only authorized ID/IP & password can access the platform
   if (!currentUser) {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+    return (
+      <LoginPage
+        onLoginSuccess={handleLoginSuccess}
+        onNavigateToRegister={() => handleTabChange('register')}
+      />
+    );
   }
 
   return (
@@ -666,30 +725,28 @@ export default function App() {
           onUpdateCurrentUserImage={handleUpdateCurrentUserImage}
           onOpenChangePassword={() => setIsChangePasswordOpen(true)}
           onOpenLoginModal={() => setIsLoginModalOpen(true)}
+          onOpenRegisterBrand={() => handleTabChange('register')}
           onSignOut={handleSignOut}
         />
 
         {/* Viewport Workspace */}
         <main className={`flex-1 ${activeTab === 'calendar' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto pb-20 lg:pb-0'}`}>
-          {!isTabAllowed(activeTab, currentRole) ? (
-            <RestrictedAccess role={currentRole} onGoHome={() => handleTabChange('overview')} />
-          ) : (
-            <>
-              {activeTab === 'overview' && (
-                <OverviewDashboard
-                  analytics={analytics}
-                  recentPosts={posts}
-                  recentExecutions={executions}
-                  socialAccounts={socialAccounts}
-                  onNavigateToTab={tab => handleTabChange(tab as NavigationTab)}
-                  onPublishNow={handlePublishNow}
-                  onRefreshNow={handleManualRefresh}
-                  isRefreshing={isManualRefreshing}
-                  autoRefreshSec={autoRefreshSec}
-                  onToggleAutoRefreshSec={handleToggleAutoRefreshSec}
-                  lastRefreshedAt={lastRefreshedAt}
-                />
-              )}
+          {activeTab === 'overview' && (
+            <OverviewDashboard
+              analytics={analytics}
+              recentPosts={posts}
+              recentExecutions={executions}
+              socialAccounts={socialAccounts}
+              onNavigateToTab={tab => handleTabChange(tab as NavigationTab)}
+              onPublishNow={handlePublishNow}
+              onRefreshNow={handleManualRefresh}
+              isRefreshing={isManualRefreshing}
+              autoRefreshSec={autoRefreshSec}
+              onToggleAutoRefreshSec={handleToggleAutoRefreshSec}
+              lastRefreshedAt={lastRefreshedAt}
+              currentRole={currentRole}
+            />
+          )}
 
               {activeTab === 'content' && (
                 <ContentTable
@@ -844,8 +901,6 @@ export default function App() {
               {activeTab === 'settings' && (
                 <SettingsPage />
               )}
-            </>
-          )}
         </main>
 
         {/* Mobile Touch Bottom Navigation */}
@@ -864,6 +919,7 @@ export default function App() {
         onClose={() => setIsLoginModalOpen(false)}
         users={users}
         onLoginSuccess={handleLoginSuccess}
+        onNavigateToRegister={() => handleTabChange('register')}
       />
 
       {currentUser && (

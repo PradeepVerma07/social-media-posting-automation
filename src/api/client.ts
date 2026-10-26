@@ -369,4 +369,35 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+
+  // Brand Self-Registration Portal
+  async registerBrand(payload: {
+    brandName: string;
+    companyName?: string;
+    websiteUrl?: string;
+    industry?: string;
+    description?: string;
+    country?: string;
+    timezone?: string;
+    primaryColor?: string;
+    secondaryColor?: string;
+    logoUrl?: string;
+    platforms?: string[];
+    fullName: string;
+    email: string;
+    password: string;
+    phone?: string;
+    role?: 'Client' | 'Admin';
+  }): Promise<{
+    success: boolean;
+    message: string;
+    user: User;
+    brand: Brand & { clientId?: string; brandId?: string };
+    accessToken: string;
+  }> {
+    return request('/auth/register-brand', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 };

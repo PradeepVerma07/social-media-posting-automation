@@ -77256,6 +77256,170 @@ publicRouter.post("/auth/login", (req, res) => {
     expiresIn: "24h"
   });
 });
+publicRouter.post("/auth/register-brand", (req, res) => {
+  try {
+    const {
+      brandName,
+      companyName,
+      websiteUrl,
+      industry,
+      description,
+      country = "IN",
+      timezone = "Asia/Kolkata",
+      primaryColor = "#1336E8",
+      secondaryColor = "#08C5E1",
+      logoUrl,
+      platforms = ["facebook", "instagram", "linkedin", "x"],
+      fullName,
+      email: email3,
+      password,
+      phone,
+      role = "Client"
+    } = req.body || {};
+    if (!brandName || !brandName.trim()) {
+      return res.status(400).json({ error: "Brand name is required" });
+    }
+    if (!email3 || !email3.trim()) {
+      return res.status(400).json({ error: "Administrator email is required" });
+    }
+    if (!fullName || !fullName.trim()) {
+      return res.status(400).json({ error: "Administrator full name is required" });
+    }
+    if (!password || password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
+    }
+    const cleanEmail = email3.trim().toLowerCase();
+    const cleanBrandName = brandName.trim();
+    const existingUser = db.prepare("SELECT user_id FROM users WHERE LOWER(email) = LOWER(?)").get(cleanEmail);
+    if (existingUser) {
+      return res.status(409).json({
+        error: "An account with this email address already exists. Please sign in instead."
+      });
+    }
+    const now2 = (/* @__PURE__ */ new Date()).toISOString();
+    const rawSlug = cleanBrandName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "brand";
+    const uniqueSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const brandId = `BR-${rawSlug.substring(0, 14).toUpperCase()}-${uniqueSuffix}`;
+    const clientId = `CL-${rawSlug.substring(0, 14).toUpperCase()}-${uniqueSuffix}`;
+    db.prepare(`
+      INSERT OR IGNORE INTO clients (client_id, name, status, created_at, updated_at)
+      VALUES (?, ?, 'active', ?, ?)
+    `).run(clientId, companyName && companyName.trim() || cleanBrandName, now2, now2);
+    db.prepare(`
+      INSERT INTO brands (brand_id, client_id, brand_name, default_timezone, country, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(brandId, clientId, cleanBrandName, timezone, country, now2, now2);
+    const userRole = role === "Admin" ? "Admin" : "Client";
+    const userResult = db.prepare(`
+      INSERT INTO users (email, full_name, avatar_url, phone, role, tenant_scope, is_active, two_factor_enabled, password, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, 1, 0, ?, ?)
+    `).run(
+      cleanEmail,
+      fullName.trim(),
+      logoUrl || null,
+      phone || null,
+      userRole,
+      cleanBrandName,
+      password,
+      now2
+    );
+    const userId = Number(userResult.lastInsertRowid);
+    const provisionedAccounts = [];
+    if (Array.isArray(platforms)) {
+      for (const plat of platforms) {
+        const pNorm = String(plat).toLowerCase();
+        const accId = `ACC-${pNorm.toUpperCase()}-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1e3)}`;
+        try {
+          db.prepare(`
+            INSERT INTO social_accounts (
+              account_id, client_id, brand_id, platform, account_handle, account_name,
+              external_id, token_ciphertext, token_iv, token_tag, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'mock_ciphertext', 'mock_iv', 'mock_tag', 'active', ?, ?)
+          `).run(
+            accId,
+            clientId,
+            brandId,
+            pNorm,
+            `@${rawSlug}_${pNorm}`,
+            `${cleanBrandName} ${pNorm.charAt(0).toUpperCase() + pNorm.slice(1)}`,
+            `ext_${rawSlug}_${pNorm}`,
+            now2,
+            now2
+          );
+          provisionedAccounts.push({
+            id: accId,
+            platform: pNorm,
+            accountName: `${cleanBrandName} ${pNorm.charAt(0).toUpperCase() + pNorm.slice(1)}`,
+            accountHandle: `@${rawSlug}_${pNorm}`,
+            connectionStatus: "connected"
+          });
+        } catch {
+        }
+      }
+    }
+    try {
+      db.prepare(`
+        INSERT INTO audit_log (id, actor, entity, entity_id, action, before_val, after_val, created_at)
+        VALUES (?, ?, 'brand', ?, 'REGISTER_BRAND', NULL, ?, ?)
+      `).run(
+        `AUDIT-${Date.now()}`,
+        cleanEmail,
+        brandId,
+        JSON.stringify({ brandName: cleanBrandName, clientId, email: cleanEmail, role: userRole }),
+        now2
+      );
+    } catch {
+    }
+    try {
+      db.prepare(`
+        INSERT INTO notifications (user_id, event_type, title, message, link_url, is_read, created_at)
+        VALUES (1, 'brand_registered', ?, ?, '/#brands', 0, ?)
+      `).run(
+        `New Brand Registered: ${cleanBrandName}`,
+        `Brand "${cleanBrandName}" was registered by ${fullName} (${cleanEmail}).`,
+        now2
+      );
+    } catch {
+    }
+    const userObj = {
+      id: userId,
+      email: cleanEmail,
+      fullName: fullName.trim(),
+      role: userRole,
+      avatarUrl: logoUrl,
+      tenantScope: cleanBrandName,
+      isActive: true,
+      createdAt: now2
+    };
+    const brandObj = {
+      id: userId,
+      brandId,
+      name: cleanBrandName,
+      slug: rawSlug,
+      clientId,
+      timezone,
+      country,
+      primaryColor,
+      secondaryColor,
+      logoUrl,
+      industry: industry || "General",
+      websiteUrl: websiteUrl || "",
+      description: description || "",
+      isActive: true,
+      connectedAccountsCount: provisionedAccounts.length
+    };
+    return res.status(201).json({
+      success: true,
+      message: "Brand registered and primary account created successfully.",
+      user: userObj,
+      brand: brandObj,
+      accessToken: `ci360_jwt_${userId}_${Date.now()}`
+    });
+  } catch (err) {
+    logger.error({ err }, "Error in /auth/register-brand");
+    return res.status(500).json({ error: err.message || "Internal server error registering brand" });
+  }
+});
 publicRouter.get("/auth/me", (req, res) => {
   res.json({
     user: {

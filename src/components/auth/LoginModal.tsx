@@ -18,6 +18,7 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose?: () => void;
   onLoginSuccess: (user: User, token: string) => void;
+  onNavigateToRegister?: () => void;
   users?: User[];
 }
 
@@ -25,6 +26,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   isOpen,
   onClose,
   onLoginSuccess,
+  onNavigateToRegister,
   users = [],
 }) => {
   const [email, setEmail] = useState('');
@@ -165,6 +167,24 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               <span>{isLoading ? 'Verifying Password...' : 'Sign In to Workspace'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
+
+            {onNavigateToRegister && (
+              <div className="pt-2 text-center border-t border-slate-100">
+                <p className="text-xs text-slate-500">
+                  New brand or agency client?{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onClose) onClose();
+                      onNavigateToRegister();
+                    }}
+                    className="font-bold text-[#1336E8] hover:underline cursor-pointer"
+                  >
+                    Register Brand Account
+                  </button>
+                </p>
+              </div>
+            )}
           </form>
         </div>
 

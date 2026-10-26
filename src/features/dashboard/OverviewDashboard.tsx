@@ -21,8 +21,9 @@ import {
   Layers,
   RotateCw
 } from 'lucide-react';
-import { AnalyticsOverview, Post, WorkflowExecution, SocialAccount } from '../../../server/src/types';
+import { AnalyticsOverview, Post, WorkflowExecution, SocialAccount, RoleName } from '../../../server/src/types';
 import { formatISTDateTime, formatISTShort } from '../../utils/timezone';
+import { isTabAllowed, getRolePermissions } from '../../utils/rbac';
 
 interface OverviewDashboardProps {
   analytics: AnalyticsOverview;
@@ -36,6 +37,7 @@ interface OverviewDashboardProps {
   autoRefreshSec?: number;
   onToggleAutoRefreshSec?: (sec: number) => void;
   lastRefreshedAt?: Date;
+  currentRole?: RoleName;
 }
 
 interface PlacementDetail {
@@ -121,7 +123,9 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   autoRefreshSec = 5,
   onToggleAutoRefreshSec,
   lastRefreshedAt,
+  currentRole = 'Super Admin',
 }) => {
+  const permissions = getRolePermissions(currentRole);
   const [contentFilter, setContentFilter] = useState<'all' | 'scheduled' | 'calendar' | 'published'>('all');
   const [selectedAuditPost, setSelectedAuditPost] = useState<Post | null>(null);
   const scheduledPosts = recentPosts.filter(p => p.publishingStatus === 'scheduled');
@@ -219,6 +223,8 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
     },
   ];
 
+  const visibleKpiCards = KPI_CARDS.filter(kpi => isTabAllowed(kpi.targetTab as any, currentRole));
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Real-time Live Synchronization Command Bar */}
@@ -272,9 +278,9 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         </div>
       </div>
 
-      {/* 8 KPI Cards Grid - ALL CARDS FULLY CLICKABLE */}
+      {/* Permitted KPI Cards Grid - ALL CARDS DYNAMICALLY FILTERED BY ROLE */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {KPI_CARDS.map((kpi, i) => {
+        {visibleKpiCards.map((kpi, i) => {
           const Icon = kpi.icon;
           return (
             <button
@@ -646,67 +652,69 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             </div>
           </div>
 
-          {/* Recent Executions Widget */}
-          <div className="bg-white rounded-2xl border border-[#EAECF0] shadow-sm p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-[#EAECF0] pb-4">
-              <div>
-                <h3 className="text-base font-bold text-[#101828]">Recent n8n Automation Executions</h3>
-                <p className="text-xs text-[#667085] mt-0.5">Real-time status updates from n8n (IST · Asia/Kolkata)</p>
+          {/* Recent Executions Widget - Only rendered if role has execution permissions */}
+          {isTabAllowed('executions', currentRole) && (
+            <div className="bg-white rounded-2xl border border-[#EAECF0] shadow-sm p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-[#EAECF0] pb-4">
+                <div>
+                  <h3 className="text-base font-bold text-[#101828]">Recent n8n Automation Executions</h3>
+                  <p className="text-xs text-[#667085] mt-0.5">Real-time status updates from n8n (IST · Asia/Kolkata)</p>
+                </div>
+                <button
+                  onClick={() => onNavigateToTab('executions')}
+                  className="text-xs font-semibold text-[#1336E8] hover:underline flex items-center gap-1"
+                >
+                  <span>All Executions</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </button>
               </div>
-              <button
-                onClick={() => onNavigateToTab('executions')}
-                className="text-xs font-semibold text-[#1336E8] hover:underline flex items-center gap-1"
-              >
-                <span>All Executions</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </button>
-            </div>
 
-            <div className="divide-y divide-[#EAECF0]">
-              {recentExecutions.slice(0, 4).map(exec => (
-                <div key={exec.id} className="py-3 flex items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                        exec.status === 'success'
-                          ? 'bg-[#ECFDF3] text-[#12B76A]'
-                          : exec.status === 'failed'
-                          ? 'bg-[#FEF3F2] text-[#F04438]'
-                          : 'bg-[#EFF8FF] text-[#1336E8]'
-                      }`}
-                    >
-                      {exec.status === 'success' ? (
-                        <CheckCircle2 className="w-4 h-4" />
-                      ) : (
-                        <AlertCircle className="w-4 h-4" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-semibold text-[#101828] truncate">{exec.workflowName}</div>
-                      <div className="text-[11px] font-mono text-[#667085] truncate">
-                        ID: {exec.executionId} · {exec.startedAtIst || formatISTDateTime(exec.startedAt)}
+              <div className="divide-y divide-[#EAECF0]">
+                {recentExecutions.slice(0, 4).map(exec => (
+                  <div key={exec.id} className="py-3 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                          exec.status === 'success'
+                            ? 'bg-[#ECFDF3] text-[#12B76A]'
+                            : exec.status === 'failed'
+                            ? 'bg-[#FEF3F2] text-[#F04438]'
+                            : 'bg-[#EFF8FF] text-[#1336E8]'
+                        }`}
+                      >
+                        {exec.status === 'success' ? (
+                          <CheckCircle2 className="w-4 h-4" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-[#101828] truncate">{exec.workflowName}</div>
+                        <div className="text-[11px] font-mono text-[#667085] truncate">
+                          ID: {exec.executionId} · {exec.startedAtIst || formatISTDateTime(exec.startedAt)}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="text-right shrink-0">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
-                        exec.status === 'success'
-                          ? 'bg-[#ECFDF3] text-[#027A48]'
-                          : 'bg-[#FEF3F2] text-[#B42318]'
-                      }`}
-                    >
-                      {exec.status}
-                    </span>
-                    <span className="block text-[10px] font-mono text-[#667085] mt-0.5">
-                      {exec.durationMs ? `${exec.durationMs}ms` : '420ms'}
-                    </span>
+                    <div className="text-right shrink-0">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${
+                          exec.status === 'success'
+                            ? 'bg-[#ECFDF3] text-[#027A48]'
+                            : 'bg-[#FEF3F2] text-[#B42318]'
+                        }`}
+                      >
+                        {exec.status}
+                      </span>
+                      <span className="block text-[10px] font-mono text-[#667085] mt-0.5">
+                        {exec.durationMs ? `${exec.durationMs}ms` : '420ms'}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Right Column: Platform Health & Posts by Channel */}
@@ -715,19 +723,23 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           <div className="bg-white rounded-2xl border border-[#EAECF0] shadow-sm p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-[#101828]">Social Platform Health</h3>
-              <button
-                onClick={() => onNavigateToTab('accounts')}
-                className="text-xs font-semibold text-[#1336E8] hover:underline"
-              >
-                View All
-              </button>
+              {isTabAllowed('accounts', currentRole) && (
+                <button
+                  onClick={() => onNavigateToTab('accounts')}
+                  className="text-xs font-semibold text-[#1336E8] hover:underline cursor-pointer"
+                >
+                  View All
+                </button>
+              )}
             </div>
             <div className="space-y-3">
               {socialAccounts.map(acc => (
                 <div
                   key={acc.id}
-                  onClick={() => onNavigateToTab('accounts')}
-                  className="flex items-center justify-between p-3 rounded-xl bg-[#F6F8FC] border border-[#EAECF0] hover:border-[#B2DDFF] hover:bg-white hover:shadow-sm cursor-pointer transition-all"
+                  onClick={isTabAllowed('accounts', currentRole) ? () => onNavigateToTab('accounts') : undefined}
+                  className={`flex items-center justify-between p-3 rounded-xl bg-[#F6F8FC] border border-[#EAECF0] transition-all ${
+                    isTabAllowed('accounts', currentRole) ? 'hover:border-[#B2DDFF] hover:bg-white hover:shadow-sm cursor-pointer' : ''
+                  }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-white border border-[#D0D5DD] flex items-center justify-center font-bold text-xs uppercase text-[#1336E8] shrink-0 shadow-sm">
@@ -748,12 +760,14 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                 </div>
               ))}
             </div>
-            <button
-              onClick={() => onNavigateToTab('accounts')}
-              className="w-full py-2 text-xs font-semibold text-[#1336E8] hover:bg-[#EFF8FF] rounded-xl transition-colors text-center"
-            >
-              Manage Social Connections
-            </button>
+            {isTabAllowed('accounts', currentRole) && (
+              <button
+                onClick={() => onNavigateToTab('accounts')}
+                className="w-full py-2 text-xs font-semibold text-[#1336E8] hover:bg-[#EFF8FF] rounded-xl transition-colors text-center cursor-pointer"
+              >
+                Manage Social Connections
+              </button>
+            )}
           </div>
 
           {/* Posts by Platform Breakdown */}
