@@ -48209,6 +48209,56 @@ var import_express = __toESM(require_express2(), 1);
 import { DatabaseSync } from "node:sqlite";
 import path from "path";
 import fs from "fs";
+
+// server/src/crypto/tokenVault.ts
+import crypto from "crypto";
+var DEFAULT_KEY_BASE64 = Buffer.from("ci360_production_master_key_2026_32bytes!").toString("base64");
+var KEY_VERSION = Number(process.env.TOKEN_ENCRYPTION_KEY_VERSION) || 1;
+function getEncryptionKey() {
+  const envKey = process.env.TOKEN_ENCRYPTION_KEY || DEFAULT_KEY_BASE64;
+  const buf = Buffer.from(envKey, "base64");
+  if (buf.length !== 32) {
+    return crypto.createHash("sha256").update(envKey).digest();
+  }
+  return buf;
+}
+function encryptToken(plainToken) {
+  const key = getEncryptionKey();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  let ciphertext = cipher.update(plainToken, "utf8", "hex");
+  ciphertext += cipher.final("hex");
+  const tag = cipher.getAuthTag().toString("hex");
+  return {
+    ciphertext,
+    iv: iv.toString("hex"),
+    tag,
+    version: KEY_VERSION
+  };
+}
+function decryptToken(encrypted) {
+  const key = getEncryptionKey();
+  const iv = Buffer.from(encrypted.iv, "hex");
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+  decipher.setAuthTag(Buffer.from(encrypted.tag, "hex"));
+  let decrypted = decipher.update(encrypted.ciphertext, "hex", "utf8");
+  decrypted += decipher.final("utf8");
+  return decrypted;
+}
+function verifyHmacSignature(payload, signatureHex, secret) {
+  try {
+    const computed = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+    const cleanSig = signatureHex.replace(/^sha256=/, "");
+    const sigBuffer = Buffer.from(cleanSig, "hex");
+    const computedBuffer = Buffer.from(computed, "hex");
+    if (sigBuffer.length !== computedBuffer.length) return false;
+    return crypto.timingSafeEqual(sigBuffer, computedBuffer);
+  } catch {
+    return false;
+  }
+}
+
+// server/src/db/sqlite.ts
 var dbDir = path.resolve(process.cwd(), "database");
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
@@ -48451,6 +48501,68 @@ function initDatabase() {
   try {
     db.prepare(`ALTER TABLE users ADD COLUMN password TEXT DEFAULT 'Admin@123'`).run();
   } catch {
+  }
+  const clientCount = db.prepare("SELECT count(*) as c FROM clients").get();
+  if (clientCount.c === 0) {
+    const now2 = (/* @__PURE__ */ new Date()).toISOString();
+    db.prepare(`
+      INSERT OR REPLACE INTO clients (client_id, name, status, created_at, updated_at, version)
+      VALUES ('CL-001', 'Flower Plant Corp', 'active', ?, ?, 1)
+    `).run(now2, now2);
+  }
+  const brandCount = db.prepare("SELECT count(*) as c FROM brands").get();
+  if (brandCount.c === 0) {
+    const now2 = (/* @__PURE__ */ new Date()).toISOString();
+    db.prepare(`
+      INSERT OR REPLACE INTO brands (
+        brand_id, client_id, brand_name, default_timezone, country,
+        primary_color, secondary_color, default_hashtags, default_keywords,
+        created_at, updated_at, version
+      ) VALUES (
+        'BR-001', 'CL-001', 'Flower Plant', 'Asia/Kolkata', 'IN',
+        '#1336E8', '#08C5E1', '#flowerplant #nature #blooms', 'plants, gardening, flowers',
+        ?, ?, 1
+      )
+    `).run(now2, now2);
+  }
+  const accountCount = db.prepare("SELECT count(*) as c FROM social_accounts").get();
+  if (accountCount.c === 0) {
+    const now2 = (/* @__PURE__ */ new Date()).toISOString();
+    const liveToken = process.env.META_ACCESS_TOKEN || process.env.META_PAGE_ACCESS_TOKEN || "EAGVJejn6LZAgBSxZAyX1example";
+    const encrypted = encryptToken(liveToken);
+    const accountsToSeed = [
+      { id: "ACC-001", platform: "facebook", handle: "@flowerplant", name: "Flower Plant Official", externalId: "1454740611044963" },
+      { id: "ACC-002", platform: "instagram", handle: "@ciflow904", name: "Flower Plant Instagram", externalId: "17841439037630316" },
+      { id: "ACC-003", platform: "youtube", handle: "@flowerplant_yt", name: "Flower Plant YouTube & Shorts", externalId: "UC_flowerplant_yt" },
+      { id: "ACC-004", platform: "whatsapp", handle: "+919876543210", name: "Flower Plant WhatsApp Status & Channel", externalId: "WA_flowerplant_91" },
+      { id: "ACC-005", platform: "linkedin", handle: "flower-plant-official", name: "Flower Plant AgriTech LinkedIn", externalId: "urn:li:organization:123456" },
+      { id: "ACC-006", platform: "x", handle: "@flowerplant_in", name: "Flower Plant X Channel", externalId: "1454740611044963_x" }
+    ];
+    for (const acc of accountsToSeed) {
+      db.prepare(`
+        INSERT OR REPLACE INTO social_accounts (
+          account_id, client_id, brand_id, platform, account_handle, account_name,
+          external_id, token_ciphertext, token_iv, token_tag, token_version, status,
+          last_checked_at, created_at, updated_at, version
+        ) VALUES (
+          ?, 'CL-001', 'BR-001', ?, ?, ?,
+          ?, ?, ?, ?, ?, 'active', ?, ?, ?, 1
+        )
+      `).run(
+        acc.id,
+        acc.platform,
+        acc.handle,
+        acc.name,
+        acc.externalId,
+        encrypted.ciphertext,
+        encrypted.iv,
+        encrypted.tag,
+        encrypted.version,
+        now2,
+        now2,
+        now2
+      );
+    }
   }
   const userCount = db.prepare("SELECT count(*) as c FROM users").get();
   if (userCount.c === 0) {
@@ -68332,54 +68444,6 @@ var SheetRowSchema = external_exports.object({
   sync_note: external_exports.string().optional()
 });
 
-// server/src/crypto/tokenVault.ts
-import crypto from "crypto";
-var DEFAULT_KEY_BASE64 = Buffer.from("ci360_production_master_key_2026_32bytes!").toString("base64");
-var KEY_VERSION = Number(process.env.TOKEN_ENCRYPTION_KEY_VERSION) || 1;
-function getEncryptionKey() {
-  const envKey = process.env.TOKEN_ENCRYPTION_KEY || DEFAULT_KEY_BASE64;
-  const buf = Buffer.from(envKey, "base64");
-  if (buf.length !== 32) {
-    return crypto.createHash("sha256").update(envKey).digest();
-  }
-  return buf;
-}
-function encryptToken(plainToken) {
-  const key = getEncryptionKey();
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
-  let ciphertext = cipher.update(plainToken, "utf8", "hex");
-  ciphertext += cipher.final("hex");
-  const tag = cipher.getAuthTag().toString("hex");
-  return {
-    ciphertext,
-    iv: iv.toString("hex"),
-    tag,
-    version: KEY_VERSION
-  };
-}
-function decryptToken(encrypted) {
-  const key = getEncryptionKey();
-  const iv = Buffer.from(encrypted.iv, "hex");
-  const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
-  decipher.setAuthTag(Buffer.from(encrypted.tag, "hex"));
-  let decrypted = decipher.update(encrypted.ciphertext, "hex", "utf8");
-  decrypted += decipher.final("utf8");
-  return decrypted;
-}
-function verifyHmacSignature(payload, signatureHex, secret) {
-  try {
-    const computed = crypto.createHmac("sha256", secret).update(payload).digest("hex");
-    const cleanSig = signatureHex.replace(/^sha256=/, "");
-    const sigBuffer = Buffer.from(cleanSig, "hex");
-    const computedBuffer = Buffer.from(computed, "hex");
-    if (sigBuffer.length !== computedBuffer.length) return false;
-    return crypto.timingSafeEqual(sigBuffer, computedBuffer);
-  } catch {
-    return false;
-  }
-}
-
 // node_modules/ulid/dist/node/index.js
 import crypto2 from "node:crypto";
 var ENCODING = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
@@ -77343,18 +77407,47 @@ publicRouter.get("/posts/:id", (req, res) => {
   return res.json({ data: { post, targets, attempts } });
 });
 publicRouter.post("/posts", (req, res) => {
-  const clientId = req.body.clientId || DEFAULT_CLIENT_ID;
-  let targetBrandId = "BR-001";
-  if (req.body.brandId) {
-    const found = db.prepare(`SELECT brand_id FROM brands WHERE brand_id = ? LIMIT 1`).get(String(req.body.brandId));
-    if (found) {
-      targetBrandId = found.brand_id;
+  try {
+    const clientId = req.body.clientId || DEFAULT_CLIENT_ID;
+    const now2 = (/* @__PURE__ */ new Date()).toISOString();
+    const clientCheck = db.prepare(`SELECT client_id FROM clients WHERE client_id = ?`).get(clientId);
+    if (!clientCheck) {
+      db.prepare(`INSERT OR REPLACE INTO clients (client_id, name, status, created_at, updated_at, version) VALUES (?, 'Flower Plant Corp', 'active', ?, ?, 1)`).run(clientId, now2, now2);
     }
-  }
-  let resolvedAccountIds = req.body.accountIds;
-  if (!resolvedAccountIds || !Array.isArray(resolvedAccountIds) || resolvedAccountIds.length === 0) {
-    if (Array.isArray(req.body.platforms) && req.body.platforms.length > 0) {
-      resolvedAccountIds = [];
+    let targetBrandId = "BR-001";
+    if (req.body.brandId) {
+      const found = db.prepare(`SELECT brand_id FROM brands WHERE brand_id = ? LIMIT 1`).get(String(req.body.brandId));
+      if (found) {
+        targetBrandId = found.brand_id;
+      } else {
+        const firstBrand = db.prepare(`SELECT brand_id FROM brands LIMIT 1`).get();
+        if (firstBrand) {
+          targetBrandId = firstBrand.brand_id;
+        }
+      }
+    } else {
+      const firstBrand = db.prepare(`SELECT brand_id FROM brands LIMIT 1`).get();
+      if (firstBrand) {
+        targetBrandId = firstBrand.brand_id;
+      }
+    }
+    const brandCheck = db.prepare(`SELECT brand_id FROM brands WHERE brand_id = ?`).get(targetBrandId);
+    if (!brandCheck) {
+      db.prepare(`
+        INSERT OR REPLACE INTO brands (
+          brand_id, client_id, brand_name, default_timezone, country,
+          created_at, updated_at, version
+        ) VALUES (?, ?, 'Flower Plant', 'Asia/Kolkata', 'IN', ?, ?, 1)
+      `).run(targetBrandId, clientId, now2, now2);
+    }
+    let resolvedAccountIds = [];
+    if (Array.isArray(req.body.accountIds) && req.body.accountIds.length > 0) {
+      for (const id of req.body.accountIds) {
+        const found = db.prepare(`SELECT account_id FROM social_accounts WHERE account_id = ? LIMIT 1`).get(String(id));
+        if (found) resolvedAccountIds.push(found.account_id);
+      }
+    }
+    if (resolvedAccountIds.length === 0 && Array.isArray(req.body.platforms) && req.body.platforms.length > 0) {
       for (const p of req.body.platforms) {
         const platStr = typeof p === "string" ? p : p.platform;
         const found = db.prepare(`SELECT account_id FROM social_accounts WHERE platform = ? LIMIT 1`).get(platStr);
@@ -77363,85 +77456,109 @@ publicRouter.post("/posts", (req, res) => {
         }
       }
     }
-  }
-  if (!resolvedAccountIds || resolvedAccountIds.length === 0) {
-    resolvedAccountIds = ["ACC-001"];
-  }
-  const effectivePlacements = req.body.placements || (Array.isArray(req.body.placement) ? req.body.placement : [req.body.placement || "feed"]);
-  const payload = {
-    brandId: targetBrandId,
-    title: req.body.title || "Untitled Campaign",
-    caption: req.body.masterCaption || req.body.caption || "",
-    placement: effectivePlacements,
-    placements: effectivePlacements,
-    hashtags: Array.isArray(req.body.hashtags) ? req.body.hashtags.join(" ") : req.body.hashtags || "",
-    mediaType: req.body.mediaType || Array.isArray(req.body.media) && req.body.media[0]?.mediaType || (effectivePlacements.includes("reels_shorts") ? "video" : "image"),
-    mediaUrls: Array.isArray(req.body.media) ? req.body.media.map((m) => m.fileUrl || m) : req.body.mediaUrls || ["https://images.unsplash.com/photo-1545241047-6083a3684587?auto=format&fit=crop&w=1200&q=80"],
-    linkUrl: req.body.targetUrl || req.body.linkUrl || "",
-    scheduleDate: req.body.scheduleDate || (req.body.scheduledAt ? req.body.scheduledAt.split("T")[0] : "2026-10-28"),
-    scheduleTime: req.body.scheduleTime || (req.body.scheduledAt ? req.body.scheduledAt.split("T")[1].substring(0, 8) : "14:00:00"),
-    timezone: req.body.timezone || "Asia/Kolkata",
-    accountIds: resolvedAccountIds,
-    approvalStatus: req.body.approvalStatus === "approved" ? "Approved" : "Draft",
-    source: req.body.source || "dashboard"
-  };
-  const parsed = PostCreateSchema.safeParse(payload);
-  if (!parsed.success) {
-    return res.status(400).json({ error: { code: "VALIDATION_ERROR", details: parsed.error.format() } });
-  }
-  const data = parsed.data;
-  const newPostId = generatePostId();
-  const { scheduledUtc, normalizedTime } = fromZone(data.scheduleDate, data.scheduleTime, data.timezone);
-  const now2 = (/* @__PURE__ */ new Date()).toISOString();
-  const placementsToSave = JSON.stringify(effectivePlacements || ["feed"]);
-  db.prepare(`
-    INSERT INTO posts (
-      post_id, client_id, brand_id, title, caption, hashtags, media_type, media_urls,
-      link_url, schedule_local_date, schedule_local_time, timezone, scheduled_utc,
-      approval_status, source, placement, created_at, updated_at, version
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-  `).run(
-    newPostId,
-    clientId,
-    data.brandId,
-    data.title,
-    data.caption,
-    data.hashtags,
-    data.mediaType,
-    JSON.stringify(data.mediaUrls),
-    data.linkUrl,
-    data.scheduleDate,
-    normalizedTime,
-    data.timezone,
-    scheduledUtc,
-    data.approvalStatus,
-    data.source || "dashboard",
-    placementsToSave,
-    now2,
-    now2
-  );
-  const targetsCreated = [];
-  for (const accId of data.accountIds) {
-    const account = db.prepare(`SELECT * FROM social_accounts WHERE account_id = ?`).get(accId);
-    const platform = account ? account.platform : "facebook";
-    const targetId = generateTargetId();
-    const idempotencyKey = computeIdempotencyKey(targetId, scheduledUtc, 1);
-    const initialStatus = data.approvalStatus === "Approved" ? "Scheduled" : "Draft";
+    if (resolvedAccountIds.length === 0) {
+      const accounts = db.prepare(`SELECT account_id FROM social_accounts LIMIT 4`).all();
+      if (accounts && accounts.length > 0) {
+        resolvedAccountIds = accounts.map((a) => a.account_id);
+      } else {
+        resolvedAccountIds = ["ACC-001"];
+      }
+    }
+    for (const accId of resolvedAccountIds) {
+      const accCheck = db.prepare(`SELECT account_id FROM social_accounts WHERE account_id = ?`).get(accId);
+      if (!accCheck) {
+        db.prepare(`
+          INSERT OR REPLACE INTO social_accounts (
+            account_id, client_id, brand_id, platform, account_handle, account_name,
+            token_ciphertext, token_iv, token_tag, token_version, status,
+            last_checked_at, created_at, updated_at, version
+          ) VALUES (?, ?, ?, 'facebook', '@flowerplant', 'Flower Plant Official', '', '', '', 1, 'active', ?, ?, ?, 1)
+        `).run(accId, clientId, targetBrandId, now2, now2, now2);
+      }
+    }
+    const effectivePlacements = req.body.placements || (Array.isArray(req.body.placement) ? req.body.placement : [req.body.placement || "feed"]);
+    const payload = {
+      brandId: targetBrandId,
+      title: req.body.title || "Untitled Campaign",
+      caption: req.body.masterCaption || req.body.caption || "Flower Plant Succulent Routine update",
+      placement: effectivePlacements,
+      placements: effectivePlacements,
+      hashtags: Array.isArray(req.body.hashtags) ? req.body.hashtags.join(" ") : req.body.hashtags || "",
+      mediaType: req.body.mediaType || Array.isArray(req.body.media) && req.body.media[0]?.mediaType || (effectivePlacements.includes("reels_shorts") ? "video" : "image"),
+      mediaUrls: Array.isArray(req.body.media) ? req.body.media.map((m) => m.fileUrl || m) : req.body.mediaUrls || ["https://images.unsplash.com/photo-1545241047-6083a3684587?auto=format&fit=crop&w=1200&q=80"],
+      linkUrl: req.body.targetUrl || req.body.linkUrl || "",
+      scheduleDate: req.body.scheduleDate || (req.body.scheduledAt ? req.body.scheduledAt.split("T")[0] : "2026-10-28"),
+      scheduleTime: req.body.scheduleTime || (req.body.scheduledAt ? req.body.scheduledAt.split("T")[1].substring(0, 8) : "14:00:00"),
+      timezone: req.body.timezone || "Asia/Kolkata",
+      accountIds: resolvedAccountIds,
+      approvalStatus: req.body.approvalStatus === "approved" ? "Approved" : "Draft",
+      source: req.body.source || "dashboard"
+    };
+    const parsed = PostCreateSchema.safeParse(payload);
+    if (!parsed.success) {
+      return res.status(400).json({ error: { code: "VALIDATION_ERROR", details: parsed.error.format() } });
+    }
+    const data = parsed.data;
+    const newPostId = generatePostId();
+    const { scheduledUtc, normalizedTime } = fromZone(data.scheduleDate, data.scheduleTime, data.timezone);
+    const placementsToSave = JSON.stringify(effectivePlacements || ["feed"]);
     db.prepare(`
-      INSERT INTO post_targets (
-        target_id, post_id, account_id, platform, status, attempt_count, max_retries,
-        idempotency_key, created_at, updated_at, version
-      ) VALUES (?, ?, ?, ?, ?, 0, 3, ?, ?, ?, 1)
-    `).run(targetId, newPostId, accId, platform, initialStatus, idempotencyKey, now2, now2);
-    targetsCreated.push(targetId);
-    sheetsOutboxWorker.enqueueTargetUpsert(targetId, clientId);
+      INSERT INTO posts (
+        post_id, client_id, brand_id, title, caption, hashtags, media_type, media_urls,
+        link_url, schedule_local_date, schedule_local_time, timezone, scheduled_utc,
+        approval_status, source, placement, created_at, updated_at, version
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `).run(
+      newPostId,
+      clientId,
+      data.brandId,
+      data.title,
+      data.caption,
+      data.hashtags,
+      data.mediaType,
+      JSON.stringify(data.mediaUrls),
+      data.linkUrl,
+      data.scheduleDate,
+      normalizedTime,
+      data.timezone,
+      scheduledUtc,
+      data.approvalStatus,
+      data.source || "dashboard",
+      placementsToSave,
+      now2,
+      now2
+    );
+    const targetsCreated = [];
+    for (const accId of data.accountIds) {
+      const account = db.prepare(`SELECT * FROM social_accounts WHERE account_id = ?`).get(accId);
+      const platform = account ? account.platform : "facebook";
+      const targetId = generateTargetId();
+      const idempotencyKey = computeIdempotencyKey(targetId, scheduledUtc, 1);
+      const initialStatus = data.approvalStatus === "Approved" ? "Scheduled" : "Draft";
+      db.prepare(`
+        INSERT INTO post_targets (
+          target_id, post_id, account_id, platform, status, attempt_count, max_retries,
+          idempotency_key, created_at, updated_at, version
+        ) VALUES (?, ?, ?, ?, ?, 0, 3, ?, ?, ?, 1)
+      `).run(targetId, newPostId, accId, platform, initialStatus, idempotencyKey, now2, now2);
+      targetsCreated.push(targetId);
+      sheetsOutboxWorker.enqueueTargetUpsert(targetId, clientId);
+    }
+    sseManager.emit("post.created", clientId, { postId: newPostId, title: data.title });
+    const createdPost = getFormattedPostById(newPostId);
+    return res.status(201).json({
+      data: createdPost,
+      ...createdPost
+    });
+  } catch (err) {
+    console.error("[POST /api/v1/posts] ERROR:", err);
+    return res.status(500).json({
+      error: {
+        code: "POST_CREATION_FAILED",
+        message: err.message || "Failed to create post on server"
+      }
+    });
   }
-  sseManager.emit("post.created", clientId, { postId: newPostId, title: data.title });
-  const createdPost = getFormattedPostById(newPostId);
-  return res.status(201).json({
-    data: createdPost,
-    ...createdPost
-  });
 });
 publicRouter.post("/posts/multi-brand-publish", async (req, res) => {
   const {

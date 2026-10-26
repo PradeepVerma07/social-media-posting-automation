@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import path from 'path';
 import fs from 'fs';
+import { encryptToken } from '../crypto/tokenVault';
 
 const dbDir = path.resolve(process.cwd(), 'database');
 if (!fs.existsSync(dbDir)) {
@@ -244,6 +245,67 @@ export function initDatabase() {
   try {
     db.prepare(`ALTER TABLE users ADD COLUMN password TEXT DEFAULT 'Admin@123'`).run();
   } catch {}
+
+  // Seed default clients if empty
+  const clientCount = db.prepare('SELECT count(*) as c FROM clients').get() as { c: number };
+  if (clientCount.c === 0) {
+    const now = new Date().toISOString();
+    db.prepare(`
+      INSERT OR REPLACE INTO clients (client_id, name, status, created_at, updated_at, version)
+      VALUES ('CL-001', 'Flower Plant Corp', 'active', ?, ?, 1)
+    `).run(now, now);
+  }
+
+  // Seed default brands if empty
+  const brandCount = db.prepare('SELECT count(*) as c FROM brands').get() as { c: number };
+  if (brandCount.c === 0) {
+    const now = new Date().toISOString();
+    db.prepare(`
+      INSERT OR REPLACE INTO brands (
+        brand_id, client_id, brand_name, default_timezone, country,
+        primary_color, secondary_color, default_hashtags, default_keywords,
+        created_at, updated_at, version
+      ) VALUES (
+        'BR-001', 'CL-001', 'Flower Plant', 'Asia/Kolkata', 'IN',
+        '#1336E8', '#08C5E1', '#flowerplant #nature #blooms', 'plants, gardening, flowers',
+        ?, ?, 1
+      )
+    `).run(now, now);
+  }
+
+  // Seed default social accounts if empty
+  const accountCount = db.prepare('SELECT count(*) as c FROM social_accounts').get() as { c: number };
+  if (accountCount.c === 0) {
+    const now = new Date().toISOString();
+    const liveToken = process.env.META_ACCESS_TOKEN || process.env.META_PAGE_ACCESS_TOKEN || 'EAGVJejn6LZAgBSxZAyX1example';
+    const encrypted = encryptToken(liveToken);
+
+    const accountsToSeed = [
+      { id: 'ACC-001', platform: 'facebook', handle: '@flowerplant', name: 'Flower Plant Official', externalId: '1454740611044963' },
+      { id: 'ACC-002', platform: 'instagram', handle: '@ciflow904', name: 'Flower Plant Instagram', externalId: '17841439037630316' },
+      { id: 'ACC-003', platform: 'youtube', handle: '@flowerplant_yt', name: 'Flower Plant YouTube & Shorts', externalId: 'UC_flowerplant_yt' },
+      { id: 'ACC-004', platform: 'whatsapp', handle: '+919876543210', name: 'Flower Plant WhatsApp Status & Channel', externalId: 'WA_flowerplant_91' },
+      { id: 'ACC-005', platform: 'linkedin', handle: 'flower-plant-official', name: 'Flower Plant AgriTech LinkedIn', externalId: 'urn:li:organization:123456' },
+      { id: 'ACC-006', platform: 'x', handle: '@flowerplant_in', name: 'Flower Plant X Channel', externalId: '1454740611044963_x' },
+    ];
+
+    for (const acc of accountsToSeed) {
+      db.prepare(`
+        INSERT OR REPLACE INTO social_accounts (
+          account_id, client_id, brand_id, platform, account_handle, account_name,
+          external_id, token_ciphertext, token_iv, token_tag, token_version, status,
+          last_checked_at, created_at, updated_at, version
+        ) VALUES (
+          ?, 'CL-001', 'BR-001', ?, ?, ?,
+          ?, ?, ?, ?, ?, 'active', ?, ?, ?, 1
+        )
+      `).run(
+        acc.id, acc.platform, acc.handle, acc.name, acc.externalId,
+        encrypted.ciphertext, encrypted.iv, encrypted.tag, encrypted.version,
+        now, now, now
+      );
+    }
+  }
 
   // Seed default users if empty
   const userCount = db.prepare('SELECT count(*) as c FROM users').get() as { c: number };
