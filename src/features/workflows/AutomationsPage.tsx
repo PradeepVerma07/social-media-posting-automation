@@ -972,7 +972,7 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
 
               {/* EMBEDDED IFRAME COMPONENT */}
               {showEmbeddedIframe ? (
-                <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-900 min-h-[720px]">
+                <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-900 w-full min-h-[800px] h-[calc(100vh-180px)]">
                   {iframeStatus === 'loading' && (
                     <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center gap-3 z-10 pointer-events-none">
                       <div className="w-9 h-9 border-3 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
@@ -985,9 +985,8 @@ export const AutomationsPage: React.FC<AutomationsPageProps> = ({
                     key={iframeKey}
                     src={currentIframeUrl}
                     title="n8n Workflow Studio"
-                    className="w-full h-[740px] bg-slate-900 border-none"
+                    className="w-full h-full border-none block bg-slate-900"
                     allow="clipboard-read; clipboard-write; fullscreen"
-                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-downloads"
                     onLoad={() => {
                       setIframeStatus(s => (s === 'timeout' ? 'timeout' : 'loaded'));
                     }}
