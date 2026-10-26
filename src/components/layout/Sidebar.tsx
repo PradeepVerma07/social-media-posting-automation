@@ -118,17 +118,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div>
           <div className="h-16 px-4 flex items-center justify-between border-b border-[#EAECF0]">
             <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="w-9 h-9 rounded-xl bg-[#1336E8] flex items-center justify-center text-white font-bold text-sm tracking-wider shadow-md shadow-[#1336E8]/20 shrink-0">
-                CI
-              </div>
-              {(!isCollapsed || isMobileOpen) && (
-                <div className="min-w-0">
-                  <span className="text-sm font-bold text-[#101828] block truncate tracking-tight">
-                    CI360 HUB
-                  </span>
-                  <span className="text-[10px] font-mono text-[#08C5E1] font-semibold block tracking-wide uppercase">
-                    n8n Orchestrator
-                  </span>
+              {(!isCollapsed || isMobileOpen) ? (
+                <div className="flex items-center min-w-0 py-1">
+                  <img
+                    src="/assets/webtrionix-logo.webp"
+                    alt="Webtrionix Technology"
+                    className="h-8 w-auto max-w-[175px] object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center shrink-0">
+                  <img
+                    src="/assets/webtrionix-logo.webp"
+                    alt="WT"
+                    className="h-8 max-w-none object-contain"
+                    style={{ transform: 'translateX(1px)' }}
+                  />
                 </div>
               )}
             </div>

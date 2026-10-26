@@ -309,17 +309,14 @@ export const BrandRegistrationPage: React.FC<BrandRegistrationPageProps> = ({
       {/* Top Navbar */}
       <header className="h-16 px-4 sm:px-8 bg-white border-b border-[#EAECF0] flex items-center justify-between sticky top-0 z-30 shadow-xs">
         <div className="flex items-center gap-3 cursor-pointer" onClick={onGoHome}>
-          <div className="w-9 h-9 rounded-xl bg-[#1336E8] flex items-center justify-center text-white font-bold text-sm tracking-wider shadow-md shadow-[#1336E8]/20">
-            CI
-          </div>
-          <div>
-            <span className="text-sm font-bold text-[#101828] block tracking-tight">
-              CI360 HUB
-            </span>
-            <span className="text-[10px] font-mono text-[#08C5E1] font-semibold block uppercase">
-              Brand Onboarding Portal
-            </span>
-          </div>
+          <img
+            src="/assets/webtrionix-logo.webp"
+            alt="Webtrionix Technology"
+            className="h-8 w-auto object-contain"
+          />
+          <span className="hidden sm:inline-block px-2 py-0.5 rounded-md bg-blue-50 text-[#1336E8] text-[10px] font-mono font-bold uppercase border border-blue-200">
+            Brand Onboarding Portal
+          </span>
         </div>
 
         <div className="flex items-center gap-3">

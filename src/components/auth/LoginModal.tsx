@@ -83,11 +83,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           )}
 
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center font-bold text-white text-base shadow-sm">
-              CI
+            <div className="p-1.5 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-sm">
+              <img
+                src="/assets/webtrionix-logo.webp"
+                alt="Webtrionix Technology"
+                className="h-8 w-auto object-contain brightness-110"
+              />
             </div>
             <div>
-              <h3 className="text-lg font-bold tracking-tight">CI360 Automation Hub</h3>
+              <h3 className="text-base font-bold tracking-tight">Webtrionix Technology</h3>
               <p className="text-xs text-white/80">Secure Multi-Platform Publisher &amp; RBAC</p>
             </div>
           </div>

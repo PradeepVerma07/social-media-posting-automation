@@ -97,15 +97,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
       {/* Main Container */}
       <div className="w-full max-w-md relative z-10 animate-in fade-in zoom-in-95 duration-200">
         {/* Brand Header */}
-        <div className="text-center mb-7 space-y-2">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 shadow-lg shadow-blue-500/25 border border-white/20 mb-2">
-            <span className="font-extrabold text-xl text-white tracking-wider">CI</span>
+        <div className="text-center mb-7 space-y-3">
+          <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 shadow-xl mb-1">
+            <img
+              src="/assets/webtrionix-logo.webp"
+              alt="Webtrionix Technology"
+              className="h-10 sm:h-12 w-auto object-contain brightness-110"
+            />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            CI360 Automation Hub
+            Webtrionix Technology Hub
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 max-w-xs mx-auto">
-            Self-Hosting Studio &amp; Multi-Platform Social Engine
+            Social Media Orchestration &amp; Automation Platform
           </p>
         </div>
 
