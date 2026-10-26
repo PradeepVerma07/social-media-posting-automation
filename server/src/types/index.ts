@@ -171,6 +171,7 @@ export interface Post {
   placements?: ContentPlacement[];
   platforms: PostPlatformConfig[];
   media: PostMediaItem[];
+  taggedUsers?: string[] | Array<{ username: string; x?: number; y?: number }>;
   commentsCount: number;
   createdAt: string;
   updatedAt: string;

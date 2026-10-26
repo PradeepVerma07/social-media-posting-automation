@@ -29,7 +29,11 @@ import {
   Film,
   Play,
   Trash2,
-  Maximize2
+  Maximize2,
+  UserPlus,
+  Tag,
+  AtSign,
+  X
 } from 'lucide-react';
 import { Brand, SocialPlatform, ContentPlacement } from '../../../server/src/types';
 import { fromISTInputValues } from '../../utils/timezone';
@@ -258,6 +262,24 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
   const [targetUrl, setTargetUrl] = useState('https://nexuscloud.io/release-v2');
   const [firstComment, setFirstComment] = useState('Check out the full benchmark report here!');
 
+  // Instagram Tag People State
+  const [instagramTaggedUsers, setInstagramTaggedUsers] = useState<string[]>(['webtrionix']);
+  const [tagInput, setTagInput] = useState('');
+
+  const handleAddInstagramTag = (handleToAdd?: string) => {
+    const raw = (handleToAdd || tagInput).trim();
+    if (!raw) return;
+    const cleanHandle = raw.replace(/^@/, '').toLowerCase().trim();
+    if (cleanHandle && !instagramTaggedUsers.includes(cleanHandle)) {
+      setInstagramTaggedUsers(prev => [...prev, cleanHandle]);
+    }
+    setTagInput('');
+  };
+
+  const handleRemoveInstagramTag = (handleToRemove: string) => {
+    setInstagramTaggedUsers(prev => prev.filter(h => h !== handleToRemove));
+  };
+
   // Step 5: Schedule
   const [publishTiming, setPublishTiming] = useState<'now' | 'scheduled'>('scheduled');
   const [scheduledDate, setScheduledDate] = useState('2026-10-28');
@@ -363,6 +385,7 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
           mediaUrls: broadcastMediaUrl ? [broadcastMediaUrl] : [],
           mediaType: isBroadcastVideo ? 'video' : 'image',
           platformOverrides: broadcastOverrides,
+          taggedUsers: instagramTaggedUsers,
         });
         setBroadcastReport(report);
       }
@@ -415,6 +438,7 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
         : [],
       assignedApproverId,
       submitForApproval,
+      taggedUsers: instagramTaggedUsers,
     };
 
     onSavePost(postData);
@@ -1011,6 +1035,99 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
                 </div>
               </div>
 
+              {/* Instagram Tag People (Meta Graph API Tagging) */}
+              {broadcastPlatforms.includes('instagram') && (
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50/70 via-rose-50/50 to-purple-50/60 border border-amber-200/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-amber-500 to-rose-500 text-white flex items-center justify-center shadow-xs">
+                        <UserPlus className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-slate-900 block">
+                          Tag People on Instagram
+                        </span>
+                        <span className="text-[10px] text-slate-500 block">
+                          Meta Graph API will attach these user tags directly to the published media
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-white text-rose-600 border border-rose-200 shadow-2xs">
+                      {instagramTaggedUsers.length} Tagged
+                    </span>
+                  </div>
+
+                  {/* Tag Input */}
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-2.5 text-slate-400 font-mono text-xs font-bold">@</span>
+                      <input
+                        type="text"
+                        value={tagInput}
+                        onChange={e => setTagInput(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddInstagramTag();
+                          }
+                        }}
+                        placeholder="Instagram handle (e.g. webtrionix, techpartner)"
+                        className="w-full h-9 pl-7 pr-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#1336E8] shadow-2xs font-mono"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAddInstagramTag()}
+                      className="px-3.5 h-9 rounded-xl bg-[#1336E8] hover:bg-[#0E27B3] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>Tag</span>
+                    </button>
+                  </div>
+
+                  {/* Tagged Chips */}
+                  {instagramTaggedUsers.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {instagramTaggedUsers.map(handle => (
+                        <span
+                          key={handle}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white border border-slate-200 text-slate-800 text-xs font-mono font-semibold shadow-2xs animate-in zoom-in-95 duration-100"
+                        >
+                          <span className="text-rose-500">@</span>
+                          <span>{handle}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveInstagramTag(handle)}
+                            className="text-slate-400 hover:text-rose-600 p-0.5 rounded transition-colors cursor-pointer"
+                            title={`Remove @${handle}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-400 italic">No people tagged yet. Type a username above to tag.</p>
+                  )}
+
+                  {/* Quick Suggestions */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                    <span className="text-[10px] text-slate-500 font-medium">Quick tag suggestions:</span>
+                    {['webtrionix', 'meta', 'creators', 'instagram'].map(sugg => (
+                      <button
+                        key={sugg}
+                        type="button"
+                        onClick={() => handleAddInstagramTag(sugg)}
+                        disabled={instagramTaggedUsers.includes(sugg)}
+                        className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-white/90 hover:bg-white text-slate-600 hover:text-[#1336E8] border border-slate-200 transition-colors disabled:opacity-40 cursor-pointer shadow-2xs"
+                      >
+                        +@{sugg}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Direct Image/Video Upload & Preview for Broadcast */}
               {renderMediaSection(true)}
 
@@ -1593,6 +1710,99 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
                     />
                   </div>
                 </div>
+
+                {/* Instagram Tag People (Single Brand Wizard) */}
+                {selectedPlatforms.includes('instagram') && (
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50/70 via-rose-50/50 to-purple-50/60 border border-amber-200/80 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-amber-500 to-rose-500 text-white flex items-center justify-center shadow-xs">
+                          <UserPlus className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold text-slate-900 block">
+                            Tag People on Instagram
+                          </span>
+                          <span className="text-[10px] text-slate-500 block">
+                            Meta Graph API user tags attached directly to the published Instagram media
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-white text-rose-600 border border-rose-200 shadow-2xs">
+                        {instagramTaggedUsers.length} Tagged
+                      </span>
+                    </div>
+
+                    {/* Tag Input */}
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-2.5 text-slate-400 font-mono text-xs font-bold">@</span>
+                        <input
+                          type="text"
+                          value={tagInput}
+                          onChange={e => setTagInput(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddInstagramTag();
+                            }
+                          }}
+                          placeholder="Instagram handle (e.g. webtrionix, brandpartner)"
+                          className="w-full h-9 pl-7 pr-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#1336E8] shadow-2xs font-mono"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAddInstagramTag()}
+                        className="px-3.5 h-9 rounded-xl bg-[#1336E8] hover:bg-[#0E27B3] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Tag</span>
+                      </button>
+                    </div>
+
+                    {/* Tagged Chips */}
+                    {instagramTaggedUsers.length > 0 ? (
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {instagramTaggedUsers.map(handle => (
+                          <span
+                            key={handle}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white border border-slate-200 text-slate-800 text-xs font-mono font-semibold shadow-2xs animate-in zoom-in-95 duration-100"
+                          >
+                            <span className="text-rose-500">@</span>
+                            <span>{handle}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveInstagramTag(handle)}
+                              className="text-slate-400 hover:text-rose-600 p-0.5 rounded transition-colors cursor-pointer"
+                              title={`Remove @${handle}`}
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-slate-400 italic">No people tagged yet. Type a username above to tag.</p>
+                    )}
+
+                    {/* Quick Suggestions */}
+                    <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                      <span className="text-[10px] text-slate-500 font-medium">Quick tag suggestions:</span>
+                      {['webtrionix', 'meta', 'creators', 'instagram'].map(sugg => (
+                        <button
+                          key={sugg}
+                          type="button"
+                          onClick={() => handleAddInstagramTag(sugg)}
+                          disabled={instagramTaggedUsers.includes(sugg)}
+                          className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-white/90 hover:bg-white text-slate-600 hover:text-[#1336E8] border border-slate-200 transition-colors disabled:opacity-40 cursor-pointer shadow-2xs"
+                        >
+                          +@{sugg}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

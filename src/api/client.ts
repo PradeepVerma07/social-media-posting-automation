@@ -400,4 +400,26 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+
+  // Direct User Signup
+  async signUp(payload: {
+    fullName: string;
+    email: string;
+    password: string;
+    brandName?: string;
+    companyName?: string;
+    role?: 'Client' | 'Admin';
+    platforms?: string[];
+  }): Promise<{
+    success: boolean;
+    message: string;
+    user: User;
+    brand: Brand & { clientId?: string; brandId?: string };
+    accessToken: string;
+  }> {
+    return request('/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 };

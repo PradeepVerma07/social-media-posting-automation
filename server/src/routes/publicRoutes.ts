@@ -1531,6 +1531,158 @@ publicRouter.post('/auth/register-brand', (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Universal Production Signup Endpoint: POST /api/v1/auth/signup
+ */
+publicRouter.post('/auth/signup', (req: Request, res: Response) => {
+  // Directly forward to the brand registration handler
+  const {
+    brandName = req.body.companyName || 'My Brand',
+    companyName,
+    websiteUrl,
+    industry,
+    description,
+    country = 'IN',
+    timezone = 'Asia/Kolkata',
+    primaryColor = '#1336E8',
+    secondaryColor = '#08C5E1',
+    logoUrl,
+    platforms = ['facebook', 'instagram', 'linkedin', 'x'],
+    fullName,
+    email,
+    password,
+    phone,
+    role = 'Client',
+  } = req.body || {};
+
+  try {
+    if (!email || !email.trim()) {
+      return res.status(400).json({ error: 'Email address is required.' });
+    }
+    if (!fullName || !fullName.trim()) {
+      return res.status(400).json({ error: 'Full name is required.' });
+    }
+    if (!password || password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanBrandName = (brandName || 'My Brand').trim();
+
+    const existingUser = db.prepare('SELECT user_id FROM users WHERE LOWER(email) = LOWER(?)').get(cleanEmail);
+    if (existingUser) {
+      return res.status(409).json({
+        error: 'An account with this email address already exists. Please sign in instead.',
+      });
+    }
+
+    const now = new Date().toISOString();
+    const rawSlug = cleanBrandName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'brand';
+    const uniqueSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const brandId = `BR-${rawSlug.substring(0, 14).toUpperCase()}-${uniqueSuffix}`;
+    const clientId = `CL-${rawSlug.substring(0, 14).toUpperCase()}-${uniqueSuffix}`;
+
+    db.prepare(`
+      INSERT OR IGNORE INTO clients (client_id, name, status, created_at, updated_at)
+      VALUES (?, ?, 'active', ?, ?)
+    `).run(clientId, (companyName && companyName.trim()) || cleanBrandName, now, now);
+
+    db.prepare(`
+      INSERT INTO brands (brand_id, client_id, brand_name, default_timezone, country, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(brandId, clientId, cleanBrandName, timezone, country, now, now);
+
+    const userRole = role === 'Admin' ? 'Admin' : 'Client';
+    const userResult = db.prepare(`
+      INSERT INTO users (email, full_name, avatar_url, phone, role, tenant_scope, is_active, two_factor_enabled, password, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, 1, 0, ?, ?)
+    `).run(
+      cleanEmail,
+      fullName.trim(),
+      logoUrl || null,
+      phone || null,
+      userRole,
+      cleanBrandName,
+      password,
+      now
+    );
+
+    const userId = Number(userResult.lastInsertRowid);
+
+    if (Array.isArray(platforms)) {
+      for (const plat of platforms) {
+        const pNorm = String(plat).toLowerCase();
+        const accId = `ACC-${pNorm.toUpperCase()}-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
+        try {
+          db.prepare(`
+            INSERT INTO social_accounts (
+              account_id, client_id, brand_id, platform, account_handle, account_name,
+              external_id, token_ciphertext, token_iv, token_tag, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'mock_ciphertext', 'mock_iv', 'mock_tag', 'active', ?, ?)
+          `).run(
+            accId,
+            clientId,
+            brandId,
+            pNorm,
+            `@${rawSlug}_${pNorm}`,
+            `${cleanBrandName} ${pNorm.charAt(0).toUpperCase() + pNorm.slice(1)}`,
+            `ext_${rawSlug}_${pNorm}`,
+            now,
+            now
+          );
+        } catch {}
+      }
+    }
+
+    try {
+      db.prepare(`
+        INSERT INTO notifications (user_id, event_type, title, message, link_url, is_read, created_at)
+        VALUES (1, 'user_signup', ?, ?, '/#team', 0, ?)
+      `).run(
+        `New User Signed Up: ${fullName.trim()}`,
+        `${fullName.trim()} (${cleanEmail}) joined as ${userRole} for brand "${cleanBrandName}".`,
+        now
+      );
+    } catch {}
+
+    const userObj = {
+      id: userId,
+      email: cleanEmail,
+      fullName: fullName.trim(),
+      role: userRole,
+      avatarUrl: logoUrl,
+      tenantScope: cleanBrandName,
+      isActive: true,
+      createdAt: now,
+    };
+
+    const brandObj = {
+      id: userId,
+      brandId,
+      name: cleanBrandName,
+      slug: rawSlug,
+      clientId,
+      timezone,
+      country,
+      primaryColor,
+      secondaryColor,
+      logoUrl,
+      isActive: true,
+    };
+
+    return res.status(201).json({
+      success: true,
+      message: 'Account created successfully! Welcome to Webtrionix.',
+      user: userObj,
+      brand: brandObj,
+      accessToken: `ci360_jwt_${userId}_${Date.now()}`,
+    });
+  } catch (err: any) {
+    logger.error({ err }, 'Error in /auth/signup');
+    return res.status(500).json({ error: err.message || 'Internal server error creating account' });
+  }
+});
+
 publicRouter.get('/auth/me', (req: Request, res: Response) => {
   res.json({
     user: {
@@ -1622,6 +1774,7 @@ export function formatPostRow(r: any) {
     source: r.source || 'dashboard',
     placement: r.placement ? (typeof r.placement === 'string' ? JSON.parse(r.placement) : r.placement) : ['feed'],
     placements: r.placement ? (typeof r.placement === 'string' ? JSON.parse(r.placement) : r.placement) : ['feed'],
+    taggedUsers: r.tagged_users ? (typeof r.tagged_users === 'string' ? JSON.parse(r.tagged_users || '[]') : r.tagged_users) : [],
     versionNumber: r.version || 1,
     version: r.version || 1,
     commentsCount,
@@ -1834,18 +1987,20 @@ publicRouter.post('/posts', (req: Request, res: Response) => {
     const { scheduledUtc, normalizedTime } = fromZone(data.scheduleDate, data.scheduleTime, data.timezone);
 
     const placementsToSave = JSON.stringify(effectivePlacements || ['feed']);
+    const rawTaggedUsers = req.body.taggedUsers || req.body.instagramUserTags || req.body.userTags || [];
+    const taggedUsersJson = JSON.stringify(Array.isArray(rawTaggedUsers) ? rawTaggedUsers : [rawTaggedUsers]);
 
     db.prepare(`
       INSERT INTO posts (
         post_id, client_id, brand_id, title, caption, hashtags, media_type, media_urls,
         link_url, schedule_local_date, schedule_local_time, timezone, scheduled_utc,
-        approval_status, source, placement, created_at, updated_at, version
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        approval_status, source, placement, tagged_users, created_at, updated_at, version
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
     `).run(
       newPostId, clientId, data.brandId, data.title, data.caption, data.hashtags,
       data.mediaType, JSON.stringify(data.mediaUrls), data.linkUrl, data.scheduleDate,
       normalizedTime, data.timezone, scheduledUtc, data.approvalStatus, data.source || 'dashboard',
-      placementsToSave, now, now
+      placementsToSave, taggedUsersJson, now, now
     );
 
     const targetsCreated: string[] = [];
@@ -1929,6 +2084,8 @@ publicRouter.post('/posts/multi-brand-publish', async (req: Request, res: Respon
     );
 
     const placementsJson = JSON.stringify(normalizedPlacements || ['feed']);
+    const rawTaggedUsers = req.body.taggedUsers || req.body.instagramUserTags || req.body.userTags || [];
+    const taggedUsersJson = JSON.stringify(Array.isArray(rawTaggedUsers) ? rawTaggedUsers : [rawTaggedUsers]);
     const effectiveMediaUrls = mediaUrls.length > 0 ? mediaUrls : ['https://images.unsplash.com/photo-1545241047-6083a3684587?auto=format&fit=crop&w=1200&q=80'];
     const isVideo = effectiveMediaUrls.some((u: string) => /\.(mp4|webm|mov|mkv|avi)(\?.*)?$/i.test(u) || (u.includes('/uploads/') && /\.(mp4|webm|mov)/i.test(u)) || /(?:youtube\.com|youtu\.be)/i.test(u));
     const effectiveMediaType = req.body.mediaType || (isVideo ? 'video' : 'image');
@@ -1937,14 +2094,14 @@ publicRouter.post('/posts/multi-brand-publish', async (req: Request, res: Respon
       INSERT INTO posts (
         post_id, client_id, brand_id, title, caption, hashtags, media_type, media_urls,
         link_url, schedule_local_date, schedule_local_time, timezone, scheduled_utc,
-        approval_status, source, placement, created_at, updated_at, version
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Approved', 'composer', ?, ?, ?, 1)
+        approval_status, source, placement, tagged_users, created_at, updated_at, version
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Approved', 'composer', ?, ?, ?, ?, 1)
     `).run(
       newPostId, clientId, brand.brand_id, title, masterCaption || 'Omnichannel Broadcast', hashtags,
       effectiveMediaType,
       JSON.stringify(effectiveMediaUrls),
       targetUrl, new Date().toISOString().split('T')[0], normalizedTime, brand.default_timezone || 'Asia/Kolkata',
-      now, placementsJson, now, now
+      now, placementsJson, taggedUsersJson, now, now
     );
 
     const platformResults: Record<string, any> = {};
@@ -2512,14 +2669,34 @@ export async function publishTargetDirectly(target: any, post: any, executionId:
               placementReports.push({ placement: 'feed', platform: 'instagram', status: 'failed', error: err });
             }
           } else {
+            // Process Instagram User Tagging (Meta Graph API user_tags spec)
+            let igUserTags: Array<{ username: string; x: number; y: number }> = [];
+            try {
+              const rawTags = (post as any).tagged_users || (post as any).taggedUsers || [];
+              const parsed = typeof rawTags === 'string' ? JSON.parse(rawTags) : rawTags;
+              if (Array.isArray(parsed)) {
+                igUserTags = parsed.map((tag: any, idx: number) => {
+                  const uname = typeof tag === 'string' ? tag.replace(/^@/, '').trim() : (tag.username || '').replace(/^@/, '').trim();
+                  const x = typeof tag === 'object' && typeof tag.x === 'number' ? tag.x : Math.min(0.25 + (idx * 0.25), 0.85);
+                  const y = typeof tag === 'object' && typeof tag.y === 'number' ? tag.y : 0.5;
+                  return { username: uname, x, y };
+                }).filter(t => t.username);
+              }
+            } catch {}
+
+            const igPayload: any = {
+              image_url: firstMedia,
+              caption: `${post.caption || ''}${post.hashtags ? '\n\n' + post.hashtags : ''}`,
+              access_token: plainToken,
+            };
+            if (igUserTags.length > 0) {
+              igPayload.user_tags = igUserTags;
+            }
+
             const feedRes = await fetch(`https://graph.facebook.com/v21.0/${account.external_id}/media`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                image_url: firstMedia,
-                caption: `${post.caption || ''}${post.hashtags ? '\n\n' + post.hashtags : ''}`,
-                access_token: plainToken,
-              }),
+              body: JSON.stringify(igPayload),
             });
             const feedData = await feedRes.json();
             if (feedData.id) {

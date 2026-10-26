@@ -83,6 +83,7 @@ export function initDatabase() {
       approved_at TEXT,
       source TEXT NOT NULL DEFAULT 'dashboard',
       deleted_at TEXT,
+      tagged_users TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       version INTEGER NOT NULL DEFAULT 1,
@@ -226,6 +227,9 @@ export function initDatabase() {
   // Migrate columns if needed
   try {
     db.prepare(`ALTER TABLE posts ADD COLUMN placement TEXT DEFAULT '["feed"]'`).run();
+  } catch {}
+  try {
+    db.prepare(`ALTER TABLE posts ADD COLUMN tagged_users TEXT DEFAULT '[]'`).run();
   } catch {}
   try {
     db.prepare(`ALTER TABLE brands ADD COLUMN primary_color TEXT DEFAULT '#1336E8'`).run();

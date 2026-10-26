@@ -33,7 +33,10 @@ import {
   Play,
   Video,
   Maximize2,
-  Link
+  Link,
+  UserPlus,
+  Tag,
+  AtSign
 } from 'lucide-react';
 import { Post, Brand, SocialPlatform } from '../../../server/src/types';
 import { api } from '../../api/client';
@@ -149,6 +152,23 @@ export const ContentCalendar: React.FC<ContentCalendarProps> = ({
     'https://images.unsplash.com/photo-1485955900006-10f4d324d411?auto=format&fit=crop&w=1200&q=80'
   );
   const [targetUrl, setTargetUrl] = useState<string>('');
+
+  // Instagram User Tagging State for Calendar Scheduler
+  const [calendarTaggedUsers, setCalendarTaggedUsers] = useState<string[]>([]);
+  const [calendarTagInput, setCalendarTagInput] = useState<string>('');
+
+  const handleAddCalendarTag = (rawTag?: string) => {
+    const val = (rawTag || calendarTagInput).trim().replace(/^@/, '');
+    if (!val) return;
+    if (!calendarTaggedUsers.includes(val)) {
+      setCalendarTaggedUsers(prev => [...prev, val]);
+    }
+    setCalendarTagInput('');
+  };
+
+  const handleRemoveCalendarTag = (username: string) => {
+    setCalendarTaggedUsers(prev => prev.filter(u => u !== username));
+  };
 
   // Professional Media Upload & Preset Dropdown State
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
@@ -338,6 +358,8 @@ export const ContentCalendar: React.FC<ContentCalendarProps> = ({
     setCaption(
       `Exciting updates from ${selectedBrand?.name || 'Flower Plant'}! Discover botanical freshness, indoor succulent routines, and organic plant care tips. Elevate your space today! 🪴✨`
     );
+    setCalendarTaggedUsers([]);
+    setCalendarTagInput('');
     setIsScheduleModalOpen(true);
   };
 
@@ -375,6 +397,7 @@ export const ContentCalendar: React.FC<ContentCalendarProps> = ({
       scheduleTime: scheduleTime.length === 5 ? `${scheduleTime}:00` : scheduleTime,
       hashtags: hashtags.trim(),
       targetUrl: targetUrl.trim(),
+      taggedUsers: calendarTaggedUsers,
       timezone: tz,
       country: brand.country || 'IN',
       scheduledAt: scheduledAtIso,
@@ -1135,6 +1158,98 @@ export const ContentCalendar: React.FC<ContentCalendarProps> = ({
                   className="w-full h-10 px-3 bg-[#F6F8FC] border border-[#D0D5DD] rounded-xl text-xs"
                 />
               </div>
+
+              {/* Instagram Tag People (Dynamic when Instagram channel selected) */}
+              {selectedPlatforms.includes('instagram') && (
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50/70 via-rose-50/50 to-purple-50/60 border border-amber-200/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-amber-500 to-rose-500 text-white flex items-center justify-center shadow-xs">
+                        <UserPlus className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-slate-900 block">
+                          Tag People on Instagram
+                        </span>
+                        <span className="text-[10px] text-slate-500 block">
+                          Meta Graph API will attach these user tags directly to the published media
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-white text-rose-600 border border-rose-200 shadow-2xs">
+                      {calendarTaggedUsers.length} Tagged
+                    </span>
+                  </div>
+
+                  {/* Tag Input */}
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-2.5 text-slate-400 font-mono text-xs font-bold">@</span>
+                      <input
+                        type="text"
+                        value={calendarTagInput}
+                        onChange={e => setCalendarTagInput(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddCalendarTag();
+                          }
+                        }}
+                        placeholder="Instagram handle (e.g. webtrionix, techpartner)"
+                        className="w-full h-9 pl-7 pr-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#1336E8] shadow-2xs font-mono"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAddCalendarTag()}
+                      className="px-3.5 h-9 rounded-xl bg-[#1336E8] hover:bg-[#0E27B3] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>Tag</span>
+                    </button>
+                  </div>
+
+                  {/* Quick Tag Suggestions */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-slate-500 font-medium">Quick tag:</span>
+                    {['webtrionix', 'meta', 'instagram', 'creators'].map(preset => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => handleAddCalendarTag(preset)}
+                        className="text-[10px] px-2 py-0.5 rounded-lg bg-white/80 hover:bg-white text-slate-700 border border-slate-200 font-mono hover:text-[#1336E8] transition-colors"
+                      >
+                        +{preset}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Tagged Chips */}
+                  {calendarTaggedUsers.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {calendarTaggedUsers.map(handle => (
+                        <span
+                          key={handle}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white border border-slate-200 text-slate-800 text-xs font-mono font-semibold shadow-2xs animate-in zoom-in-95 duration-100"
+                        >
+                          <span className="text-rose-500">@</span>
+                          <span>{handle}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCalendarTag(handle)}
+                            className="text-slate-400 hover:text-rose-600 p-0.5 rounded transition-colors cursor-pointer"
+                            title={`Remove @${handle}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-400 italic">No people tagged yet. Type a username above to tag.</p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Right Column: Direct Upload Photo/Video or Link Studio (5 Cols) */}
@@ -1571,6 +1686,27 @@ export const ContentCalendar: React.FC<ContentCalendarProps> = ({
                   {inspectingPost.hashtags && (
                     <div className="text-xs font-mono text-[#1336E8] bg-blue-50/60 p-2.5 rounded-xl border border-blue-100">
                       {Array.isArray(inspectingPost.hashtags) ? inspectingPost.hashtags.join(' ') : inspectingPost.hashtags}
+                    </div>
+                  )}
+
+                  {/* Tagged Instagram Accounts Display */}
+                  {inspectingPost.taggedUsers && inspectingPost.taggedUsers.length > 0 && (
+                    <div className="p-3 bg-gradient-to-r from-amber-50/70 via-rose-50/50 to-purple-50/60 border border-amber-200/80 rounded-xl space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                        <UserPlus className="w-3.5 h-3.5 text-rose-500" />
+                        <span>Tagged Instagram Accounts ({inspectingPost.taggedUsers.length}):</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {inspectingPost.taggedUsers.map((handle: string) => (
+                          <span
+                            key={handle}
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-white border border-rose-200 text-xs font-mono font-semibold text-rose-700 shadow-2xs"
+                          >
+                            <span>@</span>
+                            <span>{handle}</span>
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
 
