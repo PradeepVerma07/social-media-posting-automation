@@ -8,39 +8,21 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertCircle,
-  Globe,
-  KeyRound,
-  ArrowRight,
   Loader2,
-  Terminal,
-  Server,
   User,
   Building2,
-  Sparkles,
-  Check,
   Facebook,
   Instagram,
   Linkedin,
-  Twitter,
-  Youtube,
-  MessageSquare
+  Youtube
 } from 'lucide-react';
-import { User as UserModel, RoleName } from '../../../server/src/types';
+import { User as UserModel } from '../../../server/src/types';
 import { api } from '../../api/client';
 
 interface LoginPageProps {
   onLoginSuccess: (user: UserModel, token: string) => void;
   onNavigateToRegister?: () => void;
 }
-
-const PLATFORM_CHOICES = [
-  { id: 'facebook', label: 'Facebook', icon: Facebook, color: 'text-blue-500' },
-  { id: 'instagram', label: 'Instagram', icon: Instagram, color: 'text-pink-500' },
-  { id: 'linkedin', label: 'LinkedIn', icon: Linkedin, color: 'text-sky-500' },
-  { id: 'x', label: 'X (Twitter)', icon: Twitter, color: 'text-slate-300' },
-  { id: 'youtube', label: 'YouTube', icon: Youtube, color: 'text-rose-500' },
-  { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare, color: 'text-emerald-500' },
-];
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigateToRegister }) => {
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
@@ -49,60 +31,27 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
 
   // Sign Up State
   const [fullName, setFullName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [brandName, setBrandName] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [showSignupPassword, setShowSignupPassword] = useState(false);
-  const [signupRole, setSignupRole] = useState<'Client' | 'Admin'>('Client');
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([
-    'facebook',
-    'instagram',
-    'linkedin',
-    'x',
-  ]);
-  const [agreeTerms, setAgreeTerms] = useState(true);
 
   // Status & Environment State
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [clientIp, setClientIp] = useState<string>('127.0.0.1');
+  const [gatewayHost, setGatewayHost] = useState<string>('360.webtrionix.com');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const hostname = window.location.hostname || '127.0.0.1';
-      const port = window.location.port ? `:${window.location.port}` : '';
-      setClientIp(`${hostname}${port}`);
+      const host = window.location.host || '360.webtrionix.com';
+      setGatewayHost(host);
     }
   }, []);
 
-  // Password strength score
-  const getPasswordStrength = (pass: string) => {
-    let score = 0;
-    if (pass.length >= 6) score += 1;
-    if (pass.length >= 10) score += 1;
-    if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) score += 1;
-    if (/\d/.test(pass)) score += 1;
-    if (/[^A-Za-z0-9]/.test(pass)) score += 1;
-    return Math.min(score, 4);
-  };
-
-  const strengthScore = getPasswordStrength(signupPassword);
-  const strengthLabels = ['Weak', 'Fair', 'Good', 'Strong'];
-  const strengthColors = ['bg-rose-500', 'bg-amber-500', 'bg-blue-500', 'bg-emerald-500'];
-
-  const togglePlatform = (id: string) => {
-    setSelectedPlatforms(prev =>
-      prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
-    );
-  };
-
-  // Handle Sign In Submit
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -112,7 +61,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
     const cleanPass = password.trim();
 
     if (!cleanId || !cleanPass) {
-      setErrorMsg('Please enter both your Email / Username and password.');
+      setErrorMsg('Please enter both your email and password.');
       return;
     }
 
@@ -125,52 +74,34 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
       });
 
       if (res && res.user) {
-        if (rememberMe) {
-          try {
-            localStorage.setItem('ci360_auth_user', JSON.stringify(res.user));
-            localStorage.setItem('ci360_auth_token', res.accessToken || 'token');
-            localStorage.removeItem('ci360_is_signed_out');
-          } catch {}
-        }
+        try {
+          localStorage.setItem('ci360_auth_user', JSON.stringify(res.user));
+          localStorage.setItem('ci360_auth_token', res.accessToken || 'token');
+          localStorage.removeItem('ci360_is_signed_out');
+        } catch {}
         onLoginSuccess(res.user, res.accessToken || 'token');
       } else {
         setErrorMsg('Authentication failed. Please verify credentials.');
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Login failed. Invalid ID/IP or password.');
+      setErrorMsg(err.message || 'Login failed. Invalid email or password.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle Sign Up Submit
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (!fullName.trim()) {
-      setErrorMsg('Full name is required.');
+    if (!fullName.trim() || !signupEmail.trim() || !brandName.trim() || !signupPassword.trim()) {
+      setErrorMsg('Please fill out all required fields.');
       return;
     }
-    if (!signupEmail.trim() || !signupEmail.includes('@')) {
-      setErrorMsg('A valid email address is required.');
-      return;
-    }
-    if (!brandName.trim()) {
-      setErrorMsg('Brand / Organization name is required.');
-      return;
-    }
+
     if (signupPassword.length < 6) {
-      setErrorMsg('Password must be at least 6 characters long.');
-      return;
-    }
-    if (signupPassword !== confirmPassword) {
-      setErrorMsg('Passwords do not match. Please verify your password confirmation.');
-      return;
-    }
-    if (!agreeTerms) {
-      setErrorMsg('Please agree to the Terms of Service to create an account.');
+      setErrorMsg('Password must be at least 6 characters.');
       return;
     }
 
@@ -179,498 +110,409 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
       const res = await api.signUp({
         fullName: fullName.trim(),
         email: signupEmail.trim(),
-        password: signupPassword.trim(),
         brandName: brandName.trim(),
-        companyName: brandName.trim(),
-        role: signupRole,
-        platforms: selectedPlatforms,
+        password: signupPassword,
+        role: 'Client',
+        platforms: ['facebook', 'instagram', 'youtube', 'linkedin'],
       });
 
-      if (res && res.success && res.user) {
-        setSuccessMsg('Account created successfully! Entering workspace...');
+      if (res && res.user) {
         try {
           localStorage.setItem('ci360_auth_user', JSON.stringify(res.user));
-          localStorage.setItem('ci360_auth_token', res.accessToken || 'token');
+          localStorage.setItem('ci360_auth_token', res.token || 'token');
           localStorage.removeItem('ci360_is_signed_out');
         } catch {}
-
+        setSuccessMsg('Account created successfully! Entering dashboard...');
         setTimeout(() => {
-          onLoginSuccess(res.user, res.accessToken || 'token');
+          onLoginSuccess(res.user, res.token || 'token');
         }, 600);
       } else {
-        setErrorMsg(res.message || 'Failed to register account.');
+        setErrorMsg(res.message || 'Registration failed. Please try again.');
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Registration failed. An account with this email may already exist.');
+      setErrorMsg(err.message || 'Registration failed. Please check details.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleAutoFillAdmin = () => {
+    setIdentifier('pradeepofficial8795@gmail.com');
+    setPassword('Admin@123');
+    setErrorMsg(null);
+  };
+
   return (
-    <div className="min-h-screen w-screen flex flex-col items-center justify-center bg-[#070B14] text-white p-4 sm:p-6 relative overflow-hidden font-sans select-none">
-      {/* Background Decorative Tech Grid & Ambient Glow */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/30 via-[#070B14] to-[#04060A] pointer-events-none" />
+    <div className="min-h-screen w-screen flex flex-col items-center justify-between bg-[#08070E] text-white p-4 sm:p-6 lg:p-10 relative overflow-x-hidden font-sans select-none">
+      {/* Background Decorative Gradients & Grid Pattern */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/20 via-[#08070E] to-[#05040A] pointer-events-none" />
       <div
-        className="absolute inset-0 opacity-[0.03] pointer-events-none"
+        className="absolute inset-0 opacity-[0.025] pointer-events-none"
         style={{
           backgroundImage: `linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)`,
-          backgroundSize: '32px 32px',
+          backgroundSize: '36px 36px',
         }}
       />
-      <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -top-32 -right-32 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-rose-600/10 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Main Auth Container */}
-      <div className="w-full max-w-lg relative z-10 animate-in fade-in zoom-in-95 duration-200 my-6">
-        {/* Brand Logo & Header */}
-        <div className="text-center mb-6 space-y-2">
-          <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 shadow-2xl mb-1 hover:scale-105 transition-transform">
-            <img
-              src="/assets/webtrionix-logo.webp"
-              alt="Webtrionix Technology"
-              className="h-9 sm:h-11 w-auto object-contain brightness-110"
-            />
-          </div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+      {/* Top Header: Brand, Title & Gateway Pill (Image 2) */}
+      <header className="w-full max-w-5xl flex flex-col items-center text-center pt-2 sm:pt-4 z-10 animate-in fade-in duration-300">
+        <div className="flex items-center justify-center gap-3 mb-2">
+          <img
+            src="/assets/webtrionix-logo.webp"
+            alt="Webtrionix Technology"
+            className="h-10 sm:h-12 w-auto object-contain filter drop-shadow-[0_2px_12px_rgba(168,85,247,0.3)]"
+            onError={(e) => {
+              (e.target as HTMLElement).style.display = 'none';
+            }}
+          />
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
             Webtrionix Technology Hub
           </h1>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">
-            Social Media Automation, Multi-Channel Publishing &amp; n8n Orchestrator
-          </p>
         </div>
+        <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto mb-4">
+          Social Media Automation, Multi-Channel Publishing &amp; n8n Orchestrator
+        </p>
 
-        {/* Security Gateway Status Bar */}
-        <div className="mb-4 flex items-center justify-between px-3.5 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-400 text-[11px] shadow-sm backdrop-blur-md">
-          <div className="flex items-center gap-2">
+        {/* Security Gateway Pill */}
+        <div className="w-full max-w-md mx-auto flex items-center justify-between px-4 py-2 rounded-xl bg-[#10131F]/90 border border-slate-800 text-slate-300 text-xs shadow-md backdrop-blur-md">
+          <div className="flex items-center gap-2 font-mono">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-mono text-slate-300">Gateway: {clientIp}</span>
+            <span>Gateway: {gatewayHost}</span>
           </div>
-          <div className="flex items-center gap-1.5 text-slate-400">
+          <div className="flex items-center gap-1.5 text-slate-300">
             <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
             <span>AES-256 Vault Active</span>
           </div>
         </div>
+      </header>
 
-        {/* Card Body */}
-        <div className="bg-slate-900/90 border border-slate-800/90 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl space-y-5">
-          {/* Dual Mode Switcher Tabs */}
-          <div className="p-1 bg-slate-800/80 rounded-2xl border border-slate-700/60 grid grid-cols-2 gap-1 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMode('signin');
-                setErrorMsg(null);
-                setSuccessMsg(null);
-              }}
-              className={`py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                authMode === 'signin'
-                  ? 'bg-blue-600 text-white shadow-md font-bold'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <KeyRound className="w-3.5 h-3.5" />
-              <span>Sign In</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMode('signup');
-                setErrorMsg(null);
-                setSuccessMsg(null);
-              }}
-              className={`py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                authMode === 'signup'
-                  ? 'bg-blue-600 text-white shadow-md font-bold'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Create Account</span>
-            </button>
+      {/* Main Two-Column Showcase & Login Section (Image 4) */}
+      <main className="w-full max-w-5xl my-auto py-8 sm:py-12 z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+          {/* Left Column: Product Showcase & Timeline (ScoreItAI / Webtrionix Style) */}
+          <div className="lg:col-span-7 space-y-7 animate-in fade-in slide-in-from-left duration-300">
+            {/* Meet Badge */}
+            <div className="inline-flex items-center px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300 text-xs font-medium">
+              <span>Meet Webtrionix 360</span>
+            </div>
+
+            {/* Main Headline */}
+            <div>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-[1.15]">
+                Know why your <br />
+                <span className="bg-gradient-to-r from-[#F06A6A] via-[#E85D75] to-[#B368E8] bg-clip-text text-transparent">
+                  content performs
+                </span>
+              </h2>
+              <p className="text-sm sm:text-base text-slate-400 mt-3 max-w-md leading-relaxed">
+                Scored per post, with the evidence attached. Multi-channel publishing and automated intelligence.
+              </p>
+            </div>
+
+            {/* Vertical Timeline with Steps */}
+            <div className="relative pl-2 space-y-6">
+              {/* Connected Line */}
+              <div className="absolute left-[21px] top-4 bottom-4 w-[2px] bg-white/10" />
+
+              {/* Step 1 */}
+              <div className="relative flex items-start gap-4">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#E85D75] to-[#B368E8] text-white flex items-center justify-center font-bold text-xs shrink-0 z-10 shadow-md">
+                  1
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-white">Connect your accounts</h3>
+                  <div className="flex items-center gap-3 mt-1.5 text-slate-300">
+                    <span className="p-1 rounded-lg bg-pink-500/10 border border-pink-500/20 text-pink-400">
+                      <Instagram className="w-4 h-4" />
+                    </span>
+                    <span className="p-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                      <Facebook className="w-4 h-4" />
+                    </span>
+                    <span className="p-1 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                      <Youtube className="w-4 h-4" />
+                    </span>
+                    <span className="p-1 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400">
+                      <Linkedin className="w-4 h-4" />
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 2 */}
+              <div className="relative flex items-start gap-4">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#E85D75] to-[#B368E8] text-white flex items-center justify-center font-bold text-xs shrink-0 z-10 shadow-md">
+                  2
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-white">Quality and performance</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Two scores, meant to disagree</p>
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className="relative flex items-start gap-4">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#E85D75] to-[#B368E8] text-white flex items-center justify-center font-bold text-xs shrink-0 z-10 shadow-md">
+                  3
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-white">Findings show their sample</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Every claim names the posts behind it</p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Error Alert */}
-          {errorMsg && (
-            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2.5 animate-in fade-in">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-              <span className="leading-snug">{errorMsg}</span>
-            </div>
-          )}
+          {/* Right Column: Card with Offset Cyan Accent Border (Image 4 & Image 1) */}
+          <div className="lg:col-span-5 w-full max-w-md mx-auto space-y-4 animate-in fade-in slide-in-from-right duration-300">
+            <h2 className="text-2xl font-bold text-white tracking-tight">
+              {authMode === 'signin' ? 'Sign in' : 'Create an account'}
+            </h2>
 
-          {/* Success Alert */}
-          {successMsg && (
-            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2.5 animate-in fade-in">
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-              <span>{successMsg}</span>
-            </div>
-          )}
+            {/* Double-Box Card Container with Offset Cyan Border */}
+            <div className="relative">
+              {/* Cyan Accent Offset Layer */}
+              <div className="absolute inset-0 translate-x-2 translate-y-2 rounded-2xl border-2 border-sky-400/50 pointer-events-none" />
 
-          {/* ============================================================== */}
-          {/* MODE 1: SIGN IN FORM                                          */}
-          {/* ============================================================== */}
-          {authMode === 'signin' && (
-            <form onSubmit={handleSignIn} className="space-y-4 animate-in fade-in duration-150">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-300">
-                  Email / Account Identifier
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={identifier}
-                    onChange={e => setIdentifier(e.target.value)}
-                    placeholder="name@company.com or admin"
-                    required
-                    className="w-full h-10 pl-9 pr-3 bg-slate-800/60 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-semibold text-slate-300">Password</label>
-                </div>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    required
-                    className="w-full h-10 pl-9 pr-10 bg-slate-800/60 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-slate-500 hover:text-slate-300 cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Demo Credentials Quick-Fill Card */}
-              <div className="p-3 rounded-xl bg-slate-800/40 border border-slate-700/50 flex items-center justify-between text-xs">
-                <div className="space-y-0.5">
-                  <span className="text-[10px] text-slate-400 font-mono uppercase block">Admin Account</span>
-                  <span className="text-slate-200 font-mono text-[11px] block">pradeepofficial8795@gmail.com</span>
-                  <span className="text-slate-400 font-mono text-[10px]">
-                    Pass: <code className="text-blue-300">Admin@123</code>
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIdentifier('pradeepofficial8795@gmail.com');
-                    setPassword('Admin@123');
-                  }}
-                  className="px-2.5 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 font-semibold text-[11px] transition-colors cursor-pointer border border-blue-500/30"
-                >
-                  Auto-fill
-                </button>
-              </div>
-
-              {/* Remember Me */}
-              <div className="flex items-center justify-between pt-1">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={e => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span className="text-xs text-slate-400">Keep me signed in</span>
-                </label>
-                <span className="text-[11px] text-slate-500 font-mono">Protected</span>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full h-11 mt-1 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Authenticating...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Enter Dashboard</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
+              {/* Dark Foreground Card */}
+              <div className="relative bg-[#120F1D] border border-white/10 rounded-2xl p-6 sm:p-7 shadow-2xl space-y-4">
+                {/* Error Banner */}
+                {errorMsg && (
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2 animate-in fade-in">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+                    <span>{errorMsg}</span>
+                  </div>
                 )}
-              </button>
 
-              {/* Switch to Signup */}
-              <div className="pt-2 text-center border-t border-slate-800">
-                <p className="text-xs text-slate-400">
-                  New brand or partner?{' '}
-                  <button
-                    type="button"
-                    onClick={() => setAuthMode('signup')}
-                    className="font-bold text-blue-400 hover:text-blue-300 underline cursor-pointer"
-                  >
-                    Create your account
-                  </button>
-                </p>
-              </div>
-            </form>
-          )}
-
-          {/* ============================================================== */}
-          {/* MODE 2: SIGN UP / REGISTRATION FORM                           */}
-          {/* ============================================================== */}
-          {authMode === 'signup' && (
-            <form onSubmit={handleSignUp} className="space-y-3.5 animate-in fade-in duration-150">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-slate-300">
-                    Full Name <span className="text-rose-400">*</span>
-                  </label>
-                  <div className="relative">
-                    <User className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-3 pointer-events-none" />
-                    <input
-                      type="text"
-                      value={fullName}
-                      onChange={e => setFullName(e.target.value)}
-                      placeholder="e.g. John Doe"
-                      required
-                      className="w-full h-9 pl-8 pr-3 bg-slate-800/60 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
-                    />
+                {/* Success Banner */}
+                {successMsg && (
+                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-start gap-2 animate-in fade-in">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
+                    <span>{successMsg}</span>
                   </div>
-                </div>
+                )}
 
-                <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-slate-300">
-                    Work Email <span className="text-rose-400">*</span>
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-3 pointer-events-none" />
-                    <input
-                      type="email"
-                      value={signupEmail}
-                      onChange={e => setSignupEmail(e.target.value)}
-                      placeholder="john@company.com"
-                      required
-                      className="w-full h-9 pl-8 pr-3 bg-slate-800/60 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
-                    />
-                  </div>
-                </div>
-              </div>
+                {authMode === 'signin' ? (
+                  /* SIGN IN FORM */
+                  <form onSubmit={handleSignIn} className="space-y-4">
+                    {/* Email Input */}
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-medium text-slate-300">Email</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          required
+                          value={identifier}
+                          onChange={(e) => setIdentifier(e.target.value)}
+                          placeholder="Enter your email"
+                          className="w-full h-11 px-3.5 rounded-lg bg-[#0A0813] border border-white/10 text-white placeholder-slate-600 text-xs sm:text-sm focus:outline-none focus:border-purple-500/80 transition-colors"
+                        />
+                      </div>
+                    </div>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-300">
-                  Brand / Organization Name <span className="text-rose-400">*</span>
-                </label>
-                <div className="relative">
-                  <Building2 className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-3 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={brandName}
-                    onChange={e => setBrandName(e.target.value)}
-                    placeholder="e.g. Acme Media, Aura Digital"
-                    required
-                    className="w-full h-9 pl-8 pr-3 bg-slate-800/60 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
-                  />
-                </div>
-              </div>
+                    {/* Password Input */}
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-medium text-slate-300">Password</label>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="Enter your password"
+                          className="w-full h-11 px-3.5 pr-10 rounded-lg bg-[#0A0813] border border-white/10 text-white placeholder-slate-600 text-xs sm:text-sm focus:outline-none focus:border-purple-500/80 transition-colors font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300 cursor-pointer"
+                          tabIndex={-1}
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
 
-              {/* Password & Confirm Password */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-slate-300">
-                    Password (Min 6 chars) <span className="text-rose-400">*</span>
-                  </label>
-                  <div className="relative">
-                    <Lock className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-3 pointer-events-none" />
-                    <input
-                      type={showSignupPassword ? 'text' : 'password'}
-                      value={signupPassword}
-                      onChange={e => setSignupPassword(e.target.value)}
-                      placeholder="••••••••••••"
-                      required
-                      className="w-full h-9 pl-8 pr-8 bg-slate-800/60 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
-                    />
+                      <div className="flex justify-end pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            alert(
+                              'Please contact your Webtrionix system administrator (pradeepofficial8795@gmail.com) for password resets.'
+                            )
+                          }
+                          className="text-xs text-[#E85D75] hover:underline cursor-pointer"
+                        >
+                          Forgot password?
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Gradient Pill Submit Button */}
                     <button
-                      type="button"
-                      onClick={() => setShowSignupPassword(!showSignupPassword)}
-                      className="absolute right-2.5 top-2.5 text-slate-500 hover:text-slate-300 cursor-pointer"
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full h-11 mt-1 rounded-full bg-gradient-to-r from-[#F06A6A] via-[#E85D75] to-[#B368E8] hover:opacity-95 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-pink-500/20 hover:shadow-pink-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                     >
-                      {showSignupPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Verifying Credentials...</span>
+                        </>
+                      ) : (
+                        <span>Sign in</span>
+                      )}
                     </button>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-slate-300">
-                    Confirm Password <span className="text-rose-400">*</span>
-                  </label>
-                  <div className="relative">
-                    <Lock className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-3 pointer-events-none" />
-                    <input
-                      type={showSignupPassword ? 'text' : 'password'}
-                      value={confirmPassword}
-                      onChange={e => setConfirmPassword(e.target.value)}
-                      placeholder="••••••••••••"
-                      required
-                      className={`w-full h-9 pl-8 pr-3 bg-slate-800/60 border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none transition-colors ${
-                        confirmPassword && confirmPassword !== signupPassword
-                          ? 'border-rose-500 focus:border-rose-500'
-                          : 'border-slate-700 focus:border-blue-500'
-                      }`}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Password Strength Meter */}
-              {signupPassword && (
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-[10px] text-slate-400">
-                    <span>Password Strength:</span>
-                    <span className="font-semibold text-slate-300">{strengthLabels[strengthScore - 1] || 'Weak'}</span>
-                  </div>
-                  <div className="h-1 rounded-full bg-slate-800 overflow-hidden flex gap-1">
-                    {[1, 2, 3, 4].map(level => (
-                      <div
-                        key={level}
-                        className={`h-full flex-1 rounded-full transition-all ${
-                          strengthScore >= level ? strengthColors[strengthScore - 1] : 'bg-slate-700'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Role Selection */}
-              <div className="space-y-1 pt-1">
-                <label className="block text-xs font-semibold text-slate-300">
-                  Workspace Access Role
-                </label>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setSignupRole('Client')}
-                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
-                      signupRole === 'Client'
-                        ? 'border-blue-500 bg-blue-500/15 text-white'
-                        : 'border-slate-800 bg-slate-800/40 text-slate-400'
-                    }`}
-                  >
-                    <div className="font-bold text-[11px] text-white">Client / Brand Owner</div>
-                    <div className="text-[10px] text-slate-400 leading-tight mt-0.5">Approve posts &amp; view analytics</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSignupRole('Admin')}
-                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
-                      signupRole === 'Admin'
-                        ? 'border-blue-500 bg-blue-500/15 text-white'
-                        : 'border-slate-800 bg-slate-800/40 text-slate-400'
-                    }`}
-                  >
-                    <div className="font-bold text-[11px] text-white">Brand Administrator</div>
-                    <div className="text-[10px] text-slate-400 leading-tight mt-0.5">Manage posts, workflows &amp; accounts</div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Social Channels to Enable */}
-              <div className="space-y-1.5 pt-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-slate-300">Channels to Activate</span>
-                  <span className="text-[10px] font-mono text-blue-400">{selectedPlatforms.length} selected</span>
-                </div>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {PLATFORM_CHOICES.map(plat => {
-                    const Icon = plat.icon;
-                    const isSelected = selectedPlatforms.includes(plat.id);
-                    return (
-                      <button
-                        key={plat.id}
-                        type="button"
-                        onClick={() => togglePlatform(plat.id)}
-                        className={`p-1.5 rounded-lg border text-left flex items-center gap-1.5 transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-blue-600/20 border-blue-500/60 text-white'
-                            : 'bg-slate-800/40 border-slate-700/50 text-slate-400'
-                        }`}
-                      >
-                        <Icon className={`w-3.5 h-3.5 ${plat.color}`} />
-                        <span className="text-[11px] font-semibold truncate">{plat.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Terms Agreement */}
-              <label className="flex items-start gap-2 pt-1 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={agreeTerms}
-                  onChange={e => setAgreeTerms(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-[11px] text-slate-400 leading-snug">
-                  I agree to the Terms of Service &amp; Privacy Policy for this brand account.
-                </span>
-              </label>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full h-11 mt-1 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Provisioning Brand Account...</span>
-                  </>
+                  </form>
                 ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    <span>Create Brand Account &amp; Enter</span>
-                  </>
-                )}
-              </button>
+                  /* SIGN UP FORM */
+                  <form onSubmit={handleSignUp} className="space-y-3.5">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-medium text-slate-300">Full Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="John Doe"
+                        className="w-full h-10 px-3 rounded-lg bg-[#0A0813] border border-white/10 text-white placeholder-slate-600 text-xs focus:outline-none focus:border-purple-500/80"
+                      />
+                    </div>
 
-              {/* Switch to Sign In */}
-              <div className="pt-2 text-center border-t border-slate-800">
-                <p className="text-xs text-slate-400">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-medium text-slate-300">Brand / Company Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={brandName}
+                        onChange={(e) => setBrandName(e.target.value)}
+                        placeholder="e.g. Acme Media Corp"
+                        className="w-full h-10 px-3 rounded-lg bg-[#0A0813] border border-white/10 text-white placeholder-slate-600 text-xs focus:outline-none focus:border-purple-500/80"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-medium text-slate-300">Work Email</label>
+                      <input
+                        type="email"
+                        required
+                        value={signupEmail}
+                        onChange={(e) => setSignupEmail(e.target.value)}
+                        placeholder="john@company.com"
+                        className="w-full h-10 px-3 rounded-lg bg-[#0A0813] border border-white/10 text-white placeholder-slate-600 text-xs focus:outline-none focus:border-purple-500/80"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-medium text-slate-300">Password</label>
+                      <div className="relative">
+                        <input
+                          type={showSignupPassword ? 'text' : 'password'}
+                          required
+                          value={signupPassword}
+                          onChange={(e) => setSignupPassword(e.target.value)}
+                          placeholder="Create strong password"
+                          className="w-full h-10 px-3 pr-9 rounded-lg bg-[#0A0813] border border-white/10 text-white placeholder-slate-600 text-xs focus:outline-none focus:border-purple-500/80 font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSignupPassword(!showSignupPassword)}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300 cursor-pointer"
+                          tabIndex={-1}
+                        >
+                          {showSignupPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Gradient Pill Submit Button */}
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full h-10 mt-2 rounded-full bg-gradient-to-r from-[#F06A6A] via-[#E85D75] to-[#B368E8] hover:opacity-95 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-pink-500/20 hover:shadow-pink-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Creating Account...</span>
+                        </>
+                      ) : (
+                        <span>Create Account</span>
+                      )}
+                    </button>
+                  </form>
+                )}
+
+                {/* Admin Account Auto-Fill Box (Image 1) */}
+                <div className="p-3 rounded-xl bg-[#171B26] border border-slate-700/60 flex items-center justify-between text-xs mt-3">
+                  <div className="space-y-0.5 font-mono">
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">
+                      ADMIN ACCOUNT
+                    </span>
+                    <span className="text-slate-100 text-xs block font-mono">pradeepofficial8795@gmail.com</span>
+                    <span className="text-slate-400 text-xs font-mono">
+                      Pass: <span className="text-blue-400">Admin@123</span>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAutoFillAdmin}
+                    className="px-3.5 py-1.5 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 font-semibold text-xs transition-colors cursor-pointer border border-blue-500/40"
+                  >
+                    Auto-fill
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Toggle Link (Image 4) */}
+            <div className="text-xs text-center text-slate-400 pt-1">
+              {authMode === 'signin' ? (
+                <span>
+                  No account yet?{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setErrorMsg(null);
+                      setSuccessMsg(null);
+                      setAuthMode('signup');
+                    }}
+                    className="text-[#E85D75] hover:underline font-semibold cursor-pointer"
+                  >
+                    Create one
+                  </button>
+                </span>
+              ) : (
+                <span>
                   Already have an account?{' '}
                   <button
                     type="button"
-                    onClick={() => setAuthMode('signin')}
-                    className="font-bold text-blue-400 hover:text-blue-300 underline cursor-pointer"
+                    onClick={() => {
+                      setErrorMsg(null);
+                      setSuccessMsg(null);
+                      setAuthMode('signin');
+                    }}
+                    className="text-[#E85D75] hover:underline font-semibold cursor-pointer"
                   >
-                    Sign In
+                    Sign in
                   </button>
-                </p>
-              </div>
-            </form>
-          )}
-        </div>
-
-        {/* Footer Info */}
-        <div className="mt-5 text-center space-y-1">
-          <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
-            <Shield className="w-3.5 h-3.5 text-blue-500" />
-            <span>Encrypted with AES-256-GCM &bull; Hardware Vault Protected</span>
+                </span>
+              )}
+            </div>
           </div>
-          <p className="text-[10px] text-slate-600">
-            &copy; {new Date().getFullYear()} Webtrionix Technology. All rights reserved.
-          </p>
         </div>
-      </div>
+      </main>
+
+      {/* Footer Info: Encryption & Copyright (Image 3) */}
+      <footer className="w-full max-w-5xl text-center pb-2 sm:pb-4 space-y-1 text-slate-500 text-xs z-10 animate-in fade-in duration-300">
+        <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
+          <Shield className="w-3.5 h-3.5 text-blue-400" />
+          <span>Encrypted with AES-256-GCM &bull; Hardware Vault Protected</span>
+        </div>
+        <p className="text-[11px] text-slate-500">
+          &copy; {new Date().getFullYear()} CI360 Studio. All rights reserved.
+        </p>
+      </footer>
     </div>
   );
 };
