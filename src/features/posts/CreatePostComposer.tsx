@@ -17,6 +17,7 @@ import {
   FileCheck,
   Layers,
   Sparkles,
+  Wand2,
   ExternalLink,
   Radio,
   RefreshCw,
@@ -1011,6 +1012,71 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
                 </div>
               </div>
 
+              
+              {/* CI360 AI Copilot Assistant Bar */}
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-violet-950/20 via-indigo-950/20 to-pink-950/20 border border-violet-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-violet-600/10 border border-violet-500/20 flex items-center justify-center text-violet-600 shrink-0">
+                    <Sparkles className="w-4 h-4 text-violet-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-[#101828] flex items-center gap-1.5">
+                      <span>CI360 AI Copilot &amp; Diagnostic Gate</span>
+                      <span className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[9px] font-mono font-bold">Active</span>
+                    </h4>
+                    <p className="text-[11px] text-[#667085]">Pre-flight scoring, Gemini copy variants, and multi-orbit virality review</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!broadcastCaption.trim()) {
+                        alert('Please type some caption text first.');
+                        return;
+                      }
+                      try {
+                        const res = await api.getCopyVariants({ baseCaption: broadcastCaption, platform: 'instagram' });
+                        if (res.variants && res.variants[0]) {
+                          setBroadcastCaption(res.variants[0].caption);
+                          alert('Applied top Gemini 2.0 copy variant to caption!');
+                        }
+                      } catch (err: any) {
+                        alert('AI copy error: ' + err.message);
+                      }
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg bg-white border border-violet-200 hover:bg-violet-50 text-violet-700 text-xs font-semibold shadow-2xs flex items-center gap-1 transition-all cursor-pointer"
+                  >
+                    <Wand2 className="w-3 h-3 text-pink-500" />
+                    <span>Gemini Copy Rewrite</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!broadcastCaption.trim()) {
+                        alert('Please type some caption text first.');
+                        return;
+                      }
+                      try {
+                        const res = await api.analyzePostDiagnostic({
+                          brandId: selectedBrandIds[0] ? String(selectedBrandIds[0]) : 'BR-001',
+                          platform: 'instagram',
+                          caption: broadcastCaption,
+                          hashtags: broadcastHashtags,
+                        });
+                        alert(`AI Diagnostic Score: ${res.scores.overallScore}/100\nHook: ${res.scores.hookScore}/100 | CTA: ${res.scores.ctaScore}/100\n${res.strengths?.[0] || 'Caption looks strong!'}`);
+                      } catch (err: any) {
+                        alert('Analysis error: ' + err.message);
+                      }
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold shadow-2xs flex items-center gap-1 transition-all cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-3 h-3" />
+                    <span>Pre-Flight Score</span>
+                  </button>
+                </div>
+              </div>
+
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-[#344054]">Master Caption (Cross-Platform)</label>
@@ -1922,7 +1988,7 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
                       className="px-5 py-2.5 bg-[#1336E8] hover:bg-[#0E27B3] text-white text-xs font-semibold rounded-xl shadow-md shadow-[#1336E8]/20 transition-all flex items-center gap-1.5"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      <span>Submit for Approval</span>
+                      <span>Submit &amp; Run AI Review</span>
                     </button>
                   </>
                 )}

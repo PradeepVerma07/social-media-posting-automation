@@ -13,12 +13,14 @@ import {
   Copy,
   ExternalLink,
   Send,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from 'lucide-react';
 import { Post, ApprovalStatus, PublishingStatus, Brand, RoleName } from '../../../server/src/types';
 import { formatISTDateTime } from '../../utils/timezone';
 import { getRolePermissions } from '../../utils/rbac';
 import { MediaThumbnail } from '../../components/media/MediaThumbnail';
+import { api } from '../../api/client';
 
 interface ContentTableProps {
   posts: Post[];
@@ -399,7 +401,23 @@ export const ContentTable: React.FC<ContentTableProps> = ({
                     {/* Actions Menu */}
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button
+                                                <button
+                          onClick={async () => {
+                            try {
+                              await api.submitPostForReview(String(post.id));
+                              alert('Post "' + post.title + '" submitted to CI360 AI Review Pipeline! Navigating to AI Neural Studio...');
+                              window.location.hash = '#ai-studio';
+                              window.location.reload();
+                            } catch (e) {
+                              alert('AI review error: ' + ((e as any).message || e));
+                            }
+                          }}
+                          className="p-1.5 rounded-lg text-violet-600 hover:text-violet-800 hover:bg-violet-50 transition-colors cursor-pointer"
+                          title="Run Pre-Flight AI Review in Neural Studio"
+                        >
+                          <Sparkles className="w-4 h-4" />
+                        </button>
+<button
                           onClick={() => onSelectPost(post)}
                           className="p-1.5 rounded-lg text-[#667085] hover:text-[#1336E8] hover:bg-[#EFF8FF] transition-colors"
                           title="View Details & Comments"

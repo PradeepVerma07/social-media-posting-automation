@@ -39,6 +39,7 @@ interface HeaderProps {
   onOpenLoginModal?: () => void;
   onOpenRegisterBrand?: () => void;
   onSignOut?: () => void;
+  onNavigateToTab?: (tab: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -57,6 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenLoginModal,
   onOpenRegisterBrand,
   onSignOut,
+  onNavigateToTab,
 }) => {
   const permissions = getRolePermissions(currentRole);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -247,6 +249,18 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right: n8n Status, Register Brand, Date Range, Notifications & User */}
       <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+                {/* CI360 AI Neural Studio Direct Nav Button */}
+        <button
+          type="button"
+          onClick={() => onNavigateToTab?.('ai-studio')}
+          className="h-8 px-2 sm:px-2.5 rounded-lg border border-violet-400/50 bg-gradient-to-r from-violet-600 via-indigo-600 to-pink-600 hover:from-violet-500 hover:to-pink-500 text-white flex items-center gap-1.5 text-[11px] font-bold shadow-xs hover:shadow-md transition-all cursor-pointer shrink-0"
+          title="Open CI360 AI Neural Studio and Predictive Feed Intelligence"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-pink-200 animate-pulse" />
+          <span className="hidden sm:inline">AI Neural Studio</span>
+          <span className="px-1.5 py-0.5 rounded bg-white/20 text-[9px] uppercase font-mono font-extrabold hidden md:inline">AI v2</span>
+        </button>
+
         {/* Direct n8n Workflows Link (opens in new tab) - Only if role has automation permissions */}
         {permissions.canAccessAutomations && (
           <a

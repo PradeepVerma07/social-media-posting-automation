@@ -9,6 +9,7 @@ import {
   Share2,
   TrendingUp,
   ArrowUpRight,
+  ArrowRight,
   ExternalLink,
   Play,
   CheckCircle2,
@@ -276,6 +277,52 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-[#1336E8]' : ''}`} />
             <span>{isRefreshing ? 'Syncing...' : 'Refresh'}</span>
           </button>
+        </div>
+      </div>
+
+      
+      {/* CI360 AI Neural Studio Spotlight Banner */}
+      <div className="relative overflow-hidden p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-[#0C0B14] via-[#161226] to-[#0A071A] border border-violet-500/40 shadow-xl shadow-violet-950/30 text-white">
+        <div className="absolute -right-16 -top-16 w-64 h-64 bg-violet-600/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute right-1/3 -bottom-16 w-64 h-64 bg-pink-600/15 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div className="space-y-2 max-w-2xl">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 text-xs font-bold tracking-wide uppercase">
+                <Sparkles className="w-3.5 h-3.5 text-pink-400 animate-pulse" />
+                <span>Next-Gen Module Active</span>
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono font-semibold">
+                ● Live AI Studio v2.0
+              </span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+              CI360 AI Neural Studio &amp; Predictive Feed Intelligence
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Multi-channel feed intelligence (Instagram, Facebook, LinkedIn), machine-learning virality predictions, n8n pre-flight post interception, and Google Gemini multimodal creative enhancements.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+            <button
+              type="button"
+              onClick={() => onNavigateToTab('ai-studio')}
+              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-violet-600 via-indigo-600 to-pink-600 hover:from-violet-500 hover:to-pink-500 text-white font-bold text-xs shadow-lg shadow-violet-600/30 transition-all flex items-center gap-2 cursor-pointer group"
+            >
+              <Sparkles className="w-4 h-4 text-pink-300 group-hover:rotate-12 transition-transform" />
+              <span>Launch AI Neural Studio</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigateToTab('create')}
+              className="px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 text-white font-semibold text-xs transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <span>Create AI-Reviewed Post</span>
+            </button>
+          </div>
         </div>
       </div>
 
