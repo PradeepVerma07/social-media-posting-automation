@@ -311,6 +311,51 @@ export function initDatabase() {
     }
   }
 
+  // Guarantee primary administrators always exist with valid credentials
+  const defaultAdmins = [
+    {
+      email: 'pradeepofficial8795@gmail.com',
+      fullName: 'Pradeep Verma',
+      role: 'Super Admin',
+      password: 'Admin@123',
+      phone: '+91 98765 43210'
+    },
+    {
+      email: 'admin@webtrionix.com',
+      fullName: 'Webtrionix Administrator',
+      role: 'Super Admin',
+      password: 'Admin@123',
+      phone: '+91 98765 43211'
+    },
+    {
+      email: 'akashart8795@gmail.com',
+      fullName: 'Akash Verma',
+      role: 'Super Admin',
+      password: 'Admin123@@',
+      phone: '+91 98765 43212'
+    },
+    {
+      email: 'admin@ci360.agency',
+      fullName: 'David Vance',
+      role: 'Super Admin',
+      password: 'Admin@123',
+      phone: '+91 98765 43213'
+    },
+  ];
+
+  const nowAdminTime = new Date().toISOString();
+  for (const adm of defaultAdmins) {
+    const existing: any = db.prepare('SELECT user_id FROM users WHERE LOWER(email) = LOWER(?)').get(adm.email);
+    if (!existing) {
+      db.prepare(`
+        INSERT INTO users (email, full_name, role, tenant_scope, is_active, two_factor_enabled, password, phone, created_at)
+        VALUES (?, ?, ?, 'Global (All Brands)', 1, 0, ?, ?, ?)
+      `).run(adm.email, adm.fullName, adm.role, adm.password, adm.phone, nowAdminTime);
+    } else {
+      db.prepare(`UPDATE users SET is_active = 1, password = ? WHERE user_id = ?`).run(adm.password, existing.user_id);
+    }
+  }
+
   // Seed default users if empty
   const userCount = db.prepare('SELECT count(*) as c FROM users').get() as { c: number };
   if (userCount.c === 0) {
