@@ -432,6 +432,15 @@ export const ContentCalendar: React.FC<ContentCalendarProps> = ({
       onCreatePost(newPostPayload);
     }
 
+    // Seamlessly route into CI360 AI Neural Studio for pre-flight scoring & optimization
+    api.interceptPost({
+      caption: postCaption.trim(),
+      mediaUrl: mediaUrl.trim() || undefined,
+      scheduledAt: scheduledAtIso,
+      platform: selectedPlatforms[0] || 'instagram',
+      mode: 'copilot',
+    }).catch(err => console.warn('[AI Studio Intercept] Pre-flight recording skipped:', err));
+
     setIsScheduleModalOpen(false);
     showNotification(`Post "${postTitle.trim()}" saved and scheduled for ${selectedDateStr} at ${scheduleTime} (${tz})!`);
   };

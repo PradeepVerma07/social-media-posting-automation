@@ -41,9 +41,11 @@ import { LoginModal } from './components/auth/LoginModal';
 import { ChangePasswordModal } from './components/auth/ChangePasswordModal';
 import { isTabAllowed, getRolePermissions } from './utils/rbac';
 import { BrandRegistrationPage } from './features/onboarding/BrandRegistrationPage';
+import { AIStudioDashboard } from './features/ai-studio/AIStudioDashboard';
 
 const VALID_TABS: NavigationTab[] = [
   'overview',
+  'ai-studio',
   'content',
   'calendar',
   'create',
@@ -78,6 +80,7 @@ const getInitialTab = (): NavigationTab => {
     const rawHash = window.location.hash.replace(/^#\/?/, '').trim().toLowerCase();
     if (rawHash) {
       if (rawHash === 'register' || rawHash === 'onboarding' || rawHash === 'join') return 'register';
+      if (rawHash === 'ai' || rawHash === 'ai-studio' || rawHash === 'studio' || rawHash === 'neural') return 'ai-studio';
       if (rawHash === 'social' || rawHash === 'social-accounts' || rawHash === 'accounts') return 'accounts';
       if (rawHash === 'brand' || rawHash === 'brands') return 'brands';
       if (rawHash === 'workflow' || rawHash === 'workflows' || rawHash === 'automations' || rawHash === 'canvas') return 'automations';
@@ -748,7 +751,15 @@ export default function App() {
             />
           )}
 
-              {activeTab === 'content' && (
+          {activeTab === 'ai-studio' && (
+            <AIStudioDashboard
+              posts={posts}
+              brands={brands}
+              onNavigateToTab={tab => handleTabChange(tab as NavigationTab)}
+            />
+          )}
+
+          {activeTab === 'content' && (
                 <ContentTable
                   posts={posts}
                   brands={brands}

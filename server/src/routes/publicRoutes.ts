@@ -15,6 +15,7 @@ import { sheetsOutboxWorker } from '../services/sheetsOutboxWorker';
 import { sheetsReconciliationService } from '../services/sheetsReconciliation';
 import { sseManager } from '../services/sseManager';
 import { verifyHmacSignature, encryptToken, decryptToken } from '../crypto/tokenVault';
+import { geminiService } from '../services/geminiService';
 
 export const publicRouter = Router();
 
@@ -3286,3 +3287,430 @@ publicRouter.post('/webhooks/sheets', async (req: Request, res: Response) => {
   sheetsReconciliationService.reconcile().catch(() => {});
   return res.json({ status: 'received' });
 });
+
+/**
+ * ============================================================================
+ * CI360 AI NEURAL STUDIO & PREDICTIVE FEED INTELLIGENCE ENDPOINTS
+ * ============================================================================
+ */
+
+/**
+ * GET /api/v1/ai/overview
+ * High-level intelligence stats, average scores, queue counts, and platform benchmarks
+ */
+publicRouter.get('/ai/overview', (req: Request, res: Response) => {
+  try {
+    const auditStats = db.prepare(`
+      SELECT 
+        COUNT(*) as totalAudits,
+        AVG(hook_score) as avgHookScore,
+        AVG(visual_score) as avgVisualScore,
+        AVG(engagement_velocity) as avgVelocity
+      FROM feed_audits
+    `).get() as any;
+
+    const queueStats = db.prepare(`
+      SELECT 
+        COUNT(*) as totalIntercepted,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pendingCount,
+        SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approvedCount,
+        AVG(virality_score) as avgViralityScore
+      FROM ai_intercepted_posts
+    `).get() as any;
+
+    const platformBreakdown = db.prepare(`
+      SELECT 
+        platform,
+        COUNT(*) as count,
+        AVG(hook_score) as avgHook,
+        AVG(visual_score) as avgVisual,
+        AVG(engagement_velocity) as avgVelocity
+      FROM feed_audits
+      GROUP BY platform
+    `).all() as any[];
+
+    const recentAudits = db.prepare(`
+      SELECT * FROM feed_audits ORDER BY created_at DESC LIMIT 5
+    `).all() as any[];
+
+    res.json({
+      healthScore: Math.round(((auditStats?.avgHookScore || 85) + (auditStats?.avgVisualScore || 88)) / 2),
+      avgHookScore: Math.round(auditStats?.avgHookScore || 85),
+      avgVisualScore: Math.round(auditStats?.avgVisualScore || 88),
+      avgEngagementVelocity: Number((auditStats?.avgVelocity || 1.8).toFixed(1)),
+      totalAudits: auditStats?.totalAudits || 0,
+      interceptQueue: {
+        pendingCount: queueStats?.pendingCount || 0,
+        approvedCount: queueStats?.approvedCount || 0,
+        total: queueStats?.totalIntercepted || 0,
+        avgViralityScore: Math.round(queueStats?.avgViralityScore || 86),
+      },
+      platformBreakdown: platformBreakdown.map((p) => ({
+        platform: p.platform,
+        count: p.count,
+        avgHook: Math.round(p.avgHook || 0),
+        avgVisual: Math.round(p.avgVisual || 0),
+        avgVelocity: Number((p.avgVelocity || 1).toFixed(1)),
+      })),
+      recentAudits: recentAudits.map((a) => ({
+        ...a,
+        metrics: JSON.parse(a.raw_metrics_json || '{}'),
+        recommendations: JSON.parse(a.recommendations_json || '[]'),
+      })),
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    logger.error('Failed to get AI studio overview:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/v1/ai/feed-audits
+ * Retrieve audited feed items with platform filtering
+ */
+publicRouter.get('/ai/feed-audits', (req: Request, res: Response) => {
+  try {
+    const { platform, limit = '50' } = req.query;
+    let query = `SELECT * FROM feed_audits`;
+    const params: any[] = [];
+
+    if (platform && platform !== 'all') {
+      query += ` WHERE platform = ?`;
+      params.push(platform);
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT ?`;
+    params.push(Number(limit));
+
+    const rows = db.prepare(query).all(...params) as any[];
+    const items = rows.map((r) => ({
+      auditId: r.audit_id,
+      brandId: r.brand_id,
+      platform: r.platform,
+      externalPostId: r.external_post_id,
+      title: r.title,
+      caption: r.caption,
+      mediaUrl: r.media_url,
+      mediaType: r.media_type,
+      hookScore: r.hook_score,
+      visualScore: r.visual_score,
+      engagementVelocity: r.engagement_velocity,
+      sentiment: r.sentiment,
+      viralityGrade: r.virality_grade,
+      metrics: JSON.parse(r.raw_metrics_json || '{}'),
+      recommendations: JSON.parse(r.recommendations_json || '[]'),
+      publishedAt: r.published_at,
+      createdAt: r.created_at,
+    }));
+
+    res.json({ items });
+  } catch (err: any) {
+    logger.error('Failed to fetch feed audits:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/v1/ai/analyze-feed
+ * Trigger deep review on a post caption or published link
+ */
+publicRouter.post('/ai/analyze-feed', async (req: Request, res: Response) => {
+  try {
+    const { platform = 'instagram', caption = '', mediaUrl = '', hashtags = '', title = '', brandId = 'BR-001' } = req.body;
+
+    const analysis = await geminiService.analyzeFeedPost({
+      platform,
+      caption,
+      mediaUrl,
+      hashtags,
+    });
+
+    const auditId = 'FA-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    const now = new Date().toISOString();
+
+    db.prepare(`
+      INSERT INTO feed_audits (
+        audit_id, brand_id, platform, external_post_id, title, caption,
+        media_url, media_type, hook_score, visual_score, engagement_velocity,
+        sentiment, virality_grade, raw_metrics_json, recommendations_json,
+        published_at, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'image', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      auditId,
+      brandId,
+      platform,
+      'ext_' + auditId,
+      title || `${platform.toUpperCase()} Post Audit`,
+      caption,
+      mediaUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80',
+      analysis.hookScore,
+      analysis.visualScore,
+      analysis.engagementVelocity,
+      analysis.sentiment,
+      analysis.viralityGrade,
+      JSON.stringify(analysis.metrics),
+      JSON.stringify(analysis.recommendations),
+      now,
+      now
+    );
+
+    res.json({
+      auditId,
+      platform,
+      title: title || `${platform.toUpperCase()} Post Audit`,
+      caption,
+      mediaUrl,
+      ...analysis,
+      createdAt: now,
+    });
+  } catch (err: any) {
+    logger.error('Analyze feed error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/v1/ai/intercept-queue
+ * Get scheduled posts intercepted by AI Neural Studio
+ */
+publicRouter.get('/ai/intercept-queue', (req: Request, res: Response) => {
+  try {
+    const { status = 'all' } = req.query;
+    let query = `SELECT * FROM ai_intercepted_posts`;
+    const params: any[] = [];
+
+    if (status && status !== 'all') {
+      query += ` WHERE status = ?`;
+      params.push(status);
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT 50`;
+    const rows = db.prepare(query).all(...params) as any[];
+
+    const items = rows.map((r) => ({
+      interceptId: r.intercept_id,
+      postId: r.post_id,
+      brandId: r.brand_id,
+      originalCaption: r.original_caption,
+      originalHashtags: r.original_hashtags,
+      originalMediaUrl: r.original_media_url,
+      originalScheduledAt: r.original_scheduled_at,
+      suggestedCaption: r.suggested_caption,
+      suggestedHashtags: r.suggested_hashtags,
+      suggestedTiming: r.suggested_timing,
+      viralityScore: r.virality_score,
+      algorithmIndex: r.algorithm_index,
+      hookAnalysis: r.hook_analysis,
+      ctaQuality: r.cta_quality,
+      improvementReasons: JSON.parse(r.improvement_reasons_json || '[]'),
+      status: r.status,
+      mode: r.mode,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }));
+
+    res.json({ items });
+  } catch (err: any) {
+    logger.error('Failed to get intercept queue:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/v1/ai/intercept-post
+ * Pre-flight scoring & optimization recommendation
+ */
+publicRouter.post('/ai/intercept-post', async (req: Request, res: Response) => {
+  try {
+    const {
+      postId,
+      brandId = 'BR-001',
+      caption = '',
+      hashtags = '',
+      mediaUrl = '',
+      scheduledAt = '',
+      platform = 'instagram',
+      mode = 'copilot',
+    } = req.body;
+
+    const scoring = await geminiService.interceptAndScorePost({
+      caption,
+      hashtags,
+      mediaUrl,
+      scheduledAt: scheduledAt || new Date().toISOString(),
+      platform,
+    });
+
+    const interceptId = 'INT-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    const effectivePostId = postId || 'POST-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    const now = new Date().toISOString();
+
+    db.prepare(`
+      INSERT INTO ai_intercepted_posts (
+        intercept_id, post_id, brand_id, original_caption, original_hashtags,
+        original_media_url, original_scheduled_at, suggested_caption,
+        suggested_hashtags, suggested_timing, virality_score, algorithm_index,
+        hook_analysis, cta_quality, improvement_reasons_json, status, mode,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
+    `).run(
+      interceptId,
+      effectivePostId,
+      brandId,
+      caption,
+      hashtags,
+      mediaUrl,
+      scheduledAt || now,
+      scoring.suggestedCaption,
+      scoring.suggestedHashtags,
+      scoring.suggestedTiming,
+      scoring.viralityScore,
+      scoring.algorithmIndex,
+      scoring.hookQuality,
+      scoring.ctaQuality,
+      JSON.stringify(scoring.actionableImprovements),
+      mode,
+      now,
+      now
+    );
+
+    res.json({
+      interceptId,
+      postId: effectivePostId,
+      ...scoring,
+      status: 'pending',
+      mode,
+      createdAt: now,
+    });
+  } catch (err: any) {
+    logger.error('Intercept post error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/v1/ai/apply-recommendation
+ * 1-click apply AI suggested changes and approve for dispatch
+ */
+publicRouter.post('/api/v1/ai/apply-recommendation', (req: Request, res: Response) => {
+  try {
+    const { interceptId, appliedCaption, appliedHashtags, appliedTiming, status = 'approved' } = req.body;
+
+    if (!interceptId) {
+      return res.status(400).json({ error: 'interceptId is required' });
+    }
+
+    const item = db.prepare('SELECT * FROM ai_intercepted_posts WHERE intercept_id = ?').get(interceptId) as any;
+    if (!item) {
+      return res.status(404).json({ error: 'Intercepted post not found' });
+    }
+
+    const now = new Date().toISOString();
+    const finalCaption = appliedCaption || item.suggested_caption || item.original_caption;
+    const finalHashtags = appliedHashtags || item.suggested_hashtags || item.original_hashtags;
+    const finalTiming = appliedTiming || item.suggested_timing || item.original_scheduled_at;
+
+    db.prepare(`
+      UPDATE ai_intercepted_posts 
+      SET 
+        suggested_caption = ?,
+        suggested_hashtags = ?,
+        suggested_timing = ?,
+        status = ?,
+        updated_at = ?
+      WHERE intercept_id = ?
+    `).run(finalCaption, finalHashtags, finalTiming, status, now, interceptId);
+
+    // If underlying post exists in posts table, update its caption and scheduled_at
+    if (item.post_id) {
+      try {
+        db.prepare(`
+          UPDATE posts 
+          SET 
+            caption = ?,
+            scheduled_at = ?,
+            updated_at = ?
+          WHERE post_id = ?
+        `).run(finalCaption + (finalHashtags ? '\n\n' + finalHashtags : ''), finalTiming, now, item.post_id);
+      } catch (postErr) {
+        // Safe to ignore if post hasn't been committed to main posts table yet
+      }
+    }
+
+    res.json({
+      success: true,
+      interceptId,
+      status,
+      appliedCaption: finalCaption,
+      appliedHashtags: finalHashtags,
+      appliedTiming: finalTiming,
+      updatedAt: now,
+    });
+  } catch (err: any) {
+    logger.error('Apply recommendation error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/v1/ai/gemini-transform
+ * Creative multimodal studio transformation (inpainting, reframe, visual badge, variants)
+ */
+publicRouter.post('/ai/gemini-transform', async (req: Request, res: Response) => {
+  try {
+    const {
+      mediaUrl = 'https://images.unsplash.com/photo-1485955900006-10f4d324d411?auto=format&fit=crop&w=1200&q=80',
+      transformType = 'reframe_9_16',
+      prompt = '',
+      aspectRatio = '9:16',
+      postId,
+    } = req.body;
+
+    const result = await geminiService.transformCreativeAsset({
+      mediaUrl,
+      transformType,
+      prompt,
+      aspectRatio,
+    });
+
+    const now = new Date().toISOString();
+    db.prepare(`
+      INSERT INTO ai_creative_variants (
+        variant_id, post_id, variant_type, original_url, transformed_url,
+        prompt_used, aspect_ratio, metadata_json, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      result.variantId,
+      postId || null,
+      result.transformType,
+      mediaUrl,
+      result.transformedUrl,
+      prompt,
+      result.aspectRatio,
+      JSON.stringify({ styleApplied: result.styleApplied, confidenceScore: result.confidenceScore, tags: result.tagsAdded }),
+      now
+    );
+
+    res.json(result);
+  } catch (err: any) {
+    logger.error('Gemini transform error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/v1/ai/copy-variants
+ * Generate 3 high-converting caption options using Gemini 2.0
+ */
+publicRouter.post('/ai/copy-variants', async (req: Request, res: Response) => {
+  try {
+    const { baseCaption = '', platform = 'instagram', audienceGoal = 'engagement' } = req.body;
+    const variants = await geminiService.generateCopyVariants(baseCaption, platform, audienceGoal);
+    res.json({ variants });
+  } catch (err: any) {
+    logger.error('Copy variants error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+

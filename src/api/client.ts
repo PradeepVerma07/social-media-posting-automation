@@ -422,4 +422,195 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+
+  // =========================================================================
+  // CI360 AI Neural Studio & Predictive Feed Intelligence APIs
+  // =========================================================================
+
+  async getAIOverview(): Promise<AIStudioOverview> {
+    return request('/ai/overview');
+  },
+
+  async getFeedAudits(platform?: string, limit: number = 50): Promise<{ items: FeedAuditItem[] }> {
+    const params = new URLSearchParams();
+    if (platform && platform !== 'all') params.append('platform', platform);
+    if (limit) params.append('limit', String(limit));
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return request(`/ai/feed-audits${query}`);
+  },
+
+  async analyzeFeed(payload: {
+    platform: string;
+    caption: string;
+    mediaUrl?: string;
+    hashtags?: string;
+    title?: string;
+  }): Promise<FeedAuditItem> {
+    return request('/ai/analyze-feed', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async getInterceptQueue(status?: string): Promise<{ items: InterceptedPostItem[] }> {
+    const query = status && status !== 'all' ? `?status=${status}` : '';
+    return request(`/ai/intercept-queue${query}`);
+  },
+
+  async interceptPost(payload: {
+    postId?: string;
+    brandId?: string;
+    caption: string;
+    hashtags?: string;
+    mediaUrl?: string;
+    scheduledAt?: string;
+    platform?: string;
+    mode?: 'copilot' | 'auto';
+  }): Promise<InterceptedPostItem> {
+    return request('/ai/intercept-post', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async applyRecommendation(payload: {
+    interceptId: string;
+    appliedCaption?: string;
+    appliedHashtags?: string;
+    appliedTiming?: string;
+    status?: string;
+  }): Promise<{
+    success: boolean;
+    interceptId: string;
+    status: string;
+    appliedCaption: string;
+    appliedHashtags: string;
+    appliedTiming: string;
+  }> {
+    return request('/ai/apply-recommendation', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async transformCreative(payload: {
+    mediaUrl: string;
+    transformType: string;
+    prompt?: string;
+    aspectRatio?: string;
+    postId?: string;
+  }): Promise<CreativeVariantItem> {
+    return request('/ai/gemini-transform', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async getCopyVariants(payload: {
+    baseCaption: string;
+    platform?: string;
+    audienceGoal?: string;
+  }): Promise<{ variants: CopyVariantItem[] }> {
+    return request('/ai/copy-variants', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 };
+
+export interface FeedAuditItem {
+  auditId: string;
+  brandId: string;
+  platform: 'instagram' | 'linkedin' | 'facebook' | 'whatsapp' | string;
+  externalPostId?: string;
+  title: string;
+  caption: string;
+  mediaUrl: string;
+  mediaType?: string;
+  hookScore: number;
+  visualScore: number;
+  engagementVelocity: number;
+  sentiment: 'positive' | 'neutral' | 'negative';
+  viralityGrade: 'A+' | 'A' | 'B+' | 'B' | 'C' | 'D' | 'F';
+  metrics: {
+    impressions?: number;
+    estimatedImpressions?: number;
+    likes?: number;
+    comments?: number;
+    saves?: number;
+    shares?: number;
+    reachRate?: string;
+    engagementRate?: number;
+  };
+  recommendations: string[];
+  publishedAt?: string;
+  createdAt: string;
+}
+
+export interface AIStudioOverview {
+  healthScore: number;
+  avgHookScore: number;
+  avgVisualScore: number;
+  avgEngagementVelocity: number;
+  totalAudits: number;
+  interceptQueue: {
+    pendingCount: number;
+    approvedCount: number;
+    total: number;
+    avgViralityScore: number;
+  };
+  platformBreakdown: Array<{
+    platform: string;
+    count: number;
+    avgHook: number;
+    avgVisual: number;
+    avgVelocity: number;
+  }>;
+  recentAudits: FeedAuditItem[];
+  timestamp: string;
+}
+
+export interface InterceptedPostItem {
+  interceptId: string;
+  postId: string;
+  brandId: string;
+  originalCaption: string;
+  originalHashtags: string;
+  originalMediaUrl?: string;
+  originalScheduledAt: string;
+  suggestedCaption: string;
+  suggestedHashtags: string;
+  suggestedTiming: string;
+  viralityScore: number;
+  algorithmIndex: number;
+  hookAnalysis: string;
+  ctaQuality: string;
+  improvementReasons: Array<{
+    type: 'hook' | 'hashtags' | 'timing' | 'visual' | 'cta';
+    title: string;
+    description: string;
+    impact: string;
+    suggestedChange: string;
+  }>;
+  status: 'pending' | 'approved' | 'published' | 'rejected';
+  mode: 'copilot' | 'auto';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreativeVariantItem {
+  variantId: string;
+  transformedUrl: string;
+  aspectRatio: string;
+  transformType: string;
+  styleApplied: string;
+  confidenceScore: number;
+  tagsAdded: string[];
+}
+
+export interface CopyVariantItem {
+  style: string;
+  caption: string;
+  viralityScore: number;
+  bestFor: string;
+}

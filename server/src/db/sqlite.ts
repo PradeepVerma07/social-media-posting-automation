@@ -223,6 +223,61 @@ export function initDatabase() {
       created_at TEXT NOT NULL
     );
 
+    -- CI360 AI Neural Studio & Predictive Feed Intelligence Tables
+    CREATE TABLE IF NOT EXISTS feed_audits (
+      audit_id TEXT PRIMARY KEY,
+      brand_id TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      external_post_id TEXT,
+      title TEXT,
+      caption TEXT,
+      media_url TEXT,
+      media_type TEXT DEFAULT 'image',
+      hook_score INTEGER DEFAULT 80,
+      visual_score INTEGER DEFAULT 85,
+      engagement_velocity REAL DEFAULT 1.2,
+      sentiment TEXT DEFAULT 'positive',
+      virality_grade TEXT DEFAULT 'A',
+      raw_metrics_json TEXT DEFAULT '{}',
+      recommendations_json TEXT DEFAULT '[]',
+      published_at TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_intercepted_posts (
+      intercept_id TEXT PRIMARY KEY,
+      post_id TEXT NOT NULL,
+      brand_id TEXT NOT NULL,
+      original_caption TEXT,
+      original_hashtags TEXT,
+      original_media_url TEXT,
+      original_scheduled_at TEXT,
+      suggested_caption TEXT,
+      suggested_hashtags TEXT,
+      suggested_timing TEXT,
+      virality_score INTEGER DEFAULT 85,
+      algorithm_index INTEGER DEFAULT 88,
+      hook_analysis TEXT,
+      cta_quality TEXT,
+      improvement_reasons_json TEXT DEFAULT '[]',
+      status TEXT DEFAULT 'pending',
+      mode TEXT DEFAULT 'copilot',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_creative_variants (
+      variant_id TEXT PRIMARY KEY,
+      post_id TEXT,
+      variant_type TEXT NOT NULL,
+      original_url TEXT NOT NULL,
+      transformed_url TEXT NOT NULL,
+      prompt_used TEXT,
+      aspect_ratio TEXT DEFAULT '1:1',
+      metadata_json TEXT DEFAULT '{}',
+      created_at TEXT NOT NULL
+    );
+
     -- Indexes for high performance querying and atomic claims
     CREATE INDEX IF NOT EXISTS idx_posts_client ON posts(client_id, deleted_at);
     CREATE INDEX IF NOT EXISTS idx_targets_claim ON post_targets(status, next_retry_at, locked_at);
@@ -358,6 +413,107 @@ export function initDatabase() {
         (1, 'sync', 'Google Sheets Outbox Synchronized', 'Connected live to Google Sheets with 2-way sync.', '/sheets', 0, ?),
         (1, 'brand', 'Brand Setup Active', 'Flower Plant connected with Facebook & Instagram.', '/brands', 1, ?)
     `).run(now, now, now);
+  }
+
+  // Seed sample feed audits for AI Neural Studio if empty
+  const auditCount = db.prepare('SELECT count(*) as c FROM feed_audits').get() as { c: number };
+  if (auditCount.c === 0) {
+    const now = new Date().toISOString();
+    const sampleAudits = [
+      {
+        id: 'FA-001',
+        platform: 'instagram',
+        title: 'Monstera Routine & Botanical Light Hack',
+        caption: 'Did you know 80% of indoor plants suffer from over-watering rather than under-lighting? Here is the exact moisture meter routine our greenhouse uses daily. 🌿💧 Save this post for your weekend routine!',
+        mediaUrl: 'https://images.unsplash.com/photo-1485955900006-10f4d324d411?auto=format&fit=crop&w=1200&q=80',
+        hookScore: 92,
+        visualScore: 89,
+        velocity: 2.4,
+        sentiment: 'positive',
+        grade: 'A+',
+        metrics: JSON.stringify({ impressions: 18400, likes: 1420, comments: 84, saves: 490, shares: 210, reachRate: '14.2%' }),
+        recs: JSON.stringify([
+          'Hook strength is in the top 5% of botanical content.',
+          'CTA to save for weekend drove 490 saves (+85% algorithm boost).',
+          'Next variant: Test video reel format with dynamic watering close-up.'
+        ]),
+      },
+      {
+        id: 'FA-002',
+        platform: 'linkedin',
+        title: 'Scaling AgriTech & Sustainable Urban Greenery',
+        caption: 'Why modern commercial offices with curated plant life see a 15% increase in employee cognitive retention. Sustainable workspaces are no longer a perk; they are a productivity asset. Read our full case study below.',
+        mediaUrl: 'https://images.unsplash.com/photo-1545241047-6083a3684587?auto=format&fit=crop&w=1200&q=80',
+        hookScore: 88,
+        visualScore: 94,
+        velocity: 1.9,
+        sentiment: 'positive',
+        grade: 'A',
+        metrics: JSON.stringify({ impressions: 9600, likes: 620, comments: 52, saves: 180, shares: 95, reachRate: '11.8%' }),
+        recs: JSON.stringify([
+          'B2B thought leadership tone is well-calibrated.',
+          'Opening stat on 15% cognitive retention stopped feed scroll.',
+          'Suggestion: Add a bullet-point executive summary for higher mobile skim speed.'
+        ]),
+      },
+      {
+        id: 'FA-003',
+        platform: 'facebook',
+        title: 'Weekend Succulent Care Workshop',
+        caption: 'Live Q&A this Saturday with our master botanist! Learn repotting, root trimming, and winter soil nutrition. Drop your plant questions in the comments and we will answer live!',
+        mediaUrl: 'https://images.unsplash.com/photo-1509423350716-97f9360b4e09?auto=format&fit=crop&w=1200&q=80',
+        hookScore: 81,
+        visualScore: 85,
+        velocity: 1.6,
+        sentiment: 'positive',
+        grade: 'B+',
+        metrics: JSON.stringify({ impressions: 7200, likes: 410, comments: 76, saves: 98, shares: 44, reachRate: '9.4%' }),
+        recs: JSON.stringify([
+          'Community participation is high (+76 questions).',
+          'Suggestion: Pin top answer comment to keep thread active for 48h algorithm replay.',
+          'Enhance title contrast with Gemini overlay text.'
+        ]),
+      },
+      {
+        id: 'FA-004',
+        platform: 'whatsapp',
+        title: 'Exclusive VIP Green Subscribers Alert',
+        caption: 'VIP Members Alert: Our organic plant nutrition booster is back in stock with 20% off exclusively for WhatsApp subscribers! Click below to claim your bottle before public release.',
+        mediaUrl: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=1200&q=80',
+        hookScore: 86,
+        visualScore: 90,
+        velocity: 2.8,
+        sentiment: 'positive',
+        grade: 'A',
+        metrics: JSON.stringify({ impressions: 3200, likes: 380, comments: 45, saves: 110, shares: 140, reachRate: '34.5%' }),
+        recs: JSON.stringify([
+          'WhatsApp status CTR is exceptionally high (34.5% reach rate).',
+          'Urgency element drove high immediate click-through.',
+          'Re-broadcast as a follow-up story 12h before offer expiration.'
+        ]),
+      },
+    ];
+
+    for (const a of sampleAudits) {
+      db.prepare(`
+        INSERT INTO feed_audits (
+          audit_id, brand_id, platform, external_post_id, title, caption,
+          media_url, media_type, hook_score, visual_score, engagement_velocity,
+          sentiment, virality_grade, raw_metrics_json, recommendations_json,
+          published_at, created_at
+        ) VALUES (
+          ?, 'BR-001', ?, ?, ?, ?,
+          ?, 'image', ?, ?, ?,
+          ?, ?, ?, ?,
+          ?, ?
+        )
+      `).run(
+        a.id, a.platform, `ext_${a.id}`, a.title, a.caption,
+        a.mediaUrl, a.hookScore, a.visualScore, a.velocity,
+        a.sentiment, a.grade, a.metrics, a.recs,
+        now, now
+      );
+    }
   }
 }
 

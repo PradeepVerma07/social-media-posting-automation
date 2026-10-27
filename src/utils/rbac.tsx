@@ -29,6 +29,7 @@ export const ROLE_CONFIGS: Record<RoleName, RolePermissionConfig> = {
     description: 'Full unrestricted governance across all brands, integrations, automations, and RBAC policies.',
     allowedTabs: [
       'overview',
+      'ai-studio',
       'content',
       'calendar',
       'create',
@@ -64,6 +65,7 @@ export const ROLE_CONFIGS: Record<RoleName, RolePermissionConfig> = {
     description: 'Manage brand campaigns, workflows, accounts, and team members with administrative oversight.',
     allowedTabs: [
       'overview',
+      'ai-studio',
       'content',
       'calendar',
       'create',
@@ -98,6 +100,7 @@ export const ROLE_CONFIGS: Record<RoleName, RolePermissionConfig> = {
     description: 'Draft, schedule, and submit content campaigns across authorized channels. Awaits approval.',
     allowedTabs: [
       'overview',
+      'ai-studio',
       'content',
       'calendar',
       'create',
@@ -129,6 +132,7 @@ export const ROLE_CONFIGS: Record<RoleName, RolePermissionConfig> = {
     description: 'Review queued multi-channel posts, request revisions, reject, or authorize publishing.',
     allowedTabs: [
       'overview',
+      'ai-studio',
       'approvals',
       'content',
       'calendar',
@@ -158,6 +162,7 @@ export const ROLE_CONFIGS: Record<RoleName, RolePermissionConfig> = {
     description: 'Read-only access to campaign analytics, execution metrics, publishing performance, and audit reporting.',
     allowedTabs: [
       'overview',
+      'ai-studio',
       'analytics',
       'executions',
       'published',
@@ -183,6 +188,7 @@ export const ROLE_CONFIGS: Record<RoleName, RolePermissionConfig> = {
     description: 'Review brand campaign drafts, provide brand feedback, and view published post performance.',
     allowedTabs: [
       'overview',
+      'ai-studio',
       'approvals',
       'content',
       'calendar',

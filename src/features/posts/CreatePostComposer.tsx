@@ -442,6 +442,19 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
     };
 
     onSavePost(postData);
+
+    // Route scheduled draft through CI360 AI Neural Studio intercept gate
+    if (masterCaption && masterCaption.trim()) {
+      api.interceptPost({
+        brandId: (selectedBrand as any)?.brandId || 'BR-001',
+        caption: masterCaption.trim(),
+        hashtags: hashtags.trim(),
+        mediaUrl: mediaUrl.trim() || undefined,
+        scheduledAt: scheduledDate ? new Date(scheduledDate).toISOString() : new Date().toISOString(),
+        platform: selectedPlatforms[0] || 'instagram',
+        mode: 'copilot',
+      }).catch(err => console.warn('[AI Studio Intercept] Pre-flight recording skipped:', err));
+    }
   };
 
   const STEPS = [
