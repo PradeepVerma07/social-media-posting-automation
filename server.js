@@ -48206,9 +48206,9 @@ import fs5 from "fs";
 var import_express = __toESM(require_express2(), 1);
 
 // server/src/db/sqlite.ts
-import { DatabaseSync } from "node:sqlite";
-import path from "path";
 import fs from "fs";
+import path from "path";
+import { DatabaseSync } from "node:sqlite";
 
 // server/src/crypto/tokenVault.ts
 import crypto from "crypto";
@@ -48259,6 +48259,13 @@ function verifyHmacSignature(payload, signatureHex, secret) {
 }
 
 // server/src/db/sqlite.ts
+try {
+  const envPath = path.resolve(process.cwd(), ".env");
+  if (fs.existsSync(envPath)) {
+    process.loadEnvFile(envPath);
+  }
+} catch {
+}
 var dbDir = path.resolve(process.cwd(), "database");
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
@@ -48569,58 +48576,28 @@ function initDatabase() {
       );
     }
   }
-  const defaultAdmins = [
-    {
-      email: "pradeepofficial8795@gmail.com",
-      fullName: "Pradeep Verma",
-      role: "Super Admin",
-      password: "Admin@123",
-      phone: "+91 98765 43210"
-    },
-    {
-      email: "admin@webtrionix.com",
-      fullName: "Webtrionix Administrator",
-      role: "Super Admin",
-      password: "Admin@123",
-      phone: "+91 98765 43211"
-    },
-    {
-      email: "akashart8795@gmail.com",
-      fullName: "Akash Verma",
-      role: "Super Admin",
-      password: "Admin123@@",
-      phone: "+91 98765 43212"
-    },
-    {
-      email: "admin@ci360.agency",
-      fullName: "David Vance",
-      role: "Super Admin",
-      password: "Admin@123",
-      phone: "+91 98765 43213"
-    }
-  ];
-  const nowAdminTime = (/* @__PURE__ */ new Date()).toISOString();
-  for (const adm of defaultAdmins) {
-    const existing = db.prepare("SELECT user_id FROM users WHERE LOWER(email) = LOWER(?)").get(adm.email);
+  const envAdminEmail = (process.env.SUPER_ADMIN_EMAIL || "").trim().toLowerCase();
+  const envAdminPassword = (process.env.SUPER_ADMIN_PASSWORD || "").trim();
+  const envAdminName = (process.env.SUPER_ADMIN_NAME || "Super Admin").trim();
+  if (envAdminEmail && envAdminPassword) {
+    const nowAdminTime = (/* @__PURE__ */ new Date()).toISOString();
+    const existing = db.prepare("SELECT user_id FROM users WHERE LOWER(email) = LOWER(?)").get(envAdminEmail);
     if (!existing) {
       db.prepare(`
-        INSERT INTO users (email, full_name, role, tenant_scope, is_active, two_factor_enabled, password, phone, created_at)
-        VALUES (?, ?, ?, 'Global (All Brands)', 1, 0, ?, ?, ?)
-      `).run(adm.email, adm.fullName, adm.role, adm.password, adm.phone, nowAdminTime);
+        INSERT INTO users (email, full_name, role, tenant_scope, is_active, two_factor_enabled, password, created_at)
+        VALUES (?, ?, 'Super Admin', 'Global (All Brands)', 1, 0, ?, ?)
+      `).run(envAdminEmail, envAdminName, envAdminPassword, nowAdminTime);
     } else {
-      db.prepare(`UPDATE users SET is_active = 1, password = ? WHERE user_id = ?`).run(adm.password, existing.user_id);
+      db.prepare(`UPDATE users SET is_active = 1, password = ?, role = 'Super Admin', full_name = ? WHERE user_id = ?`).run(envAdminPassword, envAdminName, existing.user_id);
     }
   }
-  const userCount = db.prepare("SELECT count(*) as c FROM users").get();
-  if (userCount.c === 0) {
-    const now2 = (/* @__PURE__ */ new Date()).toISOString();
+  try {
     db.prepare(`
-      INSERT INTO users (email, full_name, avatar_url, phone, role, tenant_scope, is_active, two_factor_enabled, created_at)
-      VALUES 
-        ('admin@ci360.agency', 'David Vance', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100', '+91 98765 43210', 'Super Admin', 'Global (All Brands)', 1, 1, ?),
-        ('sarah@ci360.agency', 'Sarah Chen', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', '+91 98765 43211', 'Content Manager', 'Global (All Brands)', 1, 0, ?),
-        ('marcus@ci360.agency', 'Marcus Approver', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', '+91 98765 43212', 'Approver', 'Global (All Brands)', 1, 1, ?)
-    `).run(now2, now2, now2);
+      DELETE FROM users 
+      WHERE email IN ('admin@ci360.agency', 'sarah@ci360.agency', 'marcus@ci360.agency')
+        AND LOWER(email) != LOWER(?)
+    `).run(envAdminEmail || "");
+  } catch {
   }
   const notifCount = db.prepare("SELECT count(*) as c FROM notifications").get();
   if (notifCount.c === 0) {
@@ -77263,8 +77240,46 @@ publicRouter.get("/workflows", (req, res) => {
 publicRouter.post("/auth/login", (req, res) => {
   const { email: email3, identifier, username, password } = req.body || {};
   const queryId = String(identifier || email3 || username || "").trim();
-  if (!queryId || !password) {
-    return res.status(400).json({ error: "User ID / Email / IP and password are required" });
+  const cleanPass = String(password || "").trim();
+  if (!queryId || !cleanPass) {
+    return res.status(400).json({ error: "Email / User ID and password are required" });
+  }
+  const envAdminEmail = (process.env.SUPER_ADMIN_EMAIL || "").trim().toLowerCase();
+  const envAdminPass = (process.env.SUPER_ADMIN_PASSWORD || "").trim();
+  const envAdminName = (process.env.SUPER_ADMIN_NAME || "Super Admin").trim();
+  const envAdminId = (process.env.SUPER_ADMIN_ID || "").trim().toLowerCase();
+  const lowerQuery = queryId.toLowerCase();
+  const isEnvAdminMatch = envAdminEmail && envAdminPass && (lowerQuery === envAdminEmail || envAdminId && lowerQuery === envAdminId || envAdminName && lowerQuery === envAdminName.toLowerCase());
+  if (isEnvAdminMatch) {
+    if (cleanPass !== envAdminPass) {
+      return res.status(401).json({ error: "Incorrect password. Access denied." });
+    }
+    let user2 = db.prepare(`SELECT * FROM users WHERE LOWER(email) = LOWER(?)`).get(envAdminEmail);
+    if (!user2) {
+      const now2 = (/* @__PURE__ */ new Date()).toISOString();
+      db.prepare(`
+        INSERT INTO users (email, full_name, role, tenant_scope, is_active, two_factor_enabled, password, created_at)
+        VALUES (?, ?, 'Super Admin', 'Global (All Brands)', 1, 0, ?, ?)
+      `).run(envAdminEmail, envAdminName, envAdminPass, now2);
+      user2 = db.prepare(`SELECT * FROM users WHERE LOWER(email) = LOWER(?)`).get(envAdminEmail);
+    } else if (user2.password !== envAdminPass) {
+      db.prepare(`UPDATE users SET password = ?, is_active = 1, role = 'Super Admin' WHERE user_id = ?`).run(envAdminPass, user2.user_id);
+    }
+    const clientIp2 = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "127.0.0.1");
+    return res.json({
+      success: true,
+      user: {
+        id: user2.user_id,
+        email: user2.email,
+        fullName: user2.full_name,
+        role: "Super Admin",
+        avatarUrl: user2.avatar_url,
+        tenantScope: "Global (All Brands)"
+      },
+      clientIp: clientIp2,
+      accessToken: `ci360_jwt_${user2.user_id}_${Date.now()}`,
+      expiresIn: "24h"
+    });
   }
   let user = null;
   const isNumeric = /^\d+$/.test(queryId);
@@ -77278,37 +77293,19 @@ publicRouter.post("/auth/login", (req, res) => {
     user = db.prepare(`SELECT * FROM users WHERE LOWER(full_name) = LOWER(?)`).get(queryId);
   }
   if (!user) {
-    const lowerQuery = queryId.toLowerCase();
-    const isSuperAdminEmail = lowerQuery === "pradeepofficial8795@gmail.com" || lowerQuery === "admin@webtrionix.com" || lowerQuery === "akashart8795@gmail.com" || lowerQuery === "admin@ci360.agency" || lowerQuery.includes("pradeep");
-    if (isSuperAdminEmail) {
-      const nowTime = (/* @__PURE__ */ new Date()).toISOString();
-      const insertName = lowerQuery.includes("pradeep") ? "Pradeep Verma" : "Webtrionix Administrator";
-      const insertEmail = lowerQuery.includes("pradeep") ? "pradeepofficial8795@gmail.com" : lowerQuery;
-      try {
-        db.prepare(`
-          INSERT INTO users (email, full_name, role, tenant_scope, is_active, two_factor_enabled, password, created_at)
-          VALUES (?, ?, 'Super Admin', 'Global (All Brands)', 1, 0, 'Admin@123', ?)
-        `).run(insertEmail, insertName, nowTime);
-        user = db.prepare(`SELECT * FROM users WHERE LOWER(email) = LOWER(?)`).get(insertEmail);
-      } catch (e) {
-        user = db.prepare(`SELECT * FROM users WHERE role = 'Super Admin' LIMIT 1`).get();
-      }
-    }
-  }
-  if (!user && (queryId.toLowerCase() === "admin" || queryId.toLowerCase() === "root" || queryId === "127.0.0.1" || queryId.toLowerCase() === "localhost" || queryId.toLowerCase() === "admin@ci360.agency" || queryId.toLowerCase() === "admin@ci360.internal")) {
-    user = db.prepare(`SELECT * FROM users WHERE role = 'Super Admin' LIMIT 1`).get();
-  }
-  if (!user) {
-    return res.status(401).json({ error: "Account not found. Please verify your email or click Create One below to register." });
+    return res.status(401).json({ error: "Account not found. Please verify your credentials or register." });
   }
   if (!user.is_active) {
     return res.status(403).json({ error: "This user account is deactivated. Contact an administrator." });
   }
-  const expectedPassword = user.password || "Admin@123";
-  const cleanPass = String(password).trim();
-  const isMatch = cleanPass === expectedPassword || cleanPass === "Admin@123" || cleanPass === "Admin123@@" || user.role === "Super Admin" && (cleanPass === "Admin@123" || cleanPass === "Admin123@@");
-  if (!isMatch) {
-    return res.status(401).json({ error: "Incorrect password. Please verify and try again." });
+  if (user.role === "Super Admin" && envAdminPass) {
+    if (cleanPass !== envAdminPass) {
+      return res.status(401).json({ error: "Incorrect password. Access denied." });
+    }
+  } else {
+    if (cleanPass !== user.password) {
+      return res.status(401).json({ error: "Incorrect password. Access denied." });
+    }
   }
   const clientIp = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "127.0.0.1");
   return res.json({
@@ -77325,170 +77322,6 @@ publicRouter.post("/auth/login", (req, res) => {
     accessToken: `ci360_jwt_${user.user_id}_${Date.now()}`,
     expiresIn: "24h"
   });
-});
-publicRouter.post("/auth/register-brand", (req, res) => {
-  try {
-    const {
-      brandName,
-      companyName,
-      websiteUrl,
-      industry,
-      description,
-      country = "IN",
-      timezone = "Asia/Kolkata",
-      primaryColor = "#1336E8",
-      secondaryColor = "#08C5E1",
-      logoUrl,
-      platforms = ["facebook", "instagram", "linkedin", "x"],
-      fullName,
-      email: email3,
-      password,
-      phone,
-      role = "Client"
-    } = req.body || {};
-    if (!brandName || !brandName.trim()) {
-      return res.status(400).json({ error: "Brand name is required" });
-    }
-    if (!email3 || !email3.trim()) {
-      return res.status(400).json({ error: "Administrator email is required" });
-    }
-    if (!fullName || !fullName.trim()) {
-      return res.status(400).json({ error: "Administrator full name is required" });
-    }
-    if (!password || password.length < 6) {
-      return res.status(400).json({ error: "Password must be at least 6 characters" });
-    }
-    const cleanEmail = email3.trim().toLowerCase();
-    const cleanBrandName = brandName.trim();
-    const existingUser = db.prepare("SELECT user_id FROM users WHERE LOWER(email) = LOWER(?)").get(cleanEmail);
-    if (existingUser) {
-      return res.status(409).json({
-        error: "An account with this email address already exists. Please sign in instead."
-      });
-    }
-    const now2 = (/* @__PURE__ */ new Date()).toISOString();
-    const rawSlug = cleanBrandName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "brand";
-    const uniqueSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const brandId = `BR-${rawSlug.substring(0, 14).toUpperCase()}-${uniqueSuffix}`;
-    const clientId = `CL-${rawSlug.substring(0, 14).toUpperCase()}-${uniqueSuffix}`;
-    db.prepare(`
-      INSERT OR IGNORE INTO clients (client_id, name, status, created_at, updated_at)
-      VALUES (?, ?, 'active', ?, ?)
-    `).run(clientId, companyName && companyName.trim() || cleanBrandName, now2, now2);
-    db.prepare(`
-      INSERT INTO brands (brand_id, client_id, brand_name, default_timezone, country, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(brandId, clientId, cleanBrandName, timezone, country, now2, now2);
-    const userRole = role === "Admin" ? "Admin" : "Client";
-    const userResult = db.prepare(`
-      INSERT INTO users (email, full_name, avatar_url, phone, role, tenant_scope, is_active, two_factor_enabled, password, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, 1, 0, ?, ?)
-    `).run(
-      cleanEmail,
-      fullName.trim(),
-      logoUrl || null,
-      phone || null,
-      userRole,
-      cleanBrandName,
-      password,
-      now2
-    );
-    const userId = Number(userResult.lastInsertRowid);
-    const provisionedAccounts = [];
-    if (Array.isArray(platforms)) {
-      for (const plat of platforms) {
-        const pNorm = String(plat).toLowerCase();
-        const accId = `ACC-${pNorm.toUpperCase()}-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1e3)}`;
-        try {
-          db.prepare(`
-            INSERT INTO social_accounts (
-              account_id, client_id, brand_id, platform, account_handle, account_name,
-              external_id, token_ciphertext, token_iv, token_tag, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'mock_ciphertext', 'mock_iv', 'mock_tag', 'active', ?, ?)
-          `).run(
-            accId,
-            clientId,
-            brandId,
-            pNorm,
-            `@${rawSlug}_${pNorm}`,
-            `${cleanBrandName} ${pNorm.charAt(0).toUpperCase() + pNorm.slice(1)}`,
-            `ext_${rawSlug}_${pNorm}`,
-            now2,
-            now2
-          );
-          provisionedAccounts.push({
-            id: accId,
-            platform: pNorm,
-            accountName: `${cleanBrandName} ${pNorm.charAt(0).toUpperCase() + pNorm.slice(1)}`,
-            accountHandle: `@${rawSlug}_${pNorm}`,
-            connectionStatus: "connected"
-          });
-        } catch {
-        }
-      }
-    }
-    try {
-      db.prepare(`
-        INSERT INTO audit_log (id, actor, entity, entity_id, action, before_val, after_val, created_at)
-        VALUES (?, ?, 'brand', ?, 'REGISTER_BRAND', NULL, ?, ?)
-      `).run(
-        `AUDIT-${Date.now()}`,
-        cleanEmail,
-        brandId,
-        JSON.stringify({ brandName: cleanBrandName, clientId, email: cleanEmail, role: userRole }),
-        now2
-      );
-    } catch {
-    }
-    try {
-      db.prepare(`
-        INSERT INTO notifications (user_id, event_type, title, message, link_url, is_read, created_at)
-        VALUES (1, 'brand_registered', ?, ?, '/#brands', 0, ?)
-      `).run(
-        `New Brand Registered: ${cleanBrandName}`,
-        `Brand "${cleanBrandName}" was registered by ${fullName} (${cleanEmail}).`,
-        now2
-      );
-    } catch {
-    }
-    const userObj = {
-      id: userId,
-      email: cleanEmail,
-      fullName: fullName.trim(),
-      role: userRole,
-      avatarUrl: logoUrl,
-      tenantScope: cleanBrandName,
-      isActive: true,
-      createdAt: now2
-    };
-    const brandObj = {
-      id: userId,
-      brandId,
-      name: cleanBrandName,
-      slug: rawSlug,
-      clientId,
-      timezone,
-      country,
-      primaryColor,
-      secondaryColor,
-      logoUrl,
-      industry: industry || "General",
-      websiteUrl: websiteUrl || "",
-      description: description || "",
-      isActive: true,
-      connectedAccountsCount: provisionedAccounts.length
-    };
-    return res.status(201).json({
-      success: true,
-      message: "Brand registered and primary account created successfully.",
-      user: userObj,
-      brand: brandObj,
-      accessToken: `ci360_jwt_${userId}_${Date.now()}`
-    });
-  } catch (err) {
-    logger.error({ err }, "Error in /auth/register-brand");
-    return res.status(500).json({ error: err.message || "Internal server error registering brand" });
-  }
 });
 publicRouter.post("/auth/signup", (req, res) => {
   const {

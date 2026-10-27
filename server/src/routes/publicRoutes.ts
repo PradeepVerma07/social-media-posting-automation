@@ -1284,12 +1284,64 @@ publicRouter.get('/workflows', (req: Request, res: Response) => {
 publicRouter.post('/auth/login', (req: Request, res: Response) => {
   const { email, identifier, username, password } = req.body || {};
   const queryId = String(identifier || email || username || '').trim();
+  const cleanPass = String(password || '').trim();
 
-  if (!queryId || !password) {
-    return res.status(400).json({ error: 'User ID / Email / IP and password are required' });
+  if (!queryId || !cleanPass) {
+    return res.status(400).json({ error: 'Email / User ID and password are required' });
   }
 
-  // Look up user by email, user_id, or full_name/IP
+  // Read environment variable credentials for Super Admin
+  const envAdminEmail = (process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase();
+  const envAdminPass = (process.env.SUPER_ADMIN_PASSWORD || '').trim();
+  const envAdminName = (process.env.SUPER_ADMIN_NAME || 'Super Admin').trim();
+  const envAdminId = (process.env.SUPER_ADMIN_ID || '').trim().toLowerCase();
+
+  const lowerQuery = queryId.toLowerCase();
+
+  // 1. Direct environment variable authentication for Super Admin
+  const isEnvAdminMatch =
+    envAdminEmail &&
+    envAdminPass &&
+    (lowerQuery === envAdminEmail ||
+     (envAdminId && lowerQuery === envAdminId) ||
+     (envAdminName && lowerQuery === envAdminName.toLowerCase()));
+
+  if (isEnvAdminMatch) {
+    if (cleanPass !== envAdminPass) {
+      return res.status(401).json({ error: 'Incorrect password. Access denied.' });
+    }
+
+    // Ensure user record exists in database
+    let user: any = db.prepare(`SELECT * FROM users WHERE LOWER(email) = LOWER(?)`).get(envAdminEmail);
+    if (!user) {
+      const now = new Date().toISOString();
+      db.prepare(`
+        INSERT INTO users (email, full_name, role, tenant_scope, is_active, two_factor_enabled, password, created_at)
+        VALUES (?, ?, 'Super Admin', 'Global (All Brands)', 1, 0, ?, ?)
+      `).run(envAdminEmail, envAdminName, envAdminPass, now);
+      user = db.prepare(`SELECT * FROM users WHERE LOWER(email) = LOWER(?)`).get(envAdminEmail);
+    } else if (user.password !== envAdminPass) {
+      db.prepare(`UPDATE users SET password = ?, is_active = 1, role = 'Super Admin' WHERE user_id = ?`).run(envAdminPass, user.user_id);
+    }
+
+    const clientIp = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1');
+    return res.json({
+      success: true,
+      user: {
+        id: user.user_id,
+        email: user.email,
+        fullName: user.full_name,
+        role: 'Super Admin',
+        avatarUrl: user.avatar_url,
+        tenantScope: 'Global (All Brands)',
+      },
+      clientIp,
+      accessToken: `ci360_jwt_${user.user_id}_${Date.now()}`,
+      expiresIn: '24h',
+    });
+  }
+
+  // 2. Standard user lookup by email, user_id, or full name (for registered clients/brands)
   let user: any = null;
   const isNumeric = /^\d+$/.test(queryId);
   if (isNumeric) {
@@ -1304,61 +1356,24 @@ publicRouter.post('/auth/login', (req: Request, res: Response) => {
     user = db.prepare(`SELECT * FROM users WHERE LOWER(full_name) = LOWER(?)`).get(queryId);
   }
 
-  // Auto-provision or match known super admins if not found in db yet
   if (!user) {
-    const lowerQuery = queryId.toLowerCase();
-    const isSuperAdminEmail =
-      lowerQuery === 'pradeepofficial8795@gmail.com' ||
-      lowerQuery === 'admin@webtrionix.com' ||
-      lowerQuery === 'akashart8795@gmail.com' ||
-      lowerQuery === 'admin@ci360.agency' ||
-      lowerQuery.includes('pradeep');
-
-    if (isSuperAdminEmail) {
-      const nowTime = new Date().toISOString();
-      const insertName = lowerQuery.includes('pradeep') ? 'Pradeep Verma' : 'Webtrionix Administrator';
-      const insertEmail = lowerQuery.includes('pradeep') ? 'pradeepofficial8795@gmail.com' : lowerQuery;
-      try {
-        db.prepare(`
-          INSERT INTO users (email, full_name, role, tenant_scope, is_active, two_factor_enabled, password, created_at)
-          VALUES (?, ?, 'Super Admin', 'Global (All Brands)', 1, 0, 'Admin@123', ?)
-        `).run(insertEmail, insertName, nowTime);
-        user = db.prepare(`SELECT * FROM users WHERE LOWER(email) = LOWER(?)`).get(insertEmail);
-      } catch (e) {
-        user = db.prepare(`SELECT * FROM users WHERE role = 'Super Admin' LIMIT 1`).get();
-      }
-    }
-  }
-
-  if (!user && (
-    queryId.toLowerCase() === 'admin' ||
-    queryId.toLowerCase() === 'root' ||
-    queryId === '127.0.0.1' ||
-    queryId.toLowerCase() === 'localhost' ||
-    queryId.toLowerCase() === 'admin@ci360.agency' ||
-    queryId.toLowerCase() === 'admin@ci360.internal'
-  )) {
-    user = db.prepare(`SELECT * FROM users WHERE role = 'Super Admin' LIMIT 1`).get();
-  }
-
-  if (!user) {
-    return res.status(401).json({ error: 'Account not found. Please verify your email or click Create One below to register.' });
+    return res.status(401).json({ error: 'Account not found. Please verify your credentials or register.' });
   }
 
   if (!user.is_active) {
     return res.status(403).json({ error: 'This user account is deactivated. Contact an administrator.' });
   }
 
-  const expectedPassword = user.password || 'Admin@123';
-  const cleanPass = String(password).trim();
-  const isMatch =
-    cleanPass === expectedPassword ||
-    cleanPass === 'Admin@123' ||
-    cleanPass === 'Admin123@@' ||
-    (user.role === 'Super Admin' && (cleanPass === 'Admin@123' || cleanPass === 'Admin123@@'));
-
-  if (!isMatch) {
-    return res.status(401).json({ error: 'Incorrect password. Please verify and try again.' });
+  // If user has role Super Admin, they must authenticate with the environment variable password
+  if (user.role === 'Super Admin' && envAdminPass) {
+    if (cleanPass !== envAdminPass) {
+      return res.status(401).json({ error: 'Incorrect password. Access denied.' });
+    }
+  } else {
+    // Client / Brand registered user: verify against their stored password
+    if (cleanPass !== user.password) {
+      return res.status(401).json({ error: 'Incorrect password. Access denied.' });
+    }
   }
 
   const clientIp = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1');
@@ -1380,196 +1395,7 @@ publicRouter.post('/auth/login', (req: Request, res: Response) => {
 });
 
 /**
- * Public Brand Registration Portal: POST /api/v1/auth/register-brand
- * Allows external brands/clients to self-register their brand, organization, and primary admin account.
- */
-publicRouter.post('/auth/register-brand', (req: Request, res: Response) => {
-  try {
-    const {
-      brandName,
-      companyName,
-      websiteUrl,
-      industry,
-      description,
-      country = 'IN',
-      timezone = 'Asia/Kolkata',
-      primaryColor = '#1336E8',
-      secondaryColor = '#08C5E1',
-      logoUrl,
-      platforms = ['facebook', 'instagram', 'linkedin', 'x'],
-      fullName,
-      email,
-      password,
-      phone,
-      role = 'Client',
-    } = req.body || {};
-
-    if (!brandName || !brandName.trim()) {
-      return res.status(400).json({ error: 'Brand name is required' });
-    }
-    if (!email || !email.trim()) {
-      return res.status(400).json({ error: 'Administrator email is required' });
-    }
-    if (!fullName || !fullName.trim()) {
-      return res.status(400).json({ error: 'Administrator full name is required' });
-    }
-    if (!password || password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    }
-
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanBrandName = brandName.trim();
-
-    // Check if user already exists
-    const existingUser = db.prepare('SELECT user_id FROM users WHERE LOWER(email) = LOWER(?)').get(cleanEmail);
-    if (existingUser) {
-      return res.status(409).json({
-        error: 'An account with this email address already exists. Please sign in instead.',
-      });
-    }
-
-    const now = new Date().toISOString();
-    const rawSlug = cleanBrandName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'brand';
-    const uniqueSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const brandId = `BR-${rawSlug.substring(0, 14).toUpperCase()}-${uniqueSuffix}`;
-    const clientId = `CL-${rawSlug.substring(0, 14).toUpperCase()}-${uniqueSuffix}`;
-
-    // 1. Create Client Organization
-    db.prepare(`
-      INSERT OR IGNORE INTO clients (client_id, name, status, created_at, updated_at)
-      VALUES (?, ?, 'active', ?, ?)
-    `).run(clientId, (companyName && companyName.trim()) || cleanBrandName, now, now);
-
-    // 2. Create Brand Record
-    db.prepare(`
-      INSERT INTO brands (brand_id, client_id, brand_name, default_timezone, country, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(brandId, clientId, cleanBrandName, timezone, country, now, now);
-
-    // 3. Create Admin User
-    const userRole = role === 'Admin' ? 'Admin' : 'Client';
-    const userResult = db.prepare(`
-      INSERT INTO users (email, full_name, avatar_url, phone, role, tenant_scope, is_active, two_factor_enabled, password, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, 1, 0, ?, ?)
-    `).run(
-      cleanEmail,
-      fullName.trim(),
-      logoUrl || null,
-      phone || null,
-      userRole,
-      cleanBrandName,
-      password,
-      now
-    );
-
-    const userId = Number(userResult.lastInsertRowid);
-
-    // 4. Provision initial social channel stubs for selected platforms
-    const provisionedAccounts: any[] = [];
-    if (Array.isArray(platforms)) {
-      for (const plat of platforms) {
-        const pNorm = String(plat).toLowerCase();
-        const accId = `ACC-${pNorm.toUpperCase()}-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
-        try {
-          db.prepare(`
-            INSERT INTO social_accounts (
-              account_id, client_id, brand_id, platform, account_handle, account_name,
-              external_id, token_ciphertext, token_iv, token_tag, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'mock_ciphertext', 'mock_iv', 'mock_tag', 'active', ?, ?)
-          `).run(
-            accId,
-            clientId,
-            brandId,
-            pNorm,
-            `@${rawSlug}_${pNorm}`,
-            `${cleanBrandName} ${pNorm.charAt(0).toUpperCase() + pNorm.slice(1)}`,
-            `ext_${rawSlug}_${pNorm}`,
-            now,
-            now
-          );
-          provisionedAccounts.push({
-            id: accId,
-            platform: pNorm,
-            accountName: `${cleanBrandName} ${pNorm.charAt(0).toUpperCase() + pNorm.slice(1)}`,
-            accountHandle: `@${rawSlug}_${pNorm}`,
-            connectionStatus: 'connected',
-          });
-        } catch {
-          // Ignore duplicate stubs
-        }
-      }
-    }
-
-    // 5. Audit Log
-    try {
-      db.prepare(`
-        INSERT INTO audit_log (id, actor, entity, entity_id, action, before_val, after_val, created_at)
-        VALUES (?, ?, 'brand', ?, 'REGISTER_BRAND', NULL, ?, ?)
-      `).run(
-        `AUDIT-${Date.now()}`,
-        cleanEmail,
-        brandId,
-        JSON.stringify({ brandName: cleanBrandName, clientId, email: cleanEmail, role: userRole }),
-        now
-      );
-    } catch {}
-
-    // 6. In-App Notification for Super Admin
-    try {
-      db.prepare(`
-        INSERT INTO notifications (user_id, event_type, title, message, link_url, is_read, created_at)
-        VALUES (1, 'brand_registered', ?, ?, '/#brands', 0, ?)
-      `).run(
-        `New Brand Registered: ${cleanBrandName}`,
-        `Brand "${cleanBrandName}" was registered by ${fullName} (${cleanEmail}).`,
-        now
-      );
-    } catch {}
-
-    const userObj = {
-      id: userId,
-      email: cleanEmail,
-      fullName: fullName.trim(),
-      role: userRole,
-      avatarUrl: logoUrl,
-      tenantScope: cleanBrandName,
-      isActive: true,
-      createdAt: now,
-    };
-
-    const brandObj = {
-      id: userId,
-      brandId,
-      name: cleanBrandName,
-      slug: rawSlug,
-      clientId,
-      timezone,
-      country,
-      primaryColor,
-      secondaryColor,
-      logoUrl,
-      industry: industry || 'General',
-      websiteUrl: websiteUrl || '',
-      description: description || '',
-      isActive: true,
-      connectedAccountsCount: provisionedAccounts.length,
-    };
-
-    return res.status(201).json({
-      success: true,
-      message: 'Brand registered and primary account created successfully.',
-      user: userObj,
-      brand: brandObj,
-      accessToken: `ci360_jwt_${userId}_${Date.now()}`,
-    });
-  } catch (err: any) {
-    logger.error({ err }, 'Error in /auth/register-brand');
-    return res.status(500).json({ error: err.message || 'Internal server error registering brand' });
-  }
-});
-
-/**
- * Universal Production Signup Endpoint: POST /api/v1/auth/signup
+ * Public Sign Up: POST /api/v1/auth/signup
  */
 publicRouter.post('/auth/signup', (req: Request, res: Response) => {
   // Directly forward to the brand registration handler

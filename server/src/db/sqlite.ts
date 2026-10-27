@@ -1,6 +1,14 @@
-import { DatabaseSync } from 'node:sqlite';
-import path from 'path';
 import fs from 'fs';
+import path from 'path';
+
+try {
+  const envPath = path.resolve(process.cwd(), '.env');
+  if (fs.existsSync(envPath)) {
+    process.loadEnvFile(envPath);
+  }
+} catch {}
+
+import { DatabaseSync } from 'node:sqlite';
 import { encryptToken } from '../crypto/tokenVault';
 
 const dbDir = path.resolve(process.cwd(), 'database');
@@ -311,63 +319,33 @@ export function initDatabase() {
     }
   }
 
-  // Guarantee primary administrators always exist with valid credentials
-  const defaultAdmins = [
-    {
-      email: 'pradeepofficial8795@gmail.com',
-      fullName: 'Pradeep Verma',
-      role: 'Super Admin',
-      password: 'Admin@123',
-      phone: '+91 98765 43210'
-    },
-    {
-      email: 'admin@webtrionix.com',
-      fullName: 'Webtrionix Administrator',
-      role: 'Super Admin',
-      password: 'Admin@123',
-      phone: '+91 98765 43211'
-    },
-    {
-      email: 'akashart8795@gmail.com',
-      fullName: 'Akash Verma',
-      role: 'Super Admin',
-      password: 'Admin123@@',
-      phone: '+91 98765 43212'
-    },
-    {
-      email: 'admin@ci360.agency',
-      fullName: 'David Vance',
-      role: 'Super Admin',
-      password: 'Admin@123',
-      phone: '+91 98765 43213'
-    },
-  ];
+  // Secure Super Admin Provisioning: Exclusively configured via environment variables
+  const envAdminEmail = (process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase();
+  const envAdminPassword = (process.env.SUPER_ADMIN_PASSWORD || '').trim();
+  const envAdminName = (process.env.SUPER_ADMIN_NAME || 'Super Admin').trim();
 
-  const nowAdminTime = new Date().toISOString();
-  for (const adm of defaultAdmins) {
-    const existing: any = db.prepare('SELECT user_id FROM users WHERE LOWER(email) = LOWER(?)').get(adm.email);
+  if (envAdminEmail && envAdminPassword) {
+    const nowAdminTime = new Date().toISOString();
+    const existing: any = db.prepare('SELECT user_id FROM users WHERE LOWER(email) = LOWER(?)').get(envAdminEmail);
     if (!existing) {
       db.prepare(`
-        INSERT INTO users (email, full_name, role, tenant_scope, is_active, two_factor_enabled, password, phone, created_at)
-        VALUES (?, ?, ?, 'Global (All Brands)', 1, 0, ?, ?, ?)
-      `).run(adm.email, adm.fullName, adm.role, adm.password, adm.phone, nowAdminTime);
+        INSERT INTO users (email, full_name, role, tenant_scope, is_active, two_factor_enabled, password, created_at)
+        VALUES (?, ?, 'Super Admin', 'Global (All Brands)', 1, 0, ?, ?)
+      `).run(envAdminEmail, envAdminName, envAdminPassword, nowAdminTime);
     } else {
-      db.prepare(`UPDATE users SET is_active = 1, password = ? WHERE user_id = ?`).run(adm.password, existing.user_id);
+      db.prepare(`UPDATE users SET is_active = 1, password = ?, role = 'Super Admin', full_name = ? WHERE user_id = ?`)
+        .run(envAdminPassword, envAdminName, existing.user_id);
     }
   }
 
-  // Seed default users if empty
-  const userCount = db.prepare('SELECT count(*) as c FROM users').get() as { c: number };
-  if (userCount.c === 0) {
-    const now = new Date().toISOString();
+  // Clean up any legacy dummy demo accounts for security
+  try {
     db.prepare(`
-      INSERT INTO users (email, full_name, avatar_url, phone, role, tenant_scope, is_active, two_factor_enabled, created_at)
-      VALUES 
-        ('admin@ci360.agency', 'David Vance', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100', '+91 98765 43210', 'Super Admin', 'Global (All Brands)', 1, 1, ?),
-        ('sarah@ci360.agency', 'Sarah Chen', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', '+91 98765 43211', 'Content Manager', 'Global (All Brands)', 1, 0, ?),
-        ('marcus@ci360.agency', 'Marcus Approver', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', '+91 98765 43212', 'Approver', 'Global (All Brands)', 1, 1, ?)
-    `).run(now, now, now);
-  }
+      DELETE FROM users 
+      WHERE email IN ('admin@ci360.agency', 'sarah@ci360.agency', 'marcus@ci360.agency')
+        AND LOWER(email) != LOWER(?)
+    `).run(envAdminEmail || '');
+  } catch {}
 
   // Seed notifications if empty
   const notifCount = db.prepare('SELECT count(*) as c FROM notifications').get() as { c: number };
