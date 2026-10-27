@@ -10,12 +10,14 @@ import { logger } from '../logging/logger';
 import { PostCreateSchema, PostUpdateSchema } from '../schemas';
 import { generatePostId, generateTargetId, computeIdempotencyKey } from '../utils/idGenerator';
 import { fromZone, toZone } from '../utils/time';
-import { transitionTarget } from '../services/stateMachine';
+import { transitionTarget, transitionPostStatus } from '../services/stateMachine';
 import { sheetsOutboxWorker } from '../services/sheetsOutboxWorker';
 import { sheetsReconciliationService } from '../services/sheetsReconciliation';
 import { sseManager } from '../services/sseManager';
 import { verifyHmacSignature, encryptToken, decryptToken } from '../crypto/tokenVault';
 import { geminiService } from '../services/geminiService';
+import { geminiImageProvider } from '../services/ai/GeminiImageProvider';
+import { SocialProviderFactory } from '../services/social/SocialProviderFactory';
 import { publicBrandDiscoveryService } from '../services/ai/PublicBrandDiscoveryService';
 import { brandBrainService } from '../services/ai/BrandBrainService';
 import { predictivePerformanceEngine } from '../services/ai/PredictivePerformanceEngine';
@@ -313,7 +315,7 @@ publicRouter.post('/workflows/:id/execute', async (req: Request, res: Response) 
 
 publicRouter.post('/n8n/workflows/:id/run', async (req: Request, res: Response) => {
   req.url = `/workflows/${req.params.id}/execute`;
-  return publicRouter.handle(req, res, () => {});
+  return (publicRouter as any).handle(req, res, () => {});
 });
 
 /**
@@ -388,8 +390,8 @@ publicRouter.post('/upload', async (req: Request, res: Response) => {
       mediaType,
       fileSizeBytes: buffer.length,
     });
-  } catch (error) {
-    logger.error('[Upload] Error uploading file:', error);
+  } catch (error: any) {
+    logger.error({ err: error }, '[Upload] Error uploading file');
     return res.status(500).json({ error: 'Failed to upload media file' });
   }
 });
@@ -3546,7 +3548,7 @@ publicRouter.post('/ai/intercept-post', async (req: Request, res: Response) => {
       hashtags,
       mediaUrl,
       scheduledAt: scheduledAt || new Date().toISOString(),
-      platform,
+      platforms: [platform],
     });
 
     const interceptId = 'INT-' + Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -3678,7 +3680,7 @@ publicRouter.post('/ai/gemini-transform', async (req: Request, res: Response) =>
       mediaUrl,
       transformType,
       prompt,
-      aspectRatio,
+      targetAspectRatio: aspectRatio,
     });
 
     const now = new Date().toISOString();
@@ -4116,5 +4118,471 @@ publicRouter.get('/ai/usage', (req: Request, res: Response) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+/**
+ * ============================================================================
+ * MODULE 1: REAL SOCIAL OAUTH & FEED INTELLIGENCE ROUTES
+ * ============================================================================
+ */
+
+/**
+ * GET /api/v1/social/:platform/connect
+ * Generates OAuth authorization URL
+ */
+publicRouter.get('/social/:platform/connect', async (req: Request, res: Response) => {
+  try {
+    const platform = req.params.platform.toLowerCase();
+    const brandId = (req.query.brandId as string) || 'BR-001';
+    const redirectUri = `${req.protocol}://${req.get('host')}/api/v1/social/${platform}/callback`;
+    const state = crypto.randomBytes(16).toString('hex');
+
+    const provider = SocialProviderFactory.getProvider(platform);
+    const authUrl = await provider.getAuthUrl(brandId, redirectUri, state);
+
+    res.json({ authUrl, state });
+  } catch (err: any) {
+    logger.error({ err }, 'Error generating social connect URL');
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/v1/social/:platform/callback
+ * Handles OAuth callback, encrypts tokens, registers account
+ */
+publicRouter.get('/social/:platform/callback', async (req: Request, res: Response) => {
+  try {
+    const platform = req.params.platform.toLowerCase();
+    const code = req.query.code as string;
+    const brandId = (req.query.state as string) || 'BR-001';
+    const redirectUri = `${req.protocol}://${req.get('host')}/api/v1/social/${platform}/callback`;
+
+    if (!code) {
+      return res.status(400).send('Missing authorization code');
+    }
+
+    const provider = SocialProviderFactory.getProvider(platform);
+    const account = await provider.handleCallback(code, redirectUri, brandId);
+
+    // Redirect to Social Accounts page with success notification
+    res.redirect(`/#/accounts?connected=true&platform=${platform}&handle=${encodeURIComponent(account.accountHandle)}`);
+  } catch (err: any) {
+    logger.error({ err }, 'Error handling social callback');
+    res.redirect(`/#/accounts?error=${encodeURIComponent(err.message)}`);
+  }
+});
+
+/**
+ * POST /api/v1/social/:platform/sync
+ * Cursor-based feed sync for connected account
+ */
+publicRouter.post('/social/:platform/sync', async (req: Request, res: Response) => {
+  try {
+    const platform = req.params.platform.toLowerCase();
+    const { brandId = 'BR-001', accountId, limit = 20, cursor } = req.body;
+
+    // Find account if not explicitly passed
+    let targetAccountId = accountId;
+    if (!targetAccountId) {
+      const acc = db.prepare(`
+        SELECT account_id FROM social_accounts WHERE brand_id = ? AND platform = ? AND status = 'active' LIMIT 1
+      `).get(brandId, platform) as any;
+      if (!acc) {
+        return res.status(404).json({ error: `No active ${platform} account connected for this brand` });
+      }
+      targetAccountId = acc.account_id;
+    }
+
+    const provider = SocialProviderFactory.getProvider(platform);
+    const syncResult = await provider.syncFeed(targetAccountId, brandId, limit, cursor);
+
+    res.json(syncResult);
+  } catch (err: any) {
+    logger.error({ err }, 'Feed sync failed');
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/v1/feed
+ * Feed Intelligence audit list with real metrics and AI diagnostic overlays
+ */
+publicRouter.get('/feed', (req: Request, res: Response) => {
+  try {
+    const brandIdParam = req.query.brandId;
+    const safeBrandId = typeof brandIdParam === 'string' ? brandIdParam : 'BR-001';
+    const platform = typeof req.query.platform === 'string' ? req.query.platform : undefined;
+    const limit = Number(req.query.limit) || 30;
+
+    // Check if brand has connected accounts
+    let accountsQuery = `SELECT count(*) as c FROM social_accounts WHERE brand_id = ? AND status = 'active'`;
+    const accCount = (db.prepare(accountsQuery) as any).get(safeBrandId) as { c: number };
+    const isConnected = (accCount?.c || 0) > 0;
+
+    let query = `
+      SELECT f.*, 
+             s.likes, s.comments, s.shares, s.impressions, s.reach, s.saved, s.video_views, s.provenance,
+             a.hook_score, a.cta_score, a.readability_score, a.brand_voice_alignment, a.overall_grade
+      FROM feed_items f
+      LEFT JOIN metric_snapshots s ON s.id = (
+        SELECT id FROM metric_snapshots WHERE feed_item_id = f.id ORDER BY snapshot_at DESC LIMIT 1
+      )
+      LEFT JOIN post_analyses a ON a.feed_item_id = f.id
+      WHERE f.brand_id = ?
+    `;
+    const params: any[] = [safeBrandId];
+
+    if (platform && platform !== 'all') {
+      query += ` AND f.platform = ?`;
+      params.push(platform);
+    }
+
+    query += ` ORDER BY f.published_at DESC LIMIT ?`;
+    params.push(Number(limit) || 30);
+
+    const items = db.prepare(query).all(...params) as any[];
+
+    res.json({
+      connected: isConnected,
+      total: items.length,
+      items: items.map(item => ({
+        id: item.id,
+        brandId: item.brand_id,
+        platform: item.platform,
+        externalPostId: item.external_post_id,
+        permalink: item.permalink,
+        caption: item.caption,
+        mediaType: item.media_type,
+        mediaUrls: JSON.parse(item.media_urls_json || '[]'),
+        publishedAt: item.published_at,
+        metrics: {
+          likes: item.likes ?? null,
+          comments: item.comments ?? null,
+          shares: item.shares ?? null,
+          impressions: item.impressions ?? null,
+          reach: item.reach ?? null,
+          saved: item.saved ?? null,
+          videoViews: item.video_views ?? null,
+          provenance: item.provenance || 'API',
+        },
+        aiDiagnostic: item.hook_score !== null ? {
+          overallGrade: item.overall_grade || 'B',
+          hookScore: item.hook_score,
+          ctaScore: item.cta_score,
+          readabilityScore: item.readability_score,
+          brandVoiceAlignment: item.brand_voice_alignment,
+        } : null,
+      })),
+    });
+  } catch (err: any) {
+    logger.error({ err }, 'Error fetching feed items');
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * ============================================================================
+ * MODULE 2: SCHEDULE -> N8N AI REVIEW INTERCEPTION & WATCHDOG
+ * ============================================================================
+ */
+
+/**
+ * POST /api/v1/posts/:id/submit-for-review
+ * Preflight gatekeeper: validates payload, transitions DRAFT -> AI_REVIEW_PENDING,
+ * enqueues review_jobs, and dispatches to n8n AI review pipeline.
+ */
+publicRouter.post('/posts/:id/submit-for-review', async (req: Request, res: Response) => {
+  const postId = req.params.id;
+  const actor = (req as any).user?.email || 'authenticated_user';
+  const now = new Date().toISOString();
+
+  // 1. Fetch post
+  const post = db.prepare('SELECT * FROM posts WHERE post_id = ?').get(postId) as any;
+  if (!post) {
+    return res.status(404).json({ error: `Post ${postId} not found` });
+  }
+
+  // 2. Synchronous preflight validation
+  const caption = (post.caption || '').trim();
+  if (caption.length === 0) {
+    return res.status(422).json({
+      error: 'Preflight validation failed: Caption cannot be empty for scheduled post',
+      field: 'caption',
+    });
+  }
+
+  // 3. Atomic transition: DRAFT -> AI_REVIEW_PENDING
+  try {
+    transitionPostStatus(postId, 'AI_REVIEW_PENDING', actor, 'Submitted for pre-flight AI review');
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message });
+  }
+
+  // 4. Create review job
+  const jobId = `REV-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+  db.prepare(`
+    INSERT INTO review_jobs (id, post_id, status, retry_count, created_at)
+    VALUES (?, ?, 'pending', 0, ?)
+  `).run(jobId, postId, now);
+
+  // 5. Dispatch to n8n webhook or execute review directly
+  const n8nWebhookUrl = process.env.N8N_AI_REVIEW_WEBHOOK_URL || 'http://localhost:5678/webhook/ci360-ai-review';
+  const secret = process.env.N8N_CALLBACK_SECRET || 'ci360_n8n_callback_master_secret_2026';
+  const timestamp = String(Date.now());
+  const bodyPayload = {
+    jobId,
+    postId,
+    brandId: post.brand_id,
+    caption: post.caption,
+    hashtags: post.hashtags,
+    mediaUrl: JSON.parse(post.media_urls || '[]')[0] || '',
+    scheduledAt: post.scheduled_utc,
+    platform: 'instagram',
+  };
+  const signature = crypto.createHmac('sha256', secret).update(timestamp + '.' + JSON.stringify(bodyPayload)).digest('hex');
+
+  // Attempt async call to n8n; if unavailable, run internal review inline for seamless resilience
+  fetch(n8nWebhookUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CI360-Signature': signature,
+      'X-CI360-Timestamp': timestamp,
+    },
+    body: JSON.stringify(bodyPayload),
+  }).catch(async (fetchErr) => {
+    logger.warn({ fetchErr }, '[SubmitForReview] n8n webhook unreachable, executing internal review pipeline directly');
+    try {
+      const diagnostic = await feedIntelligenceService.analyzePost({
+        brandId: post.brand_id,
+        platform: 'instagram',
+        caption: post.caption,
+        hashtags: post.hashtags,
+        postId,
+      });
+
+      const prediction = await predictivePerformanceEngine.predictPostPerformance({
+        brandId: post.brand_id,
+        platform: 'instagram',
+        caption: post.caption,
+        hashtags: post.hashtags,
+        scheduledAt: post.scheduled_utc,
+      });
+
+      // Complete job directly
+      db.prepare(`UPDATE review_jobs SET status = 'completed', completed_at = ? WHERE id = ?`).run(new Date().toISOString(), jobId);
+      transitionPostStatus(postId, 'AI_REVIEWED', 'internal_pipeline', 'Review completed via internal engine');
+    } catch (inlineErr) {
+      logger.error({ inlineErr }, '[SubmitForReview] Inline review execution error');
+      db.prepare(`UPDATE review_jobs SET status = 'failed', error_message = ? WHERE id = ?`).run(String(inlineErr), jobId);
+      transitionPostStatus(postId, 'DRAFT', 'internal_pipeline', 'Review failed: ' + String(inlineErr));
+    }
+  });
+
+  res.status(202).json({
+    success: true,
+    jobId,
+    postId,
+    status: 'AI_REVIEW_PENDING',
+    message: 'Post submitted to CI360 Pre-Flight Review Pipeline',
+  });
+});
+
+/**
+ * ============================================================================
+ * MODULE 3: NON-DESTRUCTIVE REVISION & RECOMMENDATION ACTIONS
+ * ============================================================================
+ */
+
+/**
+ * POST /api/v1/posts/:id/recommendations/:recId/apply
+ * Applies recommendation non-destructively creating revision N+1 with origin 'AI_APPLIED'
+ */
+publicRouter.post('/posts/:id/recommendations/:recId/apply', (req: Request, res: Response) => {
+  const postId = req.params.id;
+  const recId = req.params.recId;
+  const { expected_revision_id, user_comment } = req.body;
+  const now = new Date().toISOString();
+
+  // Optimistic concurrency check
+  const post = db.prepare('SELECT * FROM posts WHERE post_id = ?').get(postId) as any;
+  if (!post) return res.status(404).json({ error: `Post ${postId} not found` });
+
+  if (expected_revision_id && post.version !== Number(expected_revision_id)) {
+    return res.status(409).json({
+      error: 'Revision conflict: post has been modified since recommendations were generated',
+      currentVersion: post.version,
+    });
+  }
+
+  const rec = db.prepare('SELECT * FROM ai_recommendations WHERE id = ?').get(recId) as any;
+  if (!rec) return res.status(404).json({ error: `Recommendation ${recId} not found` });
+
+  // 1. Snapshot previous state into post_revisions
+  const revId = `REV-${post.version}-${Date.now()}`;
+  db.prepare(`
+    INSERT INTO post_revisions (
+      id, post_id, revision_number, origin, title, caption, hashtags,
+      media_urls_json, scheduled_at, changed_fields_json, created_at
+    ) VALUES (?, ?, ?, 'AI_APPLIED', ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    revId,
+    postId,
+    post.version,
+    post.title,
+    post.caption,
+    post.hashtags,
+    post.media_urls || '[]',
+    post.scheduled_utc,
+    JSON.stringify([rec.field]),
+    now
+  );
+
+  // 2. Apply change based on field
+  let updatedCaption = post.caption;
+  let updatedHashtags = post.hashtags;
+
+  if (rec.field === 'hook' || rec.field === 'caption') {
+    updatedCaption = rec.suggested_content;
+  } else if (rec.field === 'hashtags') {
+    updatedHashtags = rec.suggested_content;
+  } else if (rec.field === 'CTA') {
+    updatedCaption = `${post.caption}\n\n${rec.suggested_content}`;
+  }
+
+  db.prepare(`
+    UPDATE posts
+    SET caption = ?, hashtags = ?, version = version + 1, updated_at = ?
+    WHERE post_id = ?
+  `).run(updatedCaption, updatedHashtags, now, postId);
+
+  // 3. Mark recommendation applied and record action
+  db.prepare(`UPDATE ai_recommendations SET status = 'applied' WHERE id = ?`).run(recId);
+  db.prepare(`
+    INSERT INTO recommendation_actions (
+      id, recommendation_id, brand_id, post_id, action_type, user_comment, created_at
+    ) VALUES (?, ?, ?, ?, 'APPLY', ?, ?)
+  `).run(`ACT-${Date.now()}`, recId, post.brand_id, postId, user_comment || null, now);
+
+  res.json({
+    success: true,
+    postId,
+    newVersion: post.version + 1,
+    appliedField: rec.field,
+    updatedCaption,
+  });
+});
+
+/**
+ * POST /api/v1/posts/:id/recommendations/:recId/undo
+ * Restores previous revision
+ */
+publicRouter.post('/posts/:id/recommendations/:recId/undo', (req: Request, res: Response) => {
+  const postId = req.params.id;
+  const recId = req.params.recId;
+  const now = new Date().toISOString();
+
+  const post = db.prepare('SELECT * FROM posts WHERE post_id = ?').get(postId) as any;
+  if (!post) return res.status(404).json({ error: `Post ${postId} not found` });
+
+  // Find latest revision before this
+  const latestRev = db.prepare(`
+    SELECT * FROM post_revisions WHERE post_id = ? ORDER BY revision_number DESC LIMIT 1
+  `).get(postId) as any;
+
+  if (latestRev) {
+    db.prepare(`
+      UPDATE posts
+      SET caption = ?, hashtags = ?, version = version + 1, updated_at = ?
+      WHERE post_id = ?
+    `).run(latestRev.caption, latestRev.hashtags, now, postId);
+
+    db.prepare(`UPDATE ai_recommendations SET status = 'pending' WHERE id = ?`).run(recId);
+    db.prepare(`
+      INSERT INTO recommendation_actions (
+        id, recommendation_id, brand_id, post_id, action_type, created_at
+      ) VALUES (?, ?, ?, ?, 'UNDO', ?)
+    `).run(`ACT-${Date.now()}`, recId, post.brand_id, postId, now);
+
+    return res.json({
+      success: true,
+      restoredCaption: latestRev.caption,
+      newVersion: post.version + 1,
+    });
+  }
+
+  res.status(400).json({ error: 'No previous revision found to undo' });
+});
+
+/**
+ * POST /api/v1/posts/:id/approve-reviewed
+ * Approves reviewed post, transitions AI_REVIEWED -> SCHEDULED
+ */
+publicRouter.post('/posts/:id/approve-reviewed', (req: Request, res: Response) => {
+  const postId = req.params.id;
+  const actor = (req as any).user?.email || 'authenticated_user';
+
+  try {
+    transitionPostStatus(postId, 'SCHEDULED', actor, 'Approved by user after AI review');
+    res.json({ success: true, postId, status: 'SCHEDULED' });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+/**
+ * ============================================================================
+ * MODULE 4: GEMINI CREATIVE STUDIO ROUTES
+ * ============================================================================
+ */
+
+/**
+ * POST /api/v1/ai/creative/generate-variants
+ * Produces 3 high-impact creative variants using GeminiImageProvider
+ */
+publicRouter.post('/ai/creative/generate-variants', async (req: Request, res: Response) => {
+  try {
+    const { imageUrl, prompt, count = 3, stylePreset } = req.body;
+    if (!imageUrl) {
+      return res.status(400).json({ error: 'Missing required imageUrl' });
+    }
+
+    const variants = await geminiImageProvider.generateVariants({
+      imageUrl,
+      prompt: prompt || 'Professional modern social asset, clean aesthetic, high visual impact',
+      count: Number(count) || 3,
+      stylePreset,
+    });
+
+    res.json({ variants });
+  } catch (err: any) {
+    logger.error({ err }, 'Error in creative generate-variants');
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/v1/ai/creative/reframe
+ * Smart aspect-ratio reframing preserving safe zone
+ */
+publicRouter.post('/ai/creative/reframe', async (req: Request, res: Response) => {
+  try {
+    const { imageUrl, targetRatio = '9:16' } = req.body;
+    if (!imageUrl) {
+      return res.status(400).json({ error: 'Missing required imageUrl' });
+    }
+
+    const result = await geminiImageProvider.reframeAsset({
+      imageUrl,
+      targetRatio: targetRatio as '1:1' | '4:5' | '9:16',
+    });
+
+    res.json(result);
+  } catch (err: any) {
+    logger.error({ err }, 'Error in creative reframe');
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 

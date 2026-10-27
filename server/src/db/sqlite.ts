@@ -533,6 +533,129 @@ export function initDatabase() {
       created_at TEXT NOT NULL
     );
 
+    -- Feed Items (Live synced social feed)
+    CREATE TABLE IF NOT EXISTS feed_items (
+      id TEXT PRIMARY KEY,
+      brand_id TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      external_post_id TEXT NOT NULL,
+      permalink TEXT,
+      caption TEXT,
+      media_type TEXT,
+      media_urls_json TEXT DEFAULT '[]',
+      published_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    -- Metric Snapshots (Time-series analytics with provenance)
+    CREATE TABLE IF NOT EXISTS metric_snapshots (
+      id TEXT PRIMARY KEY,
+      feed_item_id TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      likes INTEGER DEFAULT 0,
+      comments INTEGER DEFAULT 0,
+      shares INTEGER DEFAULT 0,
+      impressions INTEGER DEFAULT 0,
+      reach INTEGER DEFAULT 0,
+      saved INTEGER DEFAULT 0,
+      video_views INTEGER DEFAULT 0,
+      provenance TEXT DEFAULT 'API', -- 'API', 'AI-INFERRED', 'ESTIMATED', 'MOCK'
+      snapshot_at TEXT NOT NULL
+    );
+
+    -- Media Assets (Structured multimodal assets)
+    CREATE TABLE IF NOT EXISTS media_assets (
+      id TEXT PRIMARY KEY,
+      post_id TEXT,
+      url TEXT NOT NULL,
+      media_type TEXT NOT NULL,
+      aspect_ratio TEXT,
+      width INTEGER,
+      height INTEGER,
+      created_at TEXT NOT NULL
+    );
+
+    -- AI Runs (Audit trail of AI invocations)
+    CREATE TABLE IF NOT EXISTS ai_runs (
+      id TEXT PRIMARY KEY,
+      post_id TEXT,
+      feed_item_id TEXT,
+      run_type TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      model TEXT NOT NULL,
+      prompt_tokens INTEGER DEFAULT 0,
+      completion_tokens INTEGER DEFAULT 0,
+      latency_ms INTEGER DEFAULT 0,
+      status TEXT NOT NULL,
+      error TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    -- Post Analyses (Comprehensive 10-score linguistic/visual evaluation)
+    CREATE TABLE IF NOT EXISTS post_analyses (
+      id TEXT PRIMARY KEY,
+      post_id TEXT,
+      feed_item_id TEXT,
+      brand_id TEXT NOT NULL,
+      hook_score REAL DEFAULT 0,
+      cta_score REAL DEFAULT 0,
+      readability_score REAL DEFAULT 0,
+      brand_voice_alignment REAL DEFAULT 0,
+      predicted_sentiment TEXT DEFAULT 'neutral',
+      overall_grade TEXT DEFAULT 'B',
+      feedback_json TEXT DEFAULT '[]',
+      created_at TEXT NOT NULL
+    );
+
+    -- Model Registry (ML prediction models)
+    CREATE TABLE IF NOT EXISTS model_registry (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      version TEXT NOT NULL,
+      framework TEXT DEFAULT 'LightGBM',
+      accuracy_metric REAL DEFAULT 0.88,
+      is_active INTEGER DEFAULT 1,
+      created_at TEXT NOT NULL
+    );
+
+    -- Review Jobs (Watchdog queue for pre-flight AI review workflow)
+    CREATE TABLE IF NOT EXISTS review_jobs (
+      id TEXT PRIMARY KEY,
+      post_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      workflow_execution_id TEXT,
+      retry_count INTEGER DEFAULT 0,
+      error_message TEXT,
+      started_at TEXT,
+      completed_at TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    -- Audit Events (Immutable system log)
+    CREATE TABLE IF NOT EXISTS audit_events (
+      id TEXT PRIMARY KEY,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      actor_id TEXT,
+      details_json TEXT DEFAULT '{}',
+      created_at TEXT NOT NULL
+    );
+
+    -- Social Credentials (Secure encrypted OAuth tokens)
+    CREATE TABLE IF NOT EXISTS social_credentials (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      access_token_enc TEXT NOT NULL,
+      refresh_token_enc TEXT,
+      iv TEXT NOT NULL,
+      tag TEXT NOT NULL,
+      expires_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     -- Indexes for high performance querying and atomic claims
     CREATE INDEX IF NOT EXISTS idx_posts_client ON posts(client_id, deleted_at);
     CREATE INDEX IF NOT EXISTS idx_targets_claim ON post_targets(status, next_retry_at, locked_at);
@@ -540,6 +663,8 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_outbox_pending ON outbox(status, next_run_at);
     CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_log(entity, entity_id);
     CREATE INDEX IF NOT EXISTS idx_post_comments_post ON post_comments(post_id);
+    CREATE INDEX IF NOT EXISTS idx_feed_items_brand ON feed_items(brand_id, platform);
+    CREATE INDEX IF NOT EXISTS idx_review_jobs_status ON review_jobs(status, created_at);
   `);
 
   // Migrate columns if needed

@@ -76,15 +76,15 @@ export class CommentIntelligenceService {
 
     if (isLead) {
       try {
-        db.prepare(`
+        (db.prepare(`
           INSERT INTO detected_leads (
             id, brand_id, post_id, platform, commenter_handle, comment_text,
             lead_intent_score, intent_category, status, detected_at
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)
-        `).run(
+        `) as any).run(
           item.id,
           brandId,
-          item.postId,
+          item.postId || null,
           platform,
           commenterHandle,
           text,

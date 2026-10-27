@@ -434,7 +434,7 @@ export const ContentCalendar: React.FC<ContentCalendarProps> = ({
 
     // Seamlessly route into CI360 AI Neural Studio for pre-flight scoring & optimization
     api.interceptPost({
-      caption: postCaption.trim(),
+      caption: caption.trim(),
       mediaUrl: mediaUrl.trim() || undefined,
       scheduledAt: scheduledAtIso,
       platform: selectedPlatforms[0] || 'instagram',
@@ -1072,9 +1072,9 @@ export const ContentCalendar: React.FC<ContentCalendarProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedPlacements(prev => {
-                        const next = prev.includes('reels_shorts')
-                          ? (prev.length > 1 ? prev.filter(p => p !== 'reels_shorts') : prev)
+                      setSelectedPlacements((prev: ("feed" | "reels_shorts" | "story")[]) => {
+                        const next: ("feed" | "reels_shorts" | "story")[] = prev.includes('reels_shorts')
+                          ? (prev.length > 1 ? prev.filter((p): p is ("feed" | "reels_shorts" | "story") => p !== 'reels_shorts') : prev)
                           : [...prev, 'reels_shorts'];
                         if (next.includes('reels_shorts') && (!mediaUrl || mediaUrl.includes('unsplash.com'))) {
                           setMediaUrl('https://videos.pexels.com/video-files/39046146/16615054_2160_3840_25fps.mp4');
@@ -1538,7 +1538,7 @@ export const ContentCalendar: React.FC<ContentCalendarProps> = ({
                 <div className="flex items-center gap-2">
                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                     inspectingPost.publishingStatus === 'published' ? 'bg-[#ECFDF3] text-[#027A48]' :
-                    inspectingPost.publishingStatus === 'publishing' ? 'bg-[#FEF0C7] text-[#B54708]' :
+                    (inspectingPost.publishingStatus as string) === 'publishing' ? 'bg-[#FEF0C7] text-[#B54708]' :
                     inspectingPost.publishingStatus === 'failed' ? 'bg-[#FEF3F2] text-[#B42318]' :
                     'bg-[#D1E9FF] text-[#175CD3]'
                   }`}>
@@ -1706,7 +1706,7 @@ export const ContentCalendar: React.FC<ContentCalendarProps> = ({
                         <span>Tagged Instagram Accounts ({inspectingPost.taggedUsers.length}):</span>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
-                        {inspectingPost.taggedUsers.map((handle: string) => (
+                        {inspectingPost.taggedUsers.map((item: any) => { const handle = typeof item === 'string' ? item : item?.username || ''; return (
                           <span
                             key={handle}
                             className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-white border border-rose-200 text-xs font-mono font-semibold text-rose-700 shadow-2xs"
@@ -1714,7 +1714,7 @@ export const ContentCalendar: React.FC<ContentCalendarProps> = ({
                             <span>@</span>
                             <span>{handle}</span>
                           </span>
-                        ))}
+                        ); })}
                       </div>
                     </div>
                   )}
@@ -1726,7 +1726,7 @@ export const ContentCalendar: React.FC<ContentCalendarProps> = ({
                     </span>
                     <div className="space-y-2.5">
                       {inspectingPost.platforms?.map((plat, idx) => {
-                        const urls = plat.publishedUrl ? plat.publishedUrl.split(' | ') : [];
+                        const rawUrl = plat.platformPostUrl || (plat as any).publishedUrl; const urls: string[] = rawUrl ? String(rawUrl).split(' | ') : [];
                         return (
                           <div key={idx} className="p-3 rounded-xl bg-[#F8FAFC] border border-[#EAECF0] space-y-2">
                             <div className="flex items-center justify-between">
@@ -1735,9 +1735,9 @@ export const ContentCalendar: React.FC<ContentCalendarProps> = ({
                                   {plat.platform}
                                 </span>
                                 <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                                  plat.publishingStatus === 'Posted' ? 'bg-[#ECFDF3] text-[#027A48]' :
-                                  plat.publishingStatus === 'NeedsVerification' ? 'bg-[#FEF0C7] text-[#B54708]' :
-                                  plat.publishingStatus === 'Failed' ? 'bg-[#FEF3F2] text-[#B42318]' :
+                                  ((plat.publishingStatus as any) === 'Posted' || plat.publishingStatus === 'success') ? 'bg-[#ECFDF3] text-[#027A48]' :
+                                  ((plat.publishingStatus as any) === 'NeedsVerification' || plat.publishingStatus === 'publishing') ? 'bg-[#FEF0C7] text-[#B54708]' :
+                                  ((plat.publishingStatus as any) === 'Failed' || plat.publishingStatus === 'failed') ? 'bg-[#FEF3F2] text-[#B42318]' :
                                   'bg-[#D1E9FF] text-[#175CD3]'
                                 }`}>
                                   {plat.publishingStatus}
@@ -1752,7 +1752,7 @@ export const ContentCalendar: React.FC<ContentCalendarProps> = ({
 
                             {urls.length > 0 && (
                               <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                                {urls.map((u, uIdx) => {
+                                {urls.map((u: string, uIdx: number) => {
                                   const isStory = u.includes('/stories/');
                                   const isReel = u.includes('/reel') || u.includes('/watch');
                                   const label = isStory ? 'Story' : isReel ? 'Reel / Video' : 'Feed Post';

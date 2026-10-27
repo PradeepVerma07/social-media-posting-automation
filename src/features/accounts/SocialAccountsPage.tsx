@@ -5,6 +5,7 @@ import {
   RotateCw,
   ExternalLink,
   ShieldCheck,
+  Shield,
   Plus,
   KeyRound,
   X,

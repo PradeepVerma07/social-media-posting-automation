@@ -401,7 +401,7 @@ class DatabaseRepository {
       brandName: 'Nexus Enterprise Cloud',
       initiatedByUserId: 1,
       initiatedByName: 'David Vance',
-      triggerType: 'webhook',
+      triggerType: 'webhook_callback',
       status: 'success',
       durationMs: 1420,
       startedAt: '2026-10-23T19:50:00Z',
@@ -600,8 +600,8 @@ class DatabaseRepository {
     if (t.instagramBusinessId || t.instagramHandle || t.metaAccessToken || t.facebookPageToken) {
       const igAcc = this.socialAccounts.find(a => a.brandId === brand.id && a.platform === 'instagram');
       const token = t.metaAccessToken || t.facebookPageToken;
-      const mediaId = t.instagramBusinessId || (igAcc ? igAcc.socialMediaId : '17841439037630316');
-      const handle = t.instagramHandle || (igAcc ? igAcc.accountHandle : `@${brand.slug}`);
+      const mediaId = t.instagramBusinessId || (igAcc ? igAcc.socialMediaId : '17841439037630316') || '17841439037630316';
+      const handle = t.instagramHandle || (igAcc ? igAcc.accountHandle : `@${brand.slug}`) || `@${brand.slug}`;
 
       if (igAcc) {
         igAcc.accountName = handle.replace('@', '');
@@ -951,9 +951,7 @@ class DatabaseRepository {
       linkedin: 0,
       x: 0,
       youtube: 0,
-      threads: 0,
-      pinterest: 0,
-      tiktok: 0,
+      whatsapp: 0,
     };
 
     // Calculate real dynamic platform counts from published posts

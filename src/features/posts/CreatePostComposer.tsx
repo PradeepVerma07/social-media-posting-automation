@@ -446,7 +446,7 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
     // Route scheduled draft through CI360 AI Neural Studio intercept gate
     if (masterCaption && masterCaption.trim()) {
       api.interceptPost({
-        brandId: (selectedBrand as any)?.brandId || 'BR-001',
+        brandId: selectedBrandIds[0] ? String(selectedBrandIds[0]) : 'BR-001',
         caption: masterCaption.trim(),
         hashtags: hashtags.trim(),
         mediaUrl: mediaUrl.trim() || undefined,

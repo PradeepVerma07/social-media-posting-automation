@@ -127,3 +127,73 @@ export function transitionTarget(
 
   return updatedTarget;
 }
+
+export type PostLifecycleStatus =
+  | 'DRAFT'
+  | 'AI_REVIEW_PENDING'
+  | 'AI_REVIEWED'
+  | 'SCHEDULED'
+  | 'PUBLISHING'
+  | 'PUBLISHED'
+  | 'FAILED'
+  | 'CANCELLED';
+
+const POST_ALLOWED_TRANSITIONS: Record<PostLifecycleStatus, PostLifecycleStatus[]> = {
+  DRAFT: ['AI_REVIEW_PENDING', 'SCHEDULED'],
+  AI_REVIEW_PENDING: ['AI_REVIEWED', 'DRAFT', 'FAILED'],
+  AI_REVIEWED: ['SCHEDULED', 'DRAFT', 'CANCELLED'],
+  SCHEDULED: ['PUBLISHING', 'CANCELLED', 'DRAFT'],
+  PUBLISHING: ['PUBLISHED', 'FAILED', 'CANCELLED'],
+  PUBLISHED: [],
+  FAILED: ['DRAFT', 'SCHEDULED', 'CANCELLED'],
+  CANCELLED: ['DRAFT'],
+};
+
+export function canTransitionPost(from: PostLifecycleStatus, to: PostLifecycleStatus): boolean {
+  return POST_ALLOWED_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
+export function transitionPostStatus(
+  postId: string,
+  toStatus: PostLifecycleStatus,
+  actor: string,
+  reason: string,
+  metadata: Record<string, any> = {}
+) {
+  const row = db.prepare('SELECT approval_status, version FROM posts WHERE post_id = ?').get(postId) as { approval_status: string; version: number } | undefined;
+  if (!row) {
+    throw new Error(`Post ${postId} not found`);
+  }
+
+  const currentStatus = (row.approval_status.toUpperCase() as PostLifecycleStatus) || 'DRAFT';
+  if (currentStatus !== toStatus && !canTransitionPost(currentStatus, toStatus)) {
+    throw new Error(`Illegal post status transition from "${currentStatus}" to "${toStatus}" for post ${postId}`);
+  }
+
+  const now = new Date().toISOString();
+  db.prepare(`
+    UPDATE posts
+    SET approval_status = ?, updated_at = ?, version = version + 1
+    WHERE post_id = ?
+  `).run(toStatus, now, postId);
+
+  try {
+    const auditId = 'AUD-' + Math.random().toString(36).substring(2, 9).toUpperCase();
+    db.prepare(`
+      INSERT INTO audit_events (id, entity_type, entity_id, action, actor_id, details_json, created_at)
+      VALUES (?, 'post', ?, ?, ?, ?, ?)
+    `).run(
+      auditId,
+      postId,
+      `STATUS_TRANSITION_${toStatus}`,
+      actor,
+      JSON.stringify({ from: currentStatus, to: toStatus, reason, ...metadata }),
+      now
+    );
+  } catch (err) {
+    logger.warn({ err }, 'Failed writing audit event');
+  }
+
+  logger.info({ postId, from: currentStatus, to: toStatus, actor, reason }, 'Post status transitioned');
+  return { postId, from: currentStatus, to: toStatus, updatedAt: now };
+}

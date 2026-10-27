@@ -311,9 +311,10 @@ Return a valid JSON object strictly adhering to this schema without markdown fen
     transformType: 'inpaint' | 'reframe' | 'overlay' | 'enhance' | 'studio_lighting';
     targetAspectRatio?: '1:1' | '9:16' | '16:9' | '4:5';
     customPrompt?: string;
+    prompt?: string;
   }): Promise<CreativeTransformResult> {
     const client = this.getClient();
-    const prompt = params.customPrompt || `Transform image with premium modern aesthetic, enhanced dynamic range, high-impact contrast and sharp subject separation.`;
+    const prompt = params.customPrompt || params.prompt || `Transform image with premium modern aesthetic, enhanced dynamic range, high-impact contrast and sharp subject separation.`;
     const targetAspect = params.targetAspectRatio || (params.transformType === 'reframe' ? '9:16' : '1:1');
 
     // Preset high-fidelity transformed creative variants (curated high-performance assets)
@@ -351,7 +352,7 @@ Return a valid JSON object strictly adhering to this schema without markdown fen
   /**
    * Gemini Copy Variants: 3 high-converting variations
    */
-  async generateCopyVariants(baseCaption: string): Promise<Array<{
+  async generateCopyVariants(baseCaption: string, platform = 'instagram', audienceGoal = 'engagement'): Promise<Array<{
     style: string;
     caption: string;
     viralityScore: number;
@@ -360,7 +361,7 @@ Return a valid JSON object strictly adhering to this schema without markdown fen
     const client = this.getClient();
     if (client && baseCaption.trim()) {
       try {
-        const prompt = `Rewrite this social media caption into 3 distinct high-performing variants:
+        const prompt = `You are an expert copywriter for ${platform} aiming for ${audienceGoal}. Rewrite this social media caption into 3 distinct high-performing variants:
 Original: "${baseCaption}"
 
 Return valid JSON without markdown fences:

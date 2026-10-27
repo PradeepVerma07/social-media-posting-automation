@@ -407,9 +407,9 @@ export const ContentTable: React.FC<ContentTableProps> = ({
                           <Eye className="w-4 h-4" />
                         </button>
 
-                        {post.platforms?.[0]?.publishedUrl && (
+                        {(post.platforms?.[0]?.platformPostUrl || (post.platforms?.[0] as any)?.publishedUrl) && (
                           <a
-                            href={post.platforms[0].publishedUrl}
+                            href={(post.platforms[0]?.platformPostUrl || (post.platforms[0] as any)?.publishedUrl)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-1.5 rounded-lg text-[#12B76A] hover:bg-[#ECFDF3] transition-colors"

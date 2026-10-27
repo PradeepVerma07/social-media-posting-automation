@@ -120,12 +120,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
       if (res && res.user) {
         try {
           localStorage.setItem('ci360_auth_user', JSON.stringify(res.user));
-          localStorage.setItem('ci360_auth_token', res.token || 'token');
+          localStorage.setItem('ci360_auth_token', res.accessToken || 'token');
           localStorage.removeItem('ci360_is_signed_out');
         } catch {}
         setSuccessMsg('Account created successfully! Entering dashboard...');
         setTimeout(() => {
-          onLoginSuccess(res.user, res.token || 'token');
+          onLoginSuccess(res.user, res.accessToken || 'token');
         }, 600);
       } else {
         setErrorMsg(res.message || 'Registration failed. Please try again.');

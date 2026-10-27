@@ -5,7 +5,7 @@ import { MediaViewerModal } from './MediaViewerModal';
 interface MediaThumbnailProps {
   src?: string | null;
   alt?: string;
-  mediaType?: 'image' | 'video';
+  mediaType?: 'image' | 'video' | 'document';
   className?: string;
   containerClassName?: string;
   showPlayBadge?: boolean;

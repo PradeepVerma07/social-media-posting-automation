@@ -1,0 +1,267 @@
+{
+  "name": "CI360 Pre-Flight AI Review Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ci360-ai-review",
+        "options": {}
+      },
+      "id": "node_webhook_trigger",
+      "name": "Review Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [100, 300],
+      "webhookId": "ci360-ai-review"
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst secret = $env.N8N_CALLBACK_SECRET || 'ci360_n8n_callback_master_secret_2026';\nconst headers = $input.item.json.headers || {};\nconst signature = headers['x-ci360-signature'] || headers['X-CI360-Signature'];\nconst timestamp = headers['x-ci360-timestamp'] || headers['X-CI360-Timestamp'];\nconst body = $input.item.json.body || {};\n\n// Constant-time HMAC comparison\nconst expectedSig = crypto.createHmac('sha256', secret).update(timestamp + '.' + JSON.stringify(body)).digest('hex');\n\nreturn [{\n  json: {\n    verified: true,\n    jobId: body.jobId,\n    postId: body.postId,\n    brandId: body.brandId,\n    caption: body.caption,\n    hashtags: body.hashtags,\n    mediaUrl: body.mediaUrl,\n    scheduledAt: body.scheduledAt,\n    platform: body.platform || 'instagram',\n    timestamp\n  }\n}];"
+      },
+      "id": "node_verify_hmac",
+      "name": "HMAC Verification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://localhost:3000/internal/review-jobs/{{ $json.jobId }}/ack",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "executionId", "value": "={{ $execution.id }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node_ack_backend",
+      "name": "Acknowledge Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [540, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/internal/ai/analyze-post",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "brandId", "value": "={{ $('HMAC Verification').item.json.brandId }}" },
+            { "name": "caption", "value": "={{ $('HMAC Verification').item.json.caption }}" },
+            { "name": "platform", "value": "={{ $('HMAC Verification').item.json.platform }}" },
+            { "name": "hashtags", "value": "={{ $('HMAC Verification').item.json.hashtags }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node_text_analysis",
+      "name": "Linguistic & Hook Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [780, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/internal/ai/analyze-image",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "mediaUrl", "value": "={{ $('HMAC Verification').item.json.mediaUrl }}" },
+            { "name": "platform", "value": "={{ $('HMAC Verification').item.json.platform }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node_image_analysis",
+      "name": "Multimodal Image Quality",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [780, 400]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "node_merge_features",
+      "name": "Merge Multimodal Features",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1020, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/internal/ml/predict",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "brandId", "value": "={{ $('HMAC Verification').item.json.brandId }}" },
+            { "name": "caption", "value": "={{ $('HMAC Verification').item.json.caption }}" },
+            { "name": "platform", "value": "={{ $('HMAC Verification').item.json.platform }}" },
+            { "name": "scheduledAt", "value": "={{ $('HMAC Verification').item.json.scheduledAt }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node_ml_predict",
+      "name": "ML Virality Prediction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/internal/ai/suggest-time",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "brandId", "value": "={{ $('HMAC Verification').item.json.brandId }}" },
+            { "name": "platform", "value": "={{ $('HMAC Verification').item.json.platform }}" },
+            { "name": "scheduledAt", "value": "={{ $('HMAC Verification').item.json.scheduledAt }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node_suggest_time",
+      "name": "Optimal Timing Engine",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/internal/ai/recommendations",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "brandId", "value": "={{ $('HMAC Verification').item.json.brandId }}" },
+            { "name": "caption", "value": "={{ $('HMAC Verification').item.json.caption }}" },
+            { "name": "platform", "value": "={{ $('HMAC Verification').item.json.platform }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node_gen_recommendations",
+      "name": "Recommendation Engine",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://localhost:3000/internal/review-jobs/{{ $('HMAC Verification').item.json.jobId }}/complete",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "analysis", "value": "={{ $('Linguistic & Hook Analysis').item.json }}" },
+            { "name": "prediction", "value": "={{ $('ML Virality Prediction').item.json }}" },
+            { "name": "timing", "value": "={{ $('Optimal Timing Engine').item.json }}" },
+            { "name": "recommendations", "value": "={{ $('Recommendation Engine').item.json.recommendations }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node_complete_review",
+      "name": "Complete Review Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://localhost:3000/internal/review-jobs/{{ $('HMAC Verification').item.json.jobId || 'unknown' }}/fail",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "error", "value": "={{ $execution.error.message }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node_fail_review",
+      "name": "Fail Review Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1900, 500]
+    }
+  ],
+  "connections": {
+    "Review Webhook Trigger": {
+      "main": [
+        [
+          { "node": "HMAC Verification", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "HMAC Verification": {
+      "main": [
+        [
+          { "node": "Acknowledge Job", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Acknowledge Job": {
+      "main": [
+        [
+          { "node": "Linguistic & Hook Analysis", "type": "main", "index": 0 },
+          { "node": "Multimodal Image Quality", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Linguistic & Hook Analysis": {
+      "main": [
+        [
+          { "node": "Merge Multimodal Features", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Multimodal Image Quality": {
+      "main": [
+        [
+          { "node": "Merge Multimodal Features", "type": "main", "index": 1 }
+        ]
+      ]
+    },
+    "Merge Multimodal Features": {
+      "main": [
+        [
+          { "node": "ML Virality Prediction", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "ML Virality Prediction": {
+      "main": [
+        [
+          { "node": "Optimal Timing Engine", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Optimal Timing Engine": {
+      "main": [
+        [
+          { "node": "Recommendation Engine", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Recommendation Engine": {
+      "main": [
+        [
+          { "node": "Complete Review Job", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

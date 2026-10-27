@@ -99,9 +99,10 @@ function extractPlacementDetails(post: Post): PlacementDetail[] {
 function getLiveUrlsList(post: Post) {
   const list: { platform: string; label: string; url: string }[] = [];
   post.platforms?.forEach(plat => {
-    if (!plat.publishedUrl) return;
-    const urls = plat.publishedUrl.split(' | ');
-    urls.forEach(url => {
+    const rawUrl = plat.platformPostUrl || (plat as any).publishedUrl;
+    if (!rawUrl) return;
+    const urls = String(rawUrl).split(' | ');
+    urls.forEach((url: string) => {
       const isStory = url.includes('/stories/');
       const isReel = url.includes('/reel') || url.includes('/watch');
       const label = isStory ? 'Story' : isReel ? 'Reel' : 'Feed';
@@ -399,7 +400,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             <div className="max-h-[640px] overflow-y-auto pr-1.5 space-y-3.5 scroll-smooth">
               {displayedPosts.length > 0 ? (
                 displayedPosts.map((post, postIdx) => {
-                  const placementDetails = (post.publishingStatus === 'partial' || post.publishingStatus === 'failed')
+                  const placementDetails = (((post.publishingStatus as any) === 'partial' || post.publishingStatus === 'partially_published') || post.publishingStatus === 'failed')
                     ? extractPlacementDetails(post)
                     : [];
                   const liveLinks = getLiveUrlsList(post);
@@ -465,26 +466,26 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                             className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border ${
                               post.publishingStatus === 'published'
                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : post.publishingStatus === 'partial'
+                                : ((post.publishingStatus as any) === 'partial' || post.publishingStatus === 'partially_published')
                                 ? 'bg-amber-50 text-amber-800 border-amber-200'
                                 : post.publishingStatus === 'failed'
                                 ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                : post.publishingStatus === 'publishing'
+                                : ((post.publishingStatus as any) === 'publishing' || post.publishingStatus === 'processing')
                                 ? 'bg-sky-50 text-sky-700 border-sky-200 animate-pulse'
                                 : 'bg-slate-100 text-slate-700 border-slate-200'
                             }`}
                           >
                             {post.publishingStatus === 'published' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
-                            {post.publishingStatus === 'partial' && <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />}
+                            {((post.publishingStatus as any) === 'partial' || post.publishingStatus === 'partially_published') && <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />}
                             {post.publishingStatus === 'failed' && <XCircle className="w-3.5 h-3.5 text-rose-600" />}
                             <span>
                               {post.publishingStatus === 'published'
                                 ? 'Live'
-                                : post.publishingStatus === 'partial'
+                                : ((post.publishingStatus as any) === 'partial' || post.publishingStatus === 'partially_published')
                                 ? 'Partial'
                                 : post.publishingStatus === 'failed'
                                 ? 'Failed'
-                                : post.publishingStatus === 'publishing'
+                                : ((post.publishingStatus as any) === 'publishing' || post.publishingStatus === 'processing')
                                 ? 'Publishing'
                                 : 'Scheduled'}
                             </span>
@@ -815,12 +816,12 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                 <div className="flex items-center gap-2">
                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                     selectedAuditPost.publishingStatus === 'published' ? 'bg-[#ECFDF3] text-[#027A48]' :
-                    selectedAuditPost.publishingStatus === 'partial' ? 'bg-[#FEF0C7] text-[#B54708] border border-[#FEE4E2]' :
+                    ((selectedAuditPost.publishingStatus as any) === 'partial' || selectedAuditPost.publishingStatus === 'partially_published') ? 'bg-[#FEF0C7] text-[#B54708] border border-[#FEE4E2]' :
                     selectedAuditPost.publishingStatus === 'failed' ? 'bg-[#FEF3F2] text-[#B42318]' :
                     'bg-[#D1E9FF] text-[#175CD3]'
                   }`}>
                     {selectedAuditPost.publishingStatus === 'published' ? '● Verified Live Published' :
-                     selectedAuditPost.publishingStatus === 'partial' ? '⚠ Partial Publish (With Warnings)' :
+                     ((selectedAuditPost.publishingStatus as any) === 'partial' || selectedAuditPost.publishingStatus === 'partially_published') ? '⚠ Partial Publish (With Warnings)' :
                      selectedAuditPost.publishingStatus === 'failed' ? '✕ Failed / Rejected by Platform' :
                      selectedAuditPost.publishingStatus}
                   </span>

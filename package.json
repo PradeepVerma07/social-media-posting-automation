@@ -14,7 +14,7 @@
     "clean": "node -e \"const fs=require('fs'); fs.rmSync('dist', { recursive: true, force: true });\"",
     "lint": "node node_modules/typescript/bin/tsc --noEmit",
     "seed": "node node_modules/tsx/dist/cli.mjs scripts/seed.ts",
-    "test": "node node_modules/tsx/dist/cli.mjs --test server/test/timezone.test.ts server/test/stateMachine.test.ts server/test/metaErrors.test.ts server/test/tokenVault.test.ts server/test/idempotency.test.ts"
+    "test": "node node_modules/tsx/dist/cli.mjs --test server/test/timezone.test.ts server/test/stateMachine.test.ts server/test/metaErrors.test.ts server/test/tokenVault.test.ts server/test/idempotency.test.ts server/test/postLifecycle.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

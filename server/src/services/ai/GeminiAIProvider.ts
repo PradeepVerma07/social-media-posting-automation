@@ -25,7 +25,7 @@ export class GeminiAIProvider implements AIProvider {
       try {
         this.client = new GoogleGenAI({ apiKey: this.apiKey });
       } catch (err) {
-        logger.warn('[GeminiAIProvider] Initialization warning:', err);
+        logger.warn({ err }, '[GeminiAIProvider] Initialization warning');
       }
     }
   }

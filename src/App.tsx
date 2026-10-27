@@ -257,6 +257,7 @@ export default function App() {
       linkedin: 0,
       x: 0,
       youtube: 0,
+      whatsapp: 0,
     },
     approvalBreakdown: {
       draft: 0,

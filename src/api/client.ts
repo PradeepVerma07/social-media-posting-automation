@@ -187,10 +187,6 @@ export const api = {
     return res.data;
   },
 
-  async executeWorkflow(id: number): Promise<any> {
-    return request<any>(`/workflows/${id}/execute`, { method: 'POST' });
-  },
-
   async getExecutions(): Promise<WorkflowExecution[]> {
     const res = await request<{ data: WorkflowExecution[] }>('/executions');
     return res.data;
@@ -657,6 +653,52 @@ export const api = {
   async getAIUsage(brandId?: string): Promise<AIUsageSummary> {
     const query = brandId && brandId !== 'all' ? `?brandId=${brandId}` : '';
     return request(`/ai/usage${query}`);
+  },
+
+  // Module 1: Social Connect & Feed Sync
+  async connectSocial(platform: string, brandId?: string): Promise<{ authUrl: string; state: string }> {
+    const query = brandId ? `?brandId=${brandId}` : '';
+    return request(`/social/${platform}/connect${query}`);
+  },
+
+  async syncSocialFeed(platform: string, brandId?: string): Promise<any> {
+    return request(`/social/${platform}/sync`, {
+      method: 'POST',
+      body: JSON.stringify({ brandId, platform }),
+    });
+  },
+
+  async fetchFeed(brandId = 'BR-001', platform?: string): Promise<{ connected: boolean; total: number; items: any[] }> {
+    const query = `?brandId=${brandId}${platform && platform !== 'all' ? `&platform=${platform}` : ''}`;
+    return request(`/feed${query}`);
+  },
+
+  // Module 2: Pre-Flight AI Review Submission
+  async submitPostForReview(postId: string): Promise<{ success: boolean; jobId: string; status: string }> {
+    return request(`/posts/${postId}/submit-for-review`, {
+      method: 'POST',
+    });
+  },
+
+  async approveReviewedPost(postId: string): Promise<{ success: boolean; postId: string; status: string }> {
+    return request(`/posts/${postId}/approve-reviewed`, {
+      method: 'POST',
+    });
+  },
+
+  // Module 4: Gemini Creative Studio
+  async generateCreativeVariants(payload: { imageUrl: string; prompt?: string; count?: number; stylePreset?: string }): Promise<{ variants: any[] }> {
+    return request('/ai/creative/generate-variants', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async reframeCreativeAsset(payload: { imageUrl: string; targetRatio: '1:1' | '4:5' | '9:16' }): Promise<any> {
+    return request('/ai/creative/reframe', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 };
 
