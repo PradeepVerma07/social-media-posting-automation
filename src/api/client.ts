@@ -516,6 +516,148 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+
+  // Enterprise Brand Brain APIs
+  async listBrandBrains(): Promise<{ brands: BrandBrainProfile[] }> {
+    return request('/ai/brands');
+  },
+
+  async getBrandBrain(brandId: string): Promise<BrandBrainProfile> {
+    return request(`/ai/brand-brain/${brandId}`);
+  },
+
+  async saveBrandBrain(payload: Partial<BrandBrainProfile> & { brandId: string }): Promise<{ success: boolean; brain: BrandBrainProfile }> {
+    return request('/ai/brand-brain', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async getLearnedPreferences(brandId: string): Promise<{ preferences: BrandLearnedPreference[] }> {
+    return request(`/ai/learned-preferences/${brandId}`);
+  },
+
+  // Mode A Public Brand Analysis & Competitors
+  async analyzePublicBrand(payload: {
+    platform: string;
+    identifier: string;
+    brandId?: string;
+  }): Promise<PublicBrandAnalysisResult> {
+    return request('/ai/public-brand-analysis', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async getPublicProfiles(brandId: string): Promise<{ items: any[] }> {
+    return request(`/ai/public-profiles/${brandId}`);
+  },
+
+  async getCompetitors(brandId: string): Promise<{ competitors: any[] }> {
+    return request(`/ai/competitors/${brandId}`);
+  },
+
+  // Post Diagnostics & Non-Destructive Revisions
+  async analyzePostDiagnostic(payload: {
+    brandId: string;
+    platform: string;
+    caption: string;
+    hashtags?: string;
+    mediaUrl?: string;
+    postId?: string;
+    mode?: 'advisory' | 'copilot' | 'autonomous';
+  }): Promise<PostDiagnosticResult> {
+    return request('/ai/analyze-post', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async applyRecommendationRevision(id: string, payload: {
+    postId?: string;
+    appliedValue: string;
+    field?: string;
+  }): Promise<{ success: boolean; revisionNumber: number; revisionId: string }> {
+    return request(`/ai/recommendations/${id}/apply`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async rejectRecommendation(id: string, payload?: {
+    brandId?: string;
+    postId?: string;
+    reason?: string;
+  }): Promise<{ success: boolean; recommendationId: string; status: string }> {
+    return request(`/ai/recommendations/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
+    });
+  },
+
+  // Predictive ML & Timing
+  async predictPerformance(payload: {
+    brandId: string;
+    platform: string;
+    caption: string;
+    hashtags?: string;
+    mediaType?: string;
+    scheduledAt?: string;
+    visualScore?: number;
+  }): Promise<PostPredictionResult> {
+    return request('/ai/predict-performance', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // Topic Intelligence & Hashtags
+  async getTopicsAndGaps(brandId: string): Promise<{
+    opportunityTopics: NextBestTopic[];
+    overusedTopics: NextBestTopic[];
+    missingTopics: NextBestTopic[];
+    contentOpportunityMatrix: Record<string, any>;
+  }> {
+    return request(`/ai/topics-and-gaps/${brandId}`);
+  },
+
+  async optimizeHashtags(hashtags: string, brandId: string): Promise<HashtagOptimizationResult> {
+    return request('/ai/optimize-hashtags', {
+      method: 'POST',
+      body: JSON.stringify({ hashtags, brandId }),
+    });
+  },
+
+  // Live Comment Intelligence & Leads
+  async getDetectedLeads(brandId: string): Promise<{ leads: CommentAnalysisItem[] }> {
+    return request(`/ai/detected-leads/${brandId}`);
+  },
+
+  async updateLeadStatus(id: string, status: string): Promise<{ success: boolean }> {
+    return request(`/ai/leads/${id}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  // Advanced AI Copy Studio (12 modes)
+  async rewriteCopyMultiMode(payload: {
+    baseCaption: string;
+    platform?: string;
+    mode?: string;
+    brandId?: string;
+  }): Promise<{ variants: CopyVariantItem[] }> {
+    return request('/ai/rewrite-copy', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // AI Usage & Cost Telemetry
+  async getAIUsage(brandId?: string): Promise<AIUsageSummary> {
+    const query = brandId && brandId !== 'all' ? `?brandId=${brandId}` : '';
+    return request(`/ai/usage${query}`);
+  },
 };
 
 export interface FeedAuditItem {
@@ -614,3 +756,192 @@ export interface CopyVariantItem {
   viralityScore: number;
   bestFor: string;
 }
+
+export interface BrandBrainProfile {
+  id: string;
+  organizationId: string;
+  brandId: string;
+  brandName: string;
+  industry: string;
+  subIndustry: string;
+  primaryMarket: string;
+  targetAudience: string;
+  brandVoice: string;
+  brandPersonality: string;
+  preferredWords: string[];
+  forbiddenWords: string[];
+  approvedCtas: string[];
+  brandColors: string[];
+  fonts: string[];
+  visualStyle: string;
+  competitors: string[];
+  businessObjectives: string;
+  primaryProducts: string[];
+  services: string[];
+  website: string;
+  instagramHandle: string;
+  facebookPage: string;
+  linkedinPage: string;
+  youtubeChannel: string;
+  contentPillars: string[];
+  regulatoryConstraints: string[];
+  defaultLanguage: string;
+  secondaryLanguages: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BrandLearnedPreference {
+  id: string;
+  brandId: string;
+  category: 'tone' | 'hook' | 'cta' | 'hashtags' | 'vocabulary' | 'visual';
+  keyName: string;
+  learnedValue: string;
+  confidence: number;
+  sourceSampleCount: number;
+  lastInferredAt: string;
+  isReviewedByAdmin: boolean;
+  adminOverrideValue?: string;
+}
+
+export interface PublicBrandAnalysisResult {
+  identity: {
+    platform: string;
+    identifier: string;
+    displayName: string;
+    profileUrl: string;
+    bio: string;
+    verifiedSource: boolean;
+    identityResolutionStatus: string;
+    dataProvenance: 'PUBLIC';
+  };
+  publicMetrics: {
+    followersCount: number;
+    followingCount: number;
+    postsCount: number;
+    visibleEngagementRate: string;
+    postingFrequency: string;
+    topFormats: string[];
+  };
+  scores: {
+    publicQualityScore: number;
+    visualConsistencyScore: number;
+    brandPositioningScore: number;
+    postingConsistencyScore: number;
+    captionQualityScore: number;
+    hookStrengthScore: number;
+    ctaQualityScore: number;
+    topicDiversityScore: number;
+    brandIdentityConfidence: number;
+  };
+  contentThemes: string[];
+  brandColors: string[];
+  visibleCompetitorPositioning: string[];
+  contentGaps: string[];
+  recommendations: string[];
+  disclaimer: string;
+}
+
+export interface PostDiagnosticResult {
+  analysisId: string;
+  brandId: string;
+  postId?: string;
+  scores: {
+    overallScore: number;
+    hookScore: number;
+    captionScore: number;
+    visualScore: number;
+    ctaScore: number;
+    brandFitScore: number;
+    discoverabilityScore: number;
+    engagementScore: number;
+    platformFitScore: number;
+    timingScore: number;
+  };
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: Array<{
+    recommendationId: string;
+    field: 'title' | 'topic' | 'hook' | 'caption' | 'description' | 'CTA' | 'hashtags' | 'keywords' | 'image' | 'publishing time';
+    original: string;
+    suggested: string;
+    reason: string;
+    expectedImpact: string;
+    confidence: number;
+    riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+    category: 'safe' | 'restricted';
+    status: 'pending' | 'applied' | 'rejected' | 'edited' | 'ignored';
+  }>;
+  aiMode: 'advisory' | 'copilot' | 'autonomous';
+  confidence: number;
+}
+
+export interface PostPredictionResult {
+  performanceScore: number;
+  predictedEngagementRange: {
+    min: number;
+    max: number;
+    median: number;
+  };
+  confidenceLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  isColdStart: boolean;
+  benchmarkPercentile: number;
+  modelVersion: string;
+  topPositiveFactors: Array<{ factor: string; weight: string; explanation: string }>;
+  topNegativeFactors: Array<{ factor: string; weight: string; explanation: string }>;
+  timingAnalysis: {
+    recommendedDay: string;
+    recommendedHour: string;
+    isOptimalWindow: boolean;
+  };
+}
+
+export interface NextBestTopic {
+  id: string;
+  topicName: string;
+  relevanceScore: number;
+  historicalPerformance: number;
+  brandAlignment: number;
+  audienceInterest: number;
+  competitionLevel: 'Low' | 'Medium' | 'High';
+  recommendedFormat: string;
+  status: 'opportunity' | 'overused' | 'missing' | 'low_value';
+  rationale: string;
+}
+
+export interface HashtagOptimizationResult {
+  classified: Array<{
+    tag: string;
+    category: 'Brand' | 'Industry' | 'Niche' | 'Discovery' | 'Campaign' | 'Trending';
+    action: 'KEEP' | 'REMOVE' | 'REPLACE' | 'ADD';
+    suggestedReplacement?: string;
+    reason: string;
+  }>;
+  recommendedTags: string[];
+  finalSuggestedTagString: string;
+}
+
+export interface CommentAnalysisItem {
+  id: string;
+  brandId: string;
+  postId?: string;
+  platform: string;
+  commenterHandle: string;
+  commentText: string;
+  sentiment: 'positive' | 'neutral' | 'negative';
+  category: string;
+  leadIntentScore: number;
+  isLead: boolean;
+  status: 'new' | 'contacted' | 'dismissed';
+  detectedAt: string;
+}
+
+export interface AIUsageSummary {
+  totalRequests: number;
+  totalTokens: number;
+  avgLatencyMs: number;
+  totalCostUsd: number;
+  budgetRemainingUsd: number;
+  recentRequests: any[];
+}
+

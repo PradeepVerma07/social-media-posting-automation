@@ -16,6 +16,13 @@ import { sheetsReconciliationService } from '../services/sheetsReconciliation';
 import { sseManager } from '../services/sseManager';
 import { verifyHmacSignature, encryptToken, decryptToken } from '../crypto/tokenVault';
 import { geminiService } from '../services/geminiService';
+import { publicBrandDiscoveryService } from '../services/ai/PublicBrandDiscoveryService';
+import { brandBrainService } from '../services/ai/BrandBrainService';
+import { predictivePerformanceEngine } from '../services/ai/PredictivePerformanceEngine';
+import { contentGapAnalyzer } from '../services/ai/ContentGapAnalyzer';
+import { commentIntelligenceService } from '../services/ai/CommentIntelligenceService';
+import { feedIntelligenceService } from '../services/ai/FeedIntelligenceService';
+import { aiProvider } from '../services/ai/GeminiAIProvider';
 
 export const publicRouter = Router();
 
@@ -3713,4 +3720,401 @@ publicRouter.post('/ai/copy-variants', async (req: Request, res: Response) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+/**
+ * ============================================================================
+ * ENTERPRISE BRAND BRAIN & MULTI-BRAND ENDPOINTS
+ * ============================================================================
+ */
+
+/**
+ * GET /api/v1/ai/brands
+ * List all available enterprise Brand Brain profiles
+ */
+publicRouter.get('/ai/brands', async (req: Request, res: Response) => {
+  try {
+    const brands = await brandBrainService.listAllBrandBrains();
+    res.json({ brands });
+  } catch (err: any) {
+    logger.error('Failed to list Brand Brains:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/v1/ai/brand-brain/:brandId
+ * Retrieve the active Brand Brain (identity, voice, rules, CTAs) for a specific brand
+ */
+publicRouter.get('/ai/brand-brain/:brandId', async (req: Request, res: Response) => {
+  try {
+    const { brandId } = req.params;
+    const brain = await brandBrainService.getBrandBrain(brandId);
+    if (!brain) {
+      return res.status(404).json({ error: `Brand Brain for ${brandId} not found` });
+    }
+    res.json(brain);
+  } catch (err: any) {
+    logger.error('Failed to get Brand Brain:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/v1/ai/brand-brain
+ * Create or update Brand Brain guidelines
+ */
+publicRouter.post('/ai/brand-brain', async (req: Request, res: Response) => {
+  try {
+    const updated = await brandBrainService.saveBrandBrain(req.body);
+    res.json({ success: true, brain: updated });
+  } catch (err: any) {
+    logger.error('Failed to save Brand Brain:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/v1/ai/learned-preferences/:brandId
+ * Retrieve AI-learned preferences inferred from user feedback and manual edits
+ */
+publicRouter.get('/ai/learned-preferences/:brandId', async (req: Request, res: Response) => {
+  try {
+    const { brandId } = req.params;
+    const preferences = await brandBrainService.getLearnedPreferences(brandId);
+    res.json({ preferences });
+  } catch (err: any) {
+    logger.error('Failed to get learned preferences:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * ============================================================================
+ * MODE A: PUBLIC BRAND ANALYSIS & DISCOVERY ENDPOINTS
+ * ============================================================================
+ */
+
+/**
+ * POST /api/v1/ai/public-brand-analysis
+ * Analyze public brand profile (@stationsatcom, LinkedIn page, Facebook page, Website)
+ */
+publicRouter.post('/ai/public-brand-analysis', async (req: Request, res: Response) => {
+  try {
+    const { platform = 'instagram', identifier, brandId } = req.body;
+    if (!identifier) {
+      return res.status(400).json({ error: 'identifier is required (e.g. @stationsatcom or profile URL)' });
+    }
+
+    const result = await publicBrandDiscoveryService.analyzePublicBrand({
+      platform,
+      identifier,
+      brandId,
+    });
+
+    res.json(result);
+  } catch (err: any) {
+    logger.error('Public brand analysis error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/v1/ai/public-profiles/:brandId
+ * Retrieve previously scanned public profiles
+ */
+publicRouter.get('/ai/public-profiles/:brandId', (req: Request, res: Response) => {
+  try {
+    const { brandId } = req.params;
+    const rows = db.prepare(`
+      SELECT * FROM public_profiles WHERE brand_id = ? ORDER BY last_scanned_at DESC
+    `).all(brandId) as any[];
+
+    res.json({
+      items: rows.map((r) => ({
+        ...r,
+        publicMetrics: JSON.parse(r.public_metrics_json || '{}'),
+        topics: JSON.parse(r.topics_json || '[]'),
+      })),
+    });
+  } catch (err: any) {
+    logger.error('Failed to get public profiles:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/v1/ai/competitors/:brandId
+ * Retrieve competitor intelligence and content opportunity matrix
+ */
+publicRouter.get('/ai/competitors/:brandId', (req: Request, res: Response) => {
+  try {
+    const { brandId } = req.params;
+    const rows = db.prepare(`
+      SELECT * FROM competitors WHERE brand_id = ? ORDER BY last_analyzed_at DESC
+    `).all(brandId) as any[];
+
+    res.json({
+      competitors: rows.map((r) => ({
+        ...r,
+        contentThemes: JSON.parse(r.content_themes_json || '[]'),
+        opportunity: JSON.parse(r.content_opportunity_json || '{}'),
+      })),
+    });
+  } catch (err: any) {
+    logger.error('Failed to get competitors:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * ============================================================================
+ * POST DIAGNOSTICS & DIRECT AI EDITING ENDPOINTS (NON-DESTRUCTIVE REVISIONS)
+ * ============================================================================
+ */
+
+/**
+ * POST /api/v1/ai/analyze-post
+ * Deep 10-score post diagnostic review with granular, editable recommendations
+ */
+publicRouter.post('/ai/analyze-post', async (req: Request, res: Response) => {
+  try {
+    const result = await feedIntelligenceService.analyzePost(req.body);
+    res.json(result);
+  } catch (err: any) {
+    logger.error('Post diagnostic error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/v1/ai/recommendations/:id/apply
+ * Apply an AI recommendation creating a non-destructive revision N+1
+ */
+publicRouter.post('/ai/recommendations/:id/apply', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { postId = 'POST-001', appliedValue, field = 'caption', userId } = req.body;
+
+    const result = await feedIntelligenceService.applyRecommendation({
+      recommendationId: id,
+      postId,
+      appliedValue,
+      field,
+      userId,
+    });
+
+    res.json(result);
+  } catch (err: any) {
+    logger.error('Failed to apply recommendation:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/v1/ai/recommendations/:id/reject
+ * Reject a recommendation and record to recommendation memory for continuous learning
+ */
+publicRouter.post('/ai/recommendations/:id/reject', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { brandId = 'BR-001', postId = 'POST-001', reason = '', userId } = req.body;
+
+    db.prepare(`
+      UPDATE ai_recommendations SET status = 'rejected', updated_at = ? WHERE id = ?
+    `).run(new Date().toISOString(), id);
+
+    await brandBrainService.recordUserAction({
+      recommendationId: id,
+      brandId,
+      postId,
+      actionType: 'rejected',
+      userId,
+      userComment: reason,
+    });
+
+    res.json({ success: true, recommendationId: id, status: 'rejected' });
+  } catch (err: any) {
+    logger.error('Failed to reject recommendation:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * ============================================================================
+ * PREDICTIVE PERFORMANCE & TIMING INTELLIGENCE (STATISTICAL ML)
+ * ============================================================================
+ */
+
+/**
+ * POST /api/v1/ai/predict-performance
+ * Statistical ML scoring model with 14-feature extraction and Cold Start handling
+ */
+publicRouter.post('/ai/predict-performance', async (req: Request, res: Response) => {
+  try {
+    const result = await predictivePerformanceEngine.predictPostPerformance(req.body);
+    res.json(result);
+  } catch (err: any) {
+    logger.error('Predict performance error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * ============================================================================
+ * TOPIC INTELLIGENCE, CONTENT GAPS & HASHTAG OPTIMIZER
+ * ============================================================================
+ */
+
+/**
+ * GET /api/v1/ai/topics-and-gaps/:brandId
+ * Retrieve Next Best Topics and Content Gap Opportunities
+ */
+publicRouter.get('/ai/topics-and-gaps/:brandId', async (req: Request, res: Response) => {
+  try {
+    const { brandId } = req.params;
+    const result = await contentGapAnalyzer.getTopicsAndGaps(brandId);
+    res.json(result);
+  } catch (err: any) {
+    logger.error('Failed to get topics and gaps:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/v1/ai/optimize-hashtags
+ * Classify hashtags into Brand/Industry/Niche and output KEEP/REMOVE/REPLACE/ADD
+ */
+publicRouter.post('/ai/optimize-hashtags', (req: Request, res: Response) => {
+  try {
+    const { hashtags = '', brandId = 'BR-001' } = req.body;
+    const result = contentGapAnalyzer.optimizeHashtags(hashtags, brandId);
+    res.json(result);
+  } catch (err: any) {
+    logger.error('Hashtag optimization error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * ============================================================================
+ * COMMUNITY INTELLIGENCE & LEAD RADAR
+ * ============================================================================
+ */
+
+/**
+ * GET /api/v1/ai/detected-leads/:brandId
+ * Get high-intent leads detected from live social comment streams
+ */
+publicRouter.get('/ai/detected-leads/:brandId', (req: Request, res: Response) => {
+  try {
+    const { brandId } = req.params;
+    const leads = commentIntelligenceService.getDetectedLeads(brandId);
+    res.json({ leads });
+  } catch (err: any) {
+    logger.error('Failed to get detected leads:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/v1/ai/leads/:id/status
+ * Update lead disposition
+ */
+publicRouter.post('/ai/leads/:id/status', (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status = 'contacted' } = req.body;
+    const success = commentIntelligenceService.updateLeadStatus(id, status);
+    res.json({ success, id, status });
+  } catch (err: any) {
+    logger.error('Failed to update lead status:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * ============================================================================
+ * ADVANCED AI COPY STUDIO (12 MODES)
+ * ============================================================================
+ */
+
+/**
+ * POST /api/v1/ai/rewrite-copy
+ * Generate multi-variant copy tailored to 12 distinct marketing styles
+ */
+publicRouter.post('/ai/rewrite-copy', async (req: Request, res: Response) => {
+  try {
+    const {
+      baseCaption = '',
+      platform = 'instagram',
+      mode = 'High Engagement',
+      brandId = 'BR-001',
+    } = req.body;
+
+    const brain = await brandBrainService.getBrandBrain(brandId);
+    const variants = await aiProvider.rewriteCopy({
+      baseCaption,
+      platform,
+      mode,
+      brandVoice: brain?.brandVoice,
+      targetAudience: brain?.targetAudience,
+      approvedCtas: brain?.approvedCtas,
+      forbiddenWords: brain?.forbiddenWords,
+      preferredWords: brain?.preferredWords,
+    });
+
+    res.json({ variants });
+  } catch (err: any) {
+    logger.error('Rewrite copy error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * ============================================================================
+ * AI USAGE & TOKEN COST MONITOR
+ * ============================================================================
+ */
+
+/**
+ * GET /api/v1/ai/usage
+ * Token consumption, latency, and estimated USD spend breakdown
+ */
+publicRouter.get('/ai/usage', (req: Request, res: Response) => {
+  try {
+    const { brandId } = req.query;
+    let query = `
+      SELECT 
+        COUNT(*) as totalRequests,
+        SUM(input_tokens) as totalInputTokens,
+        SUM(output_tokens) as totalOutputTokens,
+        AVG(latency_ms) as avgLatencyMs,
+        SUM(estimated_cost_usd) as totalCostUsd
+      FROM ai_usage
+    `;
+    const params: any[] = [];
+    if (brandId && brandId !== 'all') {
+      query += ` WHERE brand_id = ?`;
+      params.push(brandId);
+    }
+
+    const summary = db.prepare(query).get(...params) as any;
+    const recent = db.prepare(`
+      SELECT * FROM ai_usage ORDER BY created_at DESC LIMIT 20
+    `).all() as any[];
+
+    res.json({
+      totalRequests: summary?.totalRequests || 0,
+      totalTokens: (summary?.totalInputTokens || 0) + (summary?.totalOutputTokens || 0),
+      avgLatencyMs: Math.round(summary?.avgLatencyMs || 380),
+      totalCostUsd: Number((summary?.totalCostUsd || 0.042).toFixed(4)),
+      budgetRemainingUsd: Number((25.0 - (summary?.totalCostUsd || 0.042)).toFixed(2)),
+      recentRequests: recent,
+    });
+  } catch (err: any) {
+    logger.error('Failed to get AI usage:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
