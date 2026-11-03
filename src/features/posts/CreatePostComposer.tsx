@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { DateTime } from 'luxon';
 import {
   Check,
   ChevronRight,
@@ -37,7 +38,6 @@ import {
   X
 } from 'lucide-react';
 import { Brand, SocialAccount, SocialPlatform, ContentPlacement, RoleName } from '../../../server/src/types';
-import { fromISTInputValues } from '../../utils/timezone';
 import { api } from '../../api/client';
 import { MediaViewerModal } from '../../components/media/MediaViewerModal';
 
@@ -48,7 +48,7 @@ interface CreatePostComposerProps {
   currentUserId?: string | number;
   currentRole?: RoleName;
   initialDate?: string;
-  onSavePost: (postData: any) => void;
+  onSavePost: (postData: any) => Promise<void> | void;
   onCancel: () => void;
   onMultiBrandPublish?: (data: any) => Promise<any>;
   onViewExecutions?: () => void;
@@ -64,98 +64,46 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
   onViewExecutions,
   onViewAnalytics,
 }) => {
-  const [composerMode, setComposerMode] = useState<'single' | 'multibrand'>('multibrand');
+  const [composerMode, setComposerMode] = useState<'single' | 'multibrand'>('single');
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
-  // Fallback to ensure Brand Profile dropdown & brand selection is never blank even while loading
-  const availableBrands: Brand[] = brands && brands.length > 0 ? brands : [
-    {
-      id: 1,
-      name: 'Flower Plant (Asia/Kolkata) - Meta Connected',
-      slug: 'flower-plant',
-      primaryColor: '#12B76A',
-      secondaryColor: '#E6F9F0',
-      timezone: 'Asia/Kolkata',
-      country: 'IN',
-      isActive: true,
-      connectedAccountsCount: 6,
-    },
-    {
-      id: 2,
-      name: 'Nexus Cloud Global',
-      slug: 'nexus-cloud',
-      primaryColor: '#1336E8',
-      secondaryColor: '#EFF8FF',
-      timezone: 'Asia/Kolkata',
-      country: 'IN',
-      isActive: true,
-      connectedAccountsCount: 4,
-    },
-    {
-      id: 3,
-      name: 'Apex Automation Labs',
-      slug: 'apex-labs',
-      primaryColor: '#7F56D9',
-      secondaryColor: '#F9F5FF',
-      timezone: 'Asia/Kolkata',
-      country: 'IN',
-      isActive: true,
-      connectedAccountsCount: 3,
-    },
-  ];
+  const availableBrands: Brand[] = brands || [];
 
   // Multi-Brand Broadcast Form State
   const [selectedBrandIds, setSelectedBrandIds] = useState<number[]>(
     brands && brands.length > 0 ? brands.map(b => b.id) : [availableBrands[0].id]
   );
-  const [broadcastPlatforms, setBroadcastPlatforms] = useState<SocialPlatform[]>([
-    'youtube',
-    'whatsapp',
-    'facebook',
-    'instagram',
-    'linkedin',
-    'x',
-  ]);
+  const [broadcastPlatforms, setBroadcastPlatforms] = useState<SocialPlatform[]>([]);
   const [selectedPlacements, setSelectedPlacements] = useState<ContentPlacement[]>(['feed']);
   const [selectedChannelPreset, setSelectedChannelPreset] = useState<string>('all');
 
-  const [broadcastCampaignName, setBroadcastCampaignName] = useState('Global Q4 Omnichannel Product Launch');
-  const [broadcastTitle, setBroadcastTitle] = useState('Autonomous Multi-Agent AI Workflow Engine Live');
-  const [broadcastCaption, setBroadcastCaption] = useState(
-    '🚀 We are proud to launch our Next-Gen Autonomous AI Workflow Engine! Real-time multi-agent orchestration, native n8n bridge, and zero-downtime scalability across cloud environments. Built for modern high-velocity teams.'
-  );
-  const [broadcastHashtags, setBroadcastHashtags] = useState('#AIWorkflows #n8n #Automation #CloudNative #DevOps');
-  const [broadcastTargetUrl, setBroadcastTargetUrl] = useState('https://nexuscloud.io/releases/autonomous-engine');
-  const [broadcastMediaUrl, setBroadcastMediaUrl] = useState(
-    'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&h=630&q=80'
-  );
+  const [broadcastCampaignName, setBroadcastCampaignName] = useState('');
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastCaption, setBroadcastCaption] = useState('');
+  const [broadcastHashtags, setBroadcastHashtags] = useState('');
+  const [broadcastTargetUrl, setBroadcastTargetUrl] = useState('');
+  const [broadcastMediaUrl, setBroadcastMediaUrl] = useState('');
   const [broadcastMediaType, setBroadcastMediaType] = useState<'image' | 'video'>('image');
   const [isUploadingBroadcastMedia, setIsUploadingBroadcastMedia] = useState(false);
   const [broadcastUploadError, setBroadcastUploadError] = useState<string | null>(null);
   const [broadcastUploadSuccess, setBroadcastUploadSuccess] = useState<string | null>(null);
 
-  const [broadcastOverrides, setBroadcastOverrides] = useState<Record<string, string>>({
-    x: '⚡ Next-Gen Autonomous AI Workflow Engine is LIVE! Sub-10ms n8n bridge with zero-downtime failover. Read the whitepaper: https://nexuscloud.io/releases/autonomous-engine #AIWorkflows #DevOps',
-  });
+  const [broadcastOverrides, setBroadcastOverrides] = useState<Record<string, string>>({});
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [broadcastReport, setBroadcastReport] = useState<any | null>(null);
 
   // Form State (Single Brand Wizard)
-  const [brandId, setBrandId] = useState<number>(brands[0]?.id || availableBrands[0].id);
-  const [campaignName, setCampaignName] = useState('Q4 Product Launch');
+  const [brandId, setBrandId] = useState<number>(brands[0]?.id ?? 0);
+  const [campaignName, setCampaignName] = useState('');
   const [title, setTitle] = useState('');
-  const [internalTags, setInternalTags] = useState('cloud, enterprise, release');
+  const [internalTags, setInternalTags] = useState('');
   const [country, setCountry] = useState('IN');
-  const [timezone, setTimezone] = useState('Asia/Kolkata');
+  const [timezone, setTimezone] = useState(brands[0]?.timezone || 'Asia/Kolkata');
 
   // Step 2: Platforms
-  const [selectedPlatforms, setSelectedPlatforms] = useState<SocialPlatform[]>([
-    'facebook',
-    'instagram',
-    'youtube',
-    'whatsapp',
-  ]);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<SocialPlatform[]>([]);
 
   // Keep brand selection in sync with props
   useEffect(() => {
@@ -164,6 +112,7 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
         setBrandId(brands[0].id);
       }
       setSelectedBrandIds(brands.map(b => b.id));
+      setTimezone(brands.find(b => b.id === brandId)?.timezone || brands[0].timezone || 'Asia/Kolkata');
     }
   }, [brands]);
 
@@ -185,15 +134,13 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
   }, []);
 
   // Step 3: Media
-  const [mediaUrl, setMediaUrl] = useState(
-    'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&h=630&q=80'
-  );
+  const [mediaUrl, setMediaUrl] = useState('');
   const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [mediaUploadError, setMediaUploadError] = useState<string | null>(null);
   const [mediaUploadSuccess, setMediaUploadSuccess] = useState<string | null>(null);
   const [googleDriveUrl, setGoogleDriveUrl] = useState('');
-  const [altText, setAltText] = useState('Product architecture diagram');
+  const [altText, setAltText] = useState('');
 
   // Interactive Lightbox State
   const [activeLightboxUrl, setActiveLightboxUrl] = useState<string | null>(null);
@@ -275,19 +222,15 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
   };
 
   // Step 4: Captions & Overrides
-  const [masterCaption, setMasterCaption] = useState(
-    'Announcing our new multi-cloud failover clustering engine! Sub-10ms latency across regions.'
-  );
-  const [platformOverrides, setPlatformOverrides] = useState<Record<string, string>>({
-    x: 'Zero downtime multi-cloud clustering is live! Sub-10ms latency across regions. #DevOps',
-  });
-  const [hashtags, setHashtags] = useState('#CloudNative #DevOps #Kubernetes');
-  const [keywords, setKeywords] = useState('kubernetes, high availability');
-  const [targetUrl, setTargetUrl] = useState('https://nexuscloud.io/release-v2');
-  const [firstComment, setFirstComment] = useState('Check out the full benchmark report here!');
+  const [masterCaption, setMasterCaption] = useState('');
+  const [platformOverrides, setPlatformOverrides] = useState<Record<string, string>>({});
+  const [hashtags, setHashtags] = useState('');
+  const [keywords, setKeywords] = useState('');
+  const [targetUrl, setTargetUrl] = useState('');
+  const [firstComment, setFirstComment] = useState('');
 
   // Instagram Tag People State
-  const [instagramTaggedUsers, setInstagramTaggedUsers] = useState<string[]>(['webtrionix']);
+  const [instagramTaggedUsers, setInstagramTaggedUsers] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
 
   const handleAddInstagramTag = (handleToAdd?: string) => {
@@ -306,12 +249,12 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
 
   // Step 5: Schedule
   const [publishTiming, setPublishTiming] = useState<'now' | 'scheduled'>('scheduled');
-  const [scheduledDate, setScheduledDate] = useState(initialDate || new Date().toISOString().slice(0, 10));
+  const [scheduledDate, setScheduledDate] = useState(initialDate || DateTime.now().setZone(timezone).plus({ days: 1 }).toISODate() || '');
   const [scheduledTime, setScheduledTime] = useState('14:00');
 
   // Step 6: Approval
   const [assignedApproverId, setAssignedApproverId] = useState(3);
-  const [internalNote, setInternalNote] = useState('Prepared for technical audience. Please review X override.');
+  const [internalNote, setInternalNote] = useState('');
 
   const togglePlatform = (p: SocialPlatform) => {
     setSelectedPlatforms(prev =>
@@ -420,15 +363,51 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
     }
   };
 
-  const handleFinish = (submitForApproval: boolean) => {
+  const handleFinish = async (submitForApproval: boolean) => {
+    setSaveError('');
+    if (!brands.some(brand => brand.id === brandId)) {
+      setSaveError('Choose a brand from your workspace before saving.');
+      return;
+    }
+    if (!title.trim()) {
+      setSaveError('Add a post title before saving.');
+      return;
+    }
+    if (!masterCaption.trim()) {
+      setSaveError('Add the post caption before saving.');
+      return;
+    }
+    if (selectedPlatforms.length === 0) {
+      setSaveError('Choose at least one social channel before saving.');
+      return;
+    }
+
+    let scheduledAt: string | undefined;
+    if (publishTiming === 'scheduled') {
+      const localValue = `${scheduledDate}T${scheduledTime}`;
+      const due = DateTime.fromISO(localValue, { zone: timezone });
+      if (!due.isValid || due.toFormat("yyyy-MM-dd'T'HH:mm") !== localValue) {
+        setSaveError('Choose a valid publication date and time in the selected timezone.');
+        return;
+      }
+      if (due.getPossibleOffsets().length > 1) {
+        setSaveError('That local time occurs twice because of a clock change. Choose a different time.');
+        return;
+      }
+      if (due.toMillis() <= Date.now()) {
+        setSaveError('Choose a future publication time, or select Publish now.');
+        return;
+      }
+      scheduledAt = due.toUTC().toISO() || undefined;
+    }
+
     setIsSubmitting(true);
     const isVideo = isVideoUrl(mediaUrl) || mediaType === 'video';
-
     const postData = {
       brandId,
-      campaignName,
-      title: title || 'Untitled Post',
-      masterCaption,
+      campaignName: campaignName.trim(),
+      title: title.trim(),
+      masterCaption: masterCaption.trim(),
       placement: selectedPlacements,
       placements: selectedPlacements,
       firstComment,
@@ -438,10 +417,7 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
       internalTags,
       country,
       timezone,
-      scheduledAt:
-        publishTiming === 'scheduled'
-          ? (timezone === 'Asia/Kolkata' ? fromISTInputValues(scheduledDate, scheduledTime) : `${scheduledDate}T${scheduledTime}:00Z`)
-          : undefined,
+      scheduledAt,
       platforms: selectedPlatforms.map(p => ({
         platform: p,
         captionOverride: platformOverrides[p] || undefined,
@@ -449,35 +425,38 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
       })),
       mediaType: isVideo ? 'video' : 'image',
       media: mediaUrl
-        ? [
-            {
-              mediaType: isVideo ? 'video' : 'image',
-              fileUrl: mediaUrl,
-              originalFileName: mediaUploadSuccess ? 'uploaded_asset' : 'campaign_image.jpg',
-              mimeType: isVideo ? 'video/mp4' : 'image/jpeg',
-              fileSizeBytes: isVideo ? 15000000 : 2100000,
-              altText,
-            },
-          ]
+        ? [{
+            mediaType: isVideo ? 'video' : 'image',
+            fileUrl: mediaUrl,
+            originalFileName: mediaUploadSuccess ? 'uploaded_asset' : mediaUrl.split('/').pop() || 'uploaded_asset',
+            mimeType: isVideo ? 'video/mp4' : 'image/jpeg',
+            fileSizeBytes: 0,
+            altText,
+          }]
         : [],
       assignedApproverId,
       submitForApproval,
       taggedUsers: instagramTaggedUsers,
     };
 
-    onSavePost(postData);
-
-    // Route scheduled draft through CI360 AI Neural Studio intercept gate
-    if (masterCaption && masterCaption.trim()) {
-      api.interceptPost({
-        brandId: selectedBrandIds[0] ? String(selectedBrandIds[0]) : 'BR-001',
-        caption: masterCaption.trim(),
-        hashtags: hashtags.trim(),
-        mediaUrl: mediaUrl.trim() || undefined,
-        scheduledAt: scheduledDate ? new Date(scheduledDate).toISOString() : new Date().toISOString(),
-        platform: selectedPlatforms[0] || 'instagram',
-        mode: 'copilot',
-      }).catch(err => console.warn('[AI Studio Intercept] Pre-flight recording skipped:', err));
+    try {
+      await onSavePost(postData);
+      if (scheduledAt) {
+        const aiBrandId = brands.find(brand => brand.id === brandId)?.brandId || `BR-${String(brandId).padStart(3, '0')}`;
+        api.interceptPost({
+          brandId: aiBrandId,
+          caption: masterCaption.trim(),
+          hashtags: hashtags.trim(),
+          mediaUrl: mediaUrl.trim() || undefined,
+          scheduledAt,
+          platform: selectedPlatforms[0],
+          mode: 'copilot',
+        }).catch(err => console.warn('[AI Studio Intercept] Pre-flight recording skipped:', err));
+      }
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'The post could not be saved. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -722,7 +701,7 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
           </div>
           <h2 className="text-xl font-bold text-[#101828] mt-1">Social Media Post Publishing Hub</h2>
           <p className="text-xs text-[#667085] mt-0.5">
-            Choose between multi-brand omnichannel broadcast or individual brand campaign crafting.
+            Build a post for one brand, choose its channels, then save it or send it for approval.
           </p>
         </div>
 
@@ -730,11 +709,13 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
           <button
             type="button"
             onClick={() => setComposerMode('multibrand')}
+            disabled={!onMultiBrandPublish}
+            title={!onMultiBrandPublish ? 'Multi-brand publishing is not configured for this workspace.' : undefined}
             className={`px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
               composerMode === 'multibrand'
                 ? 'bg-[#1336E8] text-white shadow-sm'
                 : 'text-[#475467] hover:text-[#101828]'
-            }`}
+            } disabled:cursor-not-allowed disabled:opacity-50`}
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>Multi-Brand Broadcast</span>
@@ -754,6 +735,8 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
           </button>
         </div>
       </div>
+      {!onMultiBrandPublish && <p role="status" className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">Multi-brand broadcast is unavailable. Create a separate post for each brand and send each through the normal approval flow.</p>}
+      {saveError && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{saveError}</p>}
 
       {/* ============================================================== */}
       {/* MULTI-BRAND OMNICHANNEL BROADCAST STUDIO                      */}
@@ -1444,9 +1427,9 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
                   Draft, customize per platform, and route for automated n8n publishing
                 </p>
               </div>
-              <div className="flex items-center gap-2 text-xs font-mono text-[#12B76A]">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Autosaved</span>
+              <div className="flex items-center gap-2 text-xs font-medium text-[#667085]">
+                <Save className="w-4 h-4" />
+                <span>Saved when you choose Draft or Submit</span>
               </div>
             </div>
 
@@ -1489,9 +1472,15 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
                     <label className="text-xs font-semibold text-[#344054]">Select Brand Profile</label>
                     <select
                       value={brandId}
-                      onChange={e => setBrandId(parseInt(e.target.value, 10))}
+                      disabled={availableBrands.length === 0}
+                      onChange={e => {
+                        const nextBrandId = parseInt(e.target.value, 10);
+                        setBrandId(nextBrandId);
+                        setTimezone(brands.find(b => b.id === nextBrandId)?.timezone || 'Asia/Kolkata');
+                      }}
                       className="w-full h-10 px-3 bg-[#F6F8FC] border border-[#D0D5DD] rounded-xl text-xs font-medium text-[#101828] focus:outline-none focus:border-[#1336E8]"
                     >
+                      {availableBrands.length === 0 && <option value={0}>Loading workspace brands…</option>}
                       {availableBrands.map(b => (
                         <option key={b.id} value={b.id}>
                           {b.name} ({b.timezone || 'Asia/Kolkata'})

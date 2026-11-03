@@ -198,6 +198,7 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
 
   // Live Feed Sync State
   const [syncingFeed, setSyncingFeed] = useState<boolean>(false);
+  const hasAuditData = (overview?.totalAudits ?? 0) > 0;
 
   useEffect(() => {
     if (brandOptions.length > 0 && !brandOptions.some((brand) => brand.brandId === selectedBrandId)) {
@@ -642,7 +643,7 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
       {/* =========================================================================
           MODULAR TAB NAVIGATION PILLS
           ========================================================================= */}
-      <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-[#120F1D] border border-white/10 overflow-x-auto text-xs font-medium">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-2 p-2 rounded-2xl bg-[#120F1D] border border-white/10 text-xs font-medium">
         {[
           { id: 'overview', label: 'Intelligence Hub', icon: BarChart3 },
           { id: 'brain', label: 'Brand Brain Profile', icon: Brain },
@@ -662,7 +663,8 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as StudioTab)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl whitespace-nowrap transition-all ${
+              type="button"
+              className={`flex min-h-10 w-full items-center justify-start gap-2 rounded-xl px-3 py-2 text-left leading-snug transition-all ${
                 isActive
                   ? 'bg-gradient-to-r from-violet-600 to-pink-600 text-white shadow-md font-bold'
                   : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -685,12 +687,12 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>Feed Health Score</span>
                 <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
-                  OPTIMAL
+                  {hasAuditData ? (overview!.healthScore >= 80 ? 'OPTIMAL' : overview!.healthScore >= 60 ? 'MONITOR' : 'LOW') : 'NO DATA'}
                 </span>
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-3xl font-black text-white">{overview?.healthScore || 89}%</span>
-                <span className="text-xs text-emerald-400 font-bold">+4.8% vs last month</span>
+                <span className="text-3xl font-black text-white">{hasAuditData ? `${overview!.healthScore}%` : '—'}</span>
+                <span className="text-xs text-emerald-400 font-bold">{hasAuditData ? `${overview!.totalAudits} audited posts` : 'Awaiting feed audits'}</span>
               </div>
               <p className="mt-2 text-xs text-slate-400">
                 Linguistic hook resonance and visual brand consistency across published assets.
@@ -701,12 +703,12 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>Avg Hook Score</span>
                 <span className="px-2 py-0.5 rounded bg-pink-500/10 text-pink-400 border border-pink-500/20 font-bold">
-                  TOP 10%
+                  {hasAuditData ? 'AVERAGE' : 'NO DATA'}
                 </span>
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-3xl font-black text-white">{overview?.avgHookScore || 88}/100</span>
-                <span className="text-xs text-pink-300 font-medium">3s stop power</span>
+                <span className="text-3xl font-black text-white">{hasAuditData ? `${overview!.avgHookScore}/100` : '—'}</span>
+                <span className="text-xs text-pink-300 font-medium">{hasAuditData ? 'Across audited posts' : 'Audit posts to calculate'}</span>
               </div>
               <p className="mt-2 text-xs text-slate-400">
                 Stat-backed provocation and question openers stopping mobile scroll.
@@ -717,12 +719,12 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>Engagement Velocity</span>
                 <span className="px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 font-bold">
-                  FAST
+                  {hasAuditData ? 'MEASURED' : 'NO DATA'}
                 </span>
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-3xl font-black text-white">{overview?.avgEngagementVelocity || 2.4}x</span>
-                <span className="text-xs text-sky-400 font-medium">vs vertical baseline</span>
+                <span className="text-3xl font-black text-white">{hasAuditData ? `${overview!.avgEngagementVelocity}x` : '—'}</span>
+                <span className="text-xs text-sky-400 font-medium">{hasAuditData ? 'Across audited posts' : 'Audit posts to calculate'}</span>
               </div>
               <p className="mt-2 text-xs text-slate-400">
                 First 60-minute interaction acceleration index across LinkedIn & Instagram.
