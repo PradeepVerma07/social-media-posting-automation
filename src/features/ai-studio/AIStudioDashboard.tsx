@@ -42,7 +42,12 @@ import {
   Building,
   CheckSquare,
   XCircle,
-  Globe
+  Globe,
+  Upload,
+  X,
+  Edit3,
+  Save,
+  FileText
 } from 'lucide-react';
 import {
   api,
@@ -155,6 +160,35 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
   // AI Usage Telemetry
   const [aiUsage, setAiUsage] = useState<AIUsageSummary | null>(null);
 
+  // Toast Notification System
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: 'success' | 'error' | 'info' }>>([]);
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4500);
+  };
+  const dismissToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  // Real Post Selection for Diagnostics
+  const [selectedPostId, setSelectedPostId] = useState<string>('');
+
+  // Editable Brand Brain State
+  const [isEditingBrain, setIsEditingBrain] = useState<boolean>(false);
+  const [editBrainVoice, setEditBrainVoice] = useState<string>('');
+  const [editBrainAudience, setEditBrainAudience] = useState<string>('');
+  const [editBrainObjectives, setEditBrainObjectives] = useState<string>('');
+  const [editBrainPreferredWords, setEditBrainPreferredWords] = useState<string>('');
+  const [editBrainForbiddenWords, setEditBrainForbiddenWords] = useState<string>('');
+  const [editBrainApprovedCtas, setEditBrainApprovedCtas] = useState<string>('');
+  const [savingBrain, setSavingBrain] = useState<boolean>(false);
+
+  // Live Feed Sync State
+  const [syncingFeed, setSyncingFeed] = useState<boolean>(false);
+
   // Load Brand-Specific Intelligence
   const loadBrandData = async (brandId: string) => {
     try {
@@ -213,8 +247,37 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
     loadBrandData(selectedBrandId);
   }, [selectedBrandId]);
 
+  // Sync scheduled posts into post selector
+  useEffect(() => {
+    if (posts && posts.length > 0 && !selectedPostId) {
+      const first = posts[0];
+      setSelectedPostId(String(first.id));
+      if (first.masterCaption) setDiagnosticPostText(first.masterCaption);
+      const plat = first.platforms?.[0]?.platform;
+      if (plat) setDiagnosticPlatform(plat);
+      const mUrl = first.media?.[0]?.fileUrl;
+      if (mUrl) setCanvasMediaUrl(mUrl);
+    }
+  }, [posts]);
+
   const handleBrandChange = (newBrandId: string) => {
     setSelectedBrandId(newBrandId);
+  };
+
+  const handleSelectPost = (postId: string) => {
+    setSelectedPostId(postId);
+    if (!postId) return;
+    const found = posts.find((p) => String(p.id) === postId);
+    if (found) {
+      if (found.masterCaption) setDiagnosticPostText(found.masterCaption);
+      const plat = found.platforms?.[0]?.platform;
+      if (plat) setDiagnosticPlatform(plat);
+      const mUrl = found.media?.[0]?.fileUrl;
+      if (mUrl) setCanvasMediaUrl(mUrl);
+      runPostDiagnostic(found.masterCaption || '', selectedBrandId);
+      runPredictiveModel(found.masterCaption || '', selectedBrandId);
+      showToast(`Loaded Post #${found.id}: "${found.title || 'Untitled'}" for AI review`, 'info');
+    }
   };
 
   // Run Mode A Public Brand Analysis
@@ -228,8 +291,9 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
         brandId: selectedBrandId,
       });
       setPublicResult(res);
+      showToast('Public profile analyzed successfully', 'success');
     } catch (err: any) {
-      alert('Public Analysis Failed: ' + err.message);
+      showToast('Public Analysis Failed: ' + (err.message || 'Unknown error'), 'error');
     } finally {
       setPublicLoading(false);
     }
@@ -274,17 +338,35 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
     }
   };
 
-  // 1-Click Apply Recommendation (Non-Destructive Revision N+1)
+  // 1-Click Apply Recommendation (Non-Destructive Revision N+1 & Post Sync)
   const handleApplyRec = async (rec: any) => {
     try {
+      const targetPostId = selectedPostId || (posts.length > 0 ? String(posts[0].id) : 'POST-001');
       const res = await api.applyRecommendationRevision(rec.recommendationId, {
-        postId: 'POST-001',
+        postId: targetPostId,
         appliedValue: rec.suggested,
         field: rec.field,
       });
 
       if (res.success) {
-        alert(`Applied recommendation successfully! Created Non-Destructive Revision ${res.revisionNumber} (${res.revisionId}).`);
+        // Also update the database post row so Content Calendar and Database stay 100% in sync
+        const numId = parseInt(targetPostId, 10);
+        if (!isNaN(numId)) {
+          const patchData: Partial<Post> = {};
+          if (rec.field === 'caption' || rec.field === 'hook') {
+            patchData.masterCaption = rec.suggested;
+          } else if (rec.field === 'hashtags') {
+            patchData.hashtags = rec.suggested;
+          } else if (rec.field === 'title') {
+            patchData.title = rec.suggested;
+          }
+          if (Object.keys(patchData).length > 0) {
+            await api.updatePost(numId, patchData).catch((e) => console.warn('Could not update post entity:', e));
+          }
+        }
+
+        showToast(`Revision ${res.revisionNumber} created and applied to Post #${targetPostId}! (${res.revisionId})`, 'success');
+
         // Update local diagnostic state
         if (diagnosticResult) {
           setDiagnosticResult({
@@ -294,9 +376,70 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
             ),
           });
         }
+        if (rec.field === 'caption' || rec.field === 'hook') {
+          setDiagnosticPostText(rec.suggested);
+        }
       }
     } catch (err: any) {
-      alert('Failed to apply: ' + err.message);
+      showToast('Failed to apply recommendation: ' + (err.message || 'Unknown error'), 'error');
+    }
+  };
+
+  // Interactive Brand Brain Save
+  const handleSaveBrandBrain = async () => {
+    try {
+      setSavingBrain(true);
+      const updated = await api.saveBrandBrain({
+        brandId: selectedBrandId,
+        brandVoice: editBrainVoice,
+        targetAudience: editBrainAudience,
+        businessObjectives: editBrainObjectives,
+        preferredWords: editBrainPreferredWords.split(',').map((w) => w.trim()).filter(Boolean),
+        forbiddenWords: editBrainForbiddenWords.split(',').map((w) => w.trim()).filter(Boolean),
+        approvedCtas: editBrainApprovedCtas.split('\n').map((w) => w.trim()).filter(Boolean),
+      });
+      if (updated.success && updated.brain) {
+        setActiveBrandBrain(updated.brain);
+      }
+      setIsEditingBrain(false);
+      showToast(`Brand Brain guidelines saved for ${activeBrandBrain?.brandName || selectedBrandId}`, 'success');
+    } catch (err: any) {
+      showToast('Failed to save Brand Brain: ' + (err.message || 'Error'), 'error');
+    } finally {
+      setSavingBrain(false);
+    }
+  };
+
+  // Live Feed Synchronizer
+  const handleSyncFeed = async () => {
+    try {
+      setSyncingFeed(true);
+      const platformToSync = selectedPlatform === 'all' ? 'instagram' : selectedPlatform;
+      await api.syncSocialFeed(platformToSync, selectedBrandId);
+      showToast(`Live feed sync completed for ${platformToSync}. Refreshed audits.`, 'success');
+      const auditsRes = await api.getFeedAudits(selectedPlatform).catch(() => ({ items: [] }));
+      if (auditsRes?.items) setFeedAudits(auditsRes.items);
+    } catch (err: any) {
+      showToast('Feed synchronization error: ' + (err.message || 'Check platform connection'), 'error');
+    } finally {
+      setSyncingFeed(false);
+    }
+  };
+
+  // 1-Click Export to Post Composer
+  const handleExportToComposer = (variant: CopyVariantItem) => {
+    sessionStorage.setItem(
+      'ci360_draft_export',
+      JSON.stringify({
+        caption: variant.caption,
+        hashtags: (variant as any).hashtags ? (variant as any).hashtags.join(' ') : '',
+        title: `${variant.style} - AI Generated`,
+        mediaUrl: canvasMediaUrl || undefined,
+      })
+    );
+    showToast('Exported variant to Post Composer! Switching tab...', 'success');
+    if (onNavigateToTab) {
+      onNavigateToTab('create');
     }
   };
 
@@ -305,8 +448,9 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
     try {
       const res = await api.optimizeHashtags(hashtagInput, selectedBrandId);
       setHashtagResult(res);
+      showToast('Hashtags analyzed and classified', 'success');
     } catch (err: any) {
-      alert('Hashtag optimization failed: ' + err.message);
+      showToast('Hashtag optimization failed: ' + (err.message || 'Error'), 'error');
     }
   };
 
@@ -323,9 +467,10 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
       });
       if (res.variants) {
         setCopyVariants(res.variants);
+        showToast(`Generated 3 copy variants in "${copyMode}" mode`, 'success');
       }
     } catch (err: any) {
-      alert('Copy generation error: ' + err.message);
+      showToast('Copy generation error: ' + (err.message || 'Error'), 'error');
     } finally {
       setCopyLoading(false);
     }
@@ -343,8 +488,9 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
         aspectRatio: canvasTransformType === 'reframe_9_16' ? '9:16' : '1:1',
       });
       setLastVariant(res);
+      showToast('Gemini Multimodal transformation executed successfully', 'success');
     } catch (err: any) {
-      alert('Canvas transform error: ' + err.message);
+      showToast('Canvas transform error: ' + (err.message || 'Error'), 'error');
     } finally {
       setCanvasLoading(false);
     }
@@ -647,12 +793,125 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
                 Persistent brand guidelines, voice rules, forbidden vocabulary and AI-learned preferences.
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <span className="px-2.5 py-1 rounded-md bg-violet-950/80 text-violet-300 border border-violet-500/30 text-xs font-mono font-bold">
                 ISOLATION: 100% TENANT SAFE
               </span>
+              <button
+                onClick={() => {
+                  setEditBrainVoice(activeBrandBrain?.brandVoice || '');
+                  setEditBrainAudience(activeBrandBrain?.targetAudience || '');
+                  setEditBrainObjectives(activeBrandBrain?.businessObjectives || '');
+                  setEditBrainPreferredWords(activeBrandBrain?.preferredWords?.join(', ') || '');
+                  setEditBrainForbiddenWords(activeBrandBrain?.forbiddenWords?.join(', ') || '');
+                  setEditBrainApprovedCtas(activeBrandBrain?.approvedCtas?.join('\n') || '');
+                  setIsEditingBrain(!isEditingBrain);
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-500 hover:to-violet-500 text-white text-xs font-semibold shadow-md transition-all flex items-center gap-1.5"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                {isEditingBrain ? 'Cancel' : 'Edit Guidelines'}
+              </button>
             </div>
           </div>
+
+          {/* Interactive Guidelines Editor Form */}
+          {isEditingBrain && (
+            <div className="p-5 rounded-2xl bg-[#120F1D] border border-pink-500/40 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Edit3 className="w-4 h-4 text-pink-400" />
+                  Edit Enterprise Guidelines · {activeBrandBrain?.brandName}
+                </h3>
+                <span className="text-[11px] text-pink-400 font-mono">Tenant Isolation Active</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div className="space-y-1">
+                  <label className="text-slate-400 font-semibold">Brand Voice & Tone:</label>
+                  <input
+                    type="text"
+                    value={editBrainVoice}
+                    onChange={(e) => setEditBrainVoice(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/10 text-white focus:outline-none focus:border-pink-500"
+                    placeholder="e.g. Authoritative, Technical, Mission-Critical Maritime"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-slate-400 font-semibold">Target Audience:</label>
+                  <input
+                    type="text"
+                    value={editBrainAudience}
+                    onChange={(e) => setEditBrainAudience(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/10 text-white focus:outline-none focus:border-pink-500"
+                    placeholder="e.g. Fleet Managers, Maritime CTOs, Shipping IT Directors"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-slate-400 font-semibold">Preferred Words (comma-separated):</label>
+                  <input
+                    type="text"
+                    value={editBrainPreferredWords}
+                    onChange={(e) => setEditBrainPreferredWords(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-black/60 border border-emerald-500/30 text-emerald-300 focus:outline-none focus:border-emerald-400"
+                    placeholder="e.g. multi-orbit, high-throughput, IMO 2026, failover"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-slate-400 font-semibold">Forbidden Words (comma-separated):</label>
+                  <input
+                    type="text"
+                    value={editBrainForbiddenWords}
+                    onChange={(e) => setEditBrainForbiddenWords(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-black/60 border border-rose-500/30 text-rose-300 focus:outline-none focus:border-rose-400"
+                    placeholder="e.g. cheap, budget, untested, downtime"
+                  />
+                </div>
+
+                <div className="space-y-1 md:col-span-2">
+                  <label className="text-slate-400 font-semibold">Business Objectives:</label>
+                  <input
+                    type="text"
+                    value={editBrainObjectives}
+                    onChange={(e) => setEditBrainObjectives(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/10 text-white focus:outline-none focus:border-pink-500"
+                    placeholder="e.g. Lead generation for commercial maritime fleets and offshore energy platforms"
+                  />
+                </div>
+
+                <div className="space-y-1 md:col-span-2">
+                  <label className="text-slate-400 font-semibold">Approved Call-To-Actions (one per line):</label>
+                  <textarea
+                    rows={3}
+                    value={editBrainApprovedCtas}
+                    onChange={(e) => setEditBrainApprovedCtas(e.target.value)}
+                    className="w-full p-3 rounded-xl bg-black/60 border border-white/10 text-white focus:outline-none focus:border-pink-500 font-mono text-xs"
+                    placeholder="Contact our technical desk to learn more.&#10;Schedule a fleet connectivity audit."
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  onClick={() => setIsEditingBrain(false)}
+                  className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveBrandBrain}
+                  disabled={savingBrain}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-lg shadow-emerald-900/40 flex items-center gap-2"
+                >
+                  <Save className={`w-3.5 h-3.5 ${savingBrain ? 'animate-spin' : ''}`} />
+                  {savingBrain ? 'Persisting to Brain...' : 'Save Brand Guidelines'}
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Column 1: Core Brand Identity */}
@@ -929,18 +1188,28 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
                 Visual feed wall with diagnostic scorecards and One-Click "Fix with AI".
               </p>
             </div>
-            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#120F1D] border border-white/10">
-              {['all', 'instagram', 'linkedin', 'facebook', 'whatsapp'].map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setSelectedPlatform(p)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${
-                    selectedPlatform === p ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleSyncFeed}
+                disabled={syncingFeed}
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-500 hover:to-violet-500 text-white text-xs font-semibold shadow-md transition-all hover:scale-[1.02]"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${syncingFeed ? 'animate-spin' : ''}`} />
+                {syncingFeed ? 'Syncing...' : 'Sync Live Social Feed'}
+              </button>
+              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#120F1D] border border-white/10">
+                {['all', 'instagram', 'linkedin', 'facebook', 'whatsapp'].map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setSelectedPlatform(p)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${
+                      selectedPlatform === p ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -1047,16 +1316,58 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
 
           {/* Diagnostic & Diff Sandbox */}
           <div className="rounded-2xl bg-[#120F1D]/80 border border-violet-500/30 p-6 space-y-5">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Sliders className="w-4 h-4 text-violet-400" />
-              Direct Post Diagnostic & Revision Comparison
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-violet-400" />
+                Direct Post Diagnostic & Revision Comparison
+              </h3>
+              {selectedPostId && (
+                <span className="px-2.5 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 text-xs font-mono font-semibold">
+                  LIVE DATABASE LINK: POST #{selectedPostId}
+                </span>
+              )}
+            </div>
+
+            {/* Real Post Target Selector */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-violet-950/30 border border-violet-500/20">
+              <div className="flex items-center gap-2.5">
+                <FileText className="w-4 h-4 text-violet-400 shrink-0" />
+                <div>
+                  <span className="text-xs font-bold text-white block">Target Database Post from Calendar</span>
+                  <span className="text-[11px] text-slate-400">Select any scheduled post to run live diagnostics, diff check, and apply revisions</span>
+                </div>
+              </div>
+              <select
+                value={selectedPostId}
+                onChange={(e) => handleSelectPost(e.target.value)}
+                className="bg-black/80 border border-violet-500/40 rounded-xl px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-pink-500 transition-all cursor-pointer w-full sm:w-auto max-w-sm truncate"
+              >
+                <option value="">-- Custom Diagnostic Draft --</option>
+                {posts.map((p) => {
+                  const plat = p.platforms?.[0]?.platform || 'all';
+                  const stat = p.publishingStatus || p.approvalStatus || 'scheduled';
+                  const snippet = p.masterCaption ? p.masterCaption.slice(0, 35) + '...' : 'Post';
+                  return (
+                    <option key={p.id} value={String(p.id)} className="bg-[#120F1D] text-white">
+                      #{p.id} · {p.title || snippet} ({plat}) - {stat}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Left: Original Version */}
               <div className="rounded-xl bg-[#090812] border border-white/10 p-4 space-y-2">
                 <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
-                  <span>Revision 1 (Original Post Draft)</span>
+                  <span className="flex items-center gap-2">
+                    <span>Revision 1 (Original Post Draft)</span>
+                    {selectedPostId && (
+                      <span className="px-2 py-0.5 rounded bg-violet-900/60 text-violet-300 border border-violet-500/40 text-[10px] font-mono">
+                        #{selectedPostId}
+                      </span>
+                    )}
+                  </span>
                   <span className="text-[10px] font-mono text-slate-500">Immutable Source</span>
                 </div>
                 <textarea
@@ -1255,6 +1566,23 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
                       <p className="text-xs text-slate-200 whitespace-pre-line leading-relaxed bg-black/30 p-3 rounded-lg border border-white/5">
                         {variant.caption}
                       </p>
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/5">
+                        <div className="flex flex-wrap gap-1">
+                          {((variant as any).hashtags || []).map((tag: string, hIdx: number) => (
+                            <span key={hIdx} className="text-[10px] font-mono text-violet-300">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => handleExportToComposer(variant as CopyVariantItem)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-500 hover:to-violet-500 text-white text-xs font-bold shadow-sm transition-all hover:scale-[1.02]"
+                          title="Export to Post Composer with automatic pre-fill"
+                        >
+                          <span>Export to Composer</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1285,11 +1613,40 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
             <div className="lg:col-span-5 space-y-4">
               <div className="rounded-2xl bg-[#120F1D]/80 border border-white/10 p-5 space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300">Creative Media Source</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-300">Creative Media Source</label>
+                    <label
+                      htmlFor="canvas-file-upload"
+                      className="cursor-pointer text-[11px] text-pink-400 hover:text-pink-300 font-semibold flex items-center gap-1 transition-colors"
+                    >
+                      <Upload className="w-3 h-3" />
+                      <span>Upload Local Asset</span>
+                      <input
+                        id="canvas-file-upload"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              if (typeof reader.result === 'string') {
+                                setCanvasMediaUrl(reader.result);
+                                showToast(`Loaded local asset: ${file.name}`, 'info');
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
                   <input
                     type="url"
                     value={canvasMediaUrl}
                     onChange={(e) => setCanvasMediaUrl(e.target.value)}
+                    placeholder="Enter image URL or upload above"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/10 text-xs text-white focus:outline-none focus:border-violet-500"
                   />
                 </div>
@@ -1364,6 +1721,26 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
                         className="w-full h-full object-cover"
                       />
                     </div>
+                    <button
+                      onClick={() => {
+                        sessionStorage.setItem(
+                          'ci360_draft_export',
+                          JSON.stringify({
+                            mediaUrl: lastVariant?.transformedUrl || canvasMediaUrl,
+                            caption: diagnosticPostText || 'Visual asset generated with Gemini Multimodal Studio',
+                            title: 'Creative Canvas Asset',
+                          })
+                        );
+                        showToast('Exported asset to Post Composer! Switching tab...', 'success');
+                        if (onNavigateToTab) {
+                          onNavigateToTab('create');
+                        }
+                      }}
+                      className="w-full mt-3 py-2 px-3 rounded-xl bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-500 hover:to-violet-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 hover:scale-[1.01]"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      Use Asset in Post Composer
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1686,6 +2063,41 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
           </div>
         </div>
       )}
+
+      {/* =========================================================================
+          FLOATING ENTERPRISE TOAST NOTIFICATION STACK
+          ========================================================================= */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 max-w-sm pointer-events-none">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className={`pointer-events-auto flex items-start justify-between gap-3 p-3.5 rounded-xl border shadow-2xl backdrop-blur-xl transition-all duration-300 animate-in slide-in-from-bottom-2 ${
+              t.type === 'success'
+                ? 'bg-emerald-950/95 border-emerald-500/40 text-emerald-200'
+                : t.type === 'error'
+                ? 'bg-rose-950/95 border-rose-500/40 text-rose-200'
+                : 'bg-[#120F1D]/95 border-violet-500/40 text-violet-200'
+            }`}
+          >
+            <div className="flex items-start gap-2.5">
+              {t.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              ) : t.type === 'error' ? (
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              ) : (
+                <Sparkles className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />
+              )}
+              <span className="text-xs font-medium leading-relaxed">{t.message}</span>
+            </div>
+            <button
+              onClick={() => dismissToast(t.id)}
+              className="text-slate-400 hover:text-white shrink-0 p-0.5"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
