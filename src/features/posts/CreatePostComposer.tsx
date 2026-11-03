@@ -161,6 +161,23 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
     }
   }, [brands]);
 
+  // Check for exported draft or creative asset from CI360 AI Neural Studio
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('ci360_draft_export');
+      if (raw) {
+        const exported = JSON.parse(raw);
+        if (exported && exported.caption) {
+          setMasterCaption(exported.caption);
+          if (exported.hashtags) setHashtags(exported.hashtags);
+          if (exported.mediaUrl) setMediaUrl(exported.mediaUrl);
+          if (exported.title) setTitle(exported.title);
+          sessionStorage.removeItem('ci360_draft_export');
+        }
+      }
+    } catch {}
+  }, []);
+
   // Step 3: Media
   const [mediaUrl, setMediaUrl] = useState(
     'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&h=630&q=80'

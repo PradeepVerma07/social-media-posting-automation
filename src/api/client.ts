@@ -795,8 +795,15 @@ export interface CreativeVariantItem {
 export interface CopyVariantItem {
   style: string;
   caption: string;
-  viralityScore: number;
-  bestFor: string;
+  viralityScore?: number;
+  bestFor?: string;
+  hook?: string;
+  cta?: string;
+  hashtags?: string[];
+  keywords?: string[];
+  reasoningSummary?: string;
+  brandAlignment?: number;
+  platformFit?: number;
 }
 
 export interface BrandBrainProfile {
