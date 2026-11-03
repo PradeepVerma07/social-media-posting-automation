@@ -71355,114 +71355,9 @@ function initDatabase() {
         (1, 'brand', 'Brand Setup Active', 'Flower Plant connected with Facebook & Instagram.', '/brands', 1, ?)
     `).run(now2, now2, now2);
   }
-  const auditCount = db.prepare("SELECT count(*) as c FROM feed_audits").get();
-  if (auditCount.c === 0) {
-    const now2 = (/* @__PURE__ */ new Date()).toISOString();
-    const sampleAudits = [
-      {
-        id: "FA-001",
-        platform: "instagram",
-        title: "Monstera Routine & Botanical Light Hack",
-        caption: "Did you know 80% of indoor plants suffer from over-watering rather than under-lighting? Here is the exact moisture meter routine our greenhouse uses daily. \u{1F33F}\u{1F4A7} Save this post for your weekend routine!",
-        mediaUrl: "https://images.unsplash.com/photo-1485955900006-10f4d324d411?auto=format&fit=crop&w=1200&q=80",
-        hookScore: 92,
-        visualScore: 89,
-        velocity: 2.4,
-        sentiment: "positive",
-        grade: "A+",
-        metrics: JSON.stringify({ impressions: 18400, likes: 1420, comments: 84, saves: 490, shares: 210, reachRate: "14.2%" }),
-        recs: JSON.stringify([
-          "Hook strength is in the top 5% of botanical content.",
-          "CTA to save for weekend drove 490 saves (+85% algorithm boost).",
-          "Next variant: Test video reel format with dynamic watering close-up."
-        ])
-      },
-      {
-        id: "FA-002",
-        platform: "linkedin",
-        title: "Scaling AgriTech & Sustainable Urban Greenery",
-        caption: "Why modern commercial offices with curated plant life see a 15% increase in employee cognitive retention. Sustainable workspaces are no longer a perk; they are a productivity asset. Read our full case study below.",
-        mediaUrl: "https://images.unsplash.com/photo-1545241047-6083a3684587?auto=format&fit=crop&w=1200&q=80",
-        hookScore: 88,
-        visualScore: 94,
-        velocity: 1.9,
-        sentiment: "positive",
-        grade: "A",
-        metrics: JSON.stringify({ impressions: 9600, likes: 620, comments: 52, saves: 180, shares: 95, reachRate: "11.8%" }),
-        recs: JSON.stringify([
-          "B2B thought leadership tone is well-calibrated.",
-          "Opening stat on 15% cognitive retention stopped feed scroll.",
-          "Suggestion: Add a bullet-point executive summary for higher mobile skim speed."
-        ])
-      },
-      {
-        id: "FA-003",
-        platform: "facebook",
-        title: "Weekend Succulent Care Workshop",
-        caption: "Live Q&A this Saturday with our master botanist! Learn repotting, root trimming, and winter soil nutrition. Drop your plant questions in the comments and we will answer live!",
-        mediaUrl: "https://images.unsplash.com/photo-1509423350716-97f9360b4e09?auto=format&fit=crop&w=1200&q=80",
-        hookScore: 81,
-        visualScore: 85,
-        velocity: 1.6,
-        sentiment: "positive",
-        grade: "B+",
-        metrics: JSON.stringify({ impressions: 7200, likes: 410, comments: 76, saves: 98, shares: 44, reachRate: "9.4%" }),
-        recs: JSON.stringify([
-          "Community participation is high (+76 questions).",
-          "Suggestion: Pin top answer comment to keep thread active for 48h algorithm replay.",
-          "Enhance title contrast with Gemini overlay text."
-        ])
-      },
-      {
-        id: "FA-004",
-        platform: "whatsapp",
-        title: "Exclusive VIP Green Subscribers Alert",
-        caption: "VIP Members Alert: Our organic plant nutrition booster is back in stock with 20% off exclusively for WhatsApp subscribers! Click below to claim your bottle before public release.",
-        mediaUrl: "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=1200&q=80",
-        hookScore: 86,
-        visualScore: 90,
-        velocity: 2.8,
-        sentiment: "positive",
-        grade: "A",
-        metrics: JSON.stringify({ impressions: 3200, likes: 380, comments: 45, saves: 110, shares: 140, reachRate: "34.5%" }),
-        recs: JSON.stringify([
-          "WhatsApp status CTR is exceptionally high (34.5% reach rate).",
-          "Urgency element drove high immediate click-through.",
-          "Re-broadcast as a follow-up story 12h before offer expiration."
-        ])
-      }
-    ];
-    for (const a of sampleAudits) {
-      db.prepare(`
-        INSERT INTO feed_audits (
-          audit_id, brand_id, platform, external_post_id, title, caption,
-          media_url, media_type, hook_score, visual_score, engagement_velocity,
-          sentiment, virality_grade, raw_metrics_json, recommendations_json,
-          published_at, created_at
-        ) VALUES (
-          ?, 'BR-001', ?, ?, ?, ?,
-          ?, 'image', ?, ?, ?,
-          ?, ?, ?, ?,
-          ?, ?
-        )
-      `).run(
-        a.id,
-        a.platform,
-        `ext_${a.id}`,
-        a.title,
-        a.caption,
-        a.mediaUrl,
-        a.hookScore,
-        a.visualScore,
-        a.velocity,
-        a.sentiment,
-        a.grade,
-        a.metrics,
-        a.recs,
-        now2,
-        now2
-      );
-    }
+  try {
+    db.prepare(`DELETE FROM feed_audits WHERE audit_id IN ('FA-001', 'FA-002', 'FA-003', 'FA-004')`).run();
+  } catch {
   }
   const brainCount = db.prepare("SELECT count(*) as c FROM brand_intelligence_profiles").get();
   if (brainCount.c === 0) {
@@ -127673,8 +127568,8 @@ publicRouter.post("/posts", (req, res) => {
     const effectivePlacements = req.body.placements || (Array.isArray(req.body.placement) ? req.body.placement : [req.body.placement || "feed"]);
     const payload = {
       brandId: targetBrandId,
-      title: req.body.title || "Untitled Campaign",
-      caption: req.body.masterCaption || req.body.caption || "Flower Plant Succulent Routine update",
+      title: req.body.title || "Untitled Post",
+      caption: req.body.masterCaption || req.body.caption || "",
       placement: effectivePlacements,
       placements: effectivePlacements,
       hashtags: Array.isArray(req.body.hashtags) ? req.body.hashtags.join(" ") : req.body.hashtags || "",
@@ -127838,16 +127733,10 @@ publicRouter.post("/posts/multi-brand-publish", async (req, res) => {
       allTargetIds.push(targetId);
       sheetsOutboxWorker.enqueueTargetUpsert(targetId, clientId);
       totalDispatched++;
-      let postUrl = "#";
-      if (platStr === "facebook") postUrl = "https://facebook.com/1454740611044963";
-      else if (platStr === "instagram") postUrl = "https://instagram.com/ciflow904";
-      else if (platStr === "youtube") postUrl = "https://youtube.com/@flowerplant_yt";
-      else if (platStr === "whatsapp") postUrl = "https://wa.me/919876543210";
-      else if (platStr === "linkedin") postUrl = "https://linkedin.com/company/flower-plant-official";
-      else if (platStr === "x") postUrl = "https://x.com/flowerplant_in";
       platformResults[platStr] = {
-        status: "published",
-        url: postUrl
+        status: "scheduled",
+        targetId,
+        url: null
       };
     }
     brandReports.push({
@@ -128538,36 +128427,25 @@ Tagged: ${missingInCaption.map((u) => `@${u}`).join(" ")}`;
         }
       }
     } else if (target.platform === "youtube") {
-      if (hasReels) {
-        const uId = Date.now().toString(36);
-        publishedUrls.push(`https://youtube.com/shorts/${uId}`);
-        publishedIds.push(`YTSHORT-${uId}`);
-        placementReports.push({ placement: "reels_shorts", platform: "youtube", status: "posted", id: `YTSHORT-${uId}`, url: `https://youtube.com/shorts/${uId}` });
-      }
-      if (hasFeed || !hasReels && !hasStory) {
-        const uId = Date.now().toString(36);
-        publishedUrls.push(`https://youtube.com/post/${uId}`);
-        publishedIds.push(`YTPOST-${uId}`);
-        placementReports.push({ placement: "feed", platform: "youtube", status: "posted", id: `YTPOST-${uId}`, url: `https://youtube.com/post/${uId}` });
-      }
+      const err = "YouTube API integration requires connecting OAuth credentials in Settings.";
+      errors.push(err);
+      placementReports.push({ placement: "feed", platform: "youtube", status: "unsupported", error: err });
     } else if (target.platform === "whatsapp") {
-      if (hasStory) {
-        const uId = Date.now().toString(36);
-        publishedUrls.push(`https://wa.me/status/${uId}`);
-        publishedIds.push(`WASTATUS-${uId}`);
-        placementReports.push({ placement: "story", platform: "whatsapp", status: "posted", id: `WASTATUS-${uId}`, url: `https://wa.me/status/${uId}` });
-      }
-      if (hasFeed || !hasStory && !hasReels) {
-        const uId = Date.now().toString(36);
-        publishedUrls.push(`https://wa.me/channel/${uId}`);
-        publishedIds.push(`WACHANNEL-${uId}`);
-        placementReports.push({ placement: "feed", platform: "whatsapp", status: "posted", id: `WACHANNEL-${uId}`, url: `https://wa.me/channel/${uId}` });
-      }
+      const err = "WhatsApp Cloud API integration requires connecting API credentials in Settings.";
+      errors.push(err);
+      placementReports.push({ placement: "feed", platform: "whatsapp", status: "unsupported", error: err });
+    } else if (target.platform === "linkedin") {
+      const err = "LinkedIn Community Management API integration requires connecting OAuth credentials in Settings.";
+      errors.push(err);
+      placementReports.push({ placement: "feed", platform: "linkedin", status: "unsupported", error: err });
+    } else if (target.platform === "x") {
+      const err = "X (Twitter) API integration requires connecting Developer credentials in Settings.";
+      errors.push(err);
+      placementReports.push({ placement: "feed", platform: "x", status: "unsupported", error: err });
     } else {
-      const uId = Date.now().toString(36);
-      publishedUrls.push(`https://${target.platform}.com/publish/${uId}`);
-      publishedIds.push(`${target.platform.toUpperCase()}-${uId}`);
-      placementReports.push({ placement: "feed", platform: target.platform, status: "posted", id: `${target.platform.toUpperCase()}-${uId}`, url: `https://${target.platform}.com/publish/${uId}` });
+      const err = `${target.platform.toUpperCase()} publishing requires connecting credentials in Settings.`;
+      errors.push(err);
+      placementReports.push({ placement: "feed", platform: target.platform, status: "unsupported", error: err });
     }
     const postedPlacements = placementReports.filter((r2) => r2.status === "posted");
     const failedPlacements = placementReports.filter((r2) => r2.status === "failed");
@@ -128907,6 +128785,24 @@ publicRouter.get("/executions", (req, res) => {
       } catch {
       }
     }
+    const perPlatformResults = {};
+    if (e2.target_ids) {
+      try {
+        const tIds = typeof e2.target_ids === "string" ? JSON.parse(e2.target_ids) : e2.target_ids;
+        if (Array.isArray(tIds) && tIds.length > 0) {
+          const placeholders = tIds.map(() => "?").join(",");
+          const targets = db.prepare(`SELECT platform, status, post_url, error_message FROM post_targets WHERE target_id IN (${placeholders})`).all(...tIds);
+          for (const t2 of targets) {
+            perPlatformResults[t2.platform] = {
+              status: t2.status === "Posted" ? "success" : t2.status === "Failed" ? "failed" : t2.status.toLowerCase(),
+              url: t2.post_url || null,
+              error: t2.error_message || null
+            };
+          }
+        }
+      } catch {
+      }
+    }
     return {
       id: e2.execution_id,
       executionId: e2.execution_id,
@@ -128921,13 +128817,8 @@ publicRouter.get("/executions", (req, res) => {
       finishedAtIst: stoppedZone ? stoppedZone.displayDateTime : null,
       durationMs,
       brandName: e2.brand_name || "Flower Plant",
-      postTitle: "Automated Multi-Platform Sync",
-      perPlatformResults: {
-        facebook: {
-          status: e2.status === "succeeded" ? "success" : "failed",
-          url: "https://facebook.com/1454740611044963"
-        }
-      }
+      postTitle: e2.mode === "instant_publish" ? "Direct Multi-Platform Publish" : "Automated Scheduled Orchestration",
+      perPlatformResults
     };
   });
   return res.json({ data: formatted });

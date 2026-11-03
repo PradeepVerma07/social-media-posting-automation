@@ -1832,8 +1832,8 @@ publicRouter.post('/posts', (req: Request, res: Response) => {
 
     const payload = {
       brandId: targetBrandId,
-      title: req.body.title || 'Untitled Campaign',
-      caption: req.body.masterCaption || req.body.caption || 'Flower Plant Succulent Routine update',
+      title: req.body.title || 'Untitled Post',
+      caption: req.body.masterCaption || req.body.caption || '',
       placement: effectivePlacements,
       placements: effectivePlacements,
       hashtags: Array.isArray(req.body.hashtags) ? req.body.hashtags.join(' ') : (req.body.hashtags || ''),
@@ -1998,17 +1998,10 @@ publicRouter.post('/posts/multi-brand-publish', async (req: Request, res: Respon
       sheetsOutboxWorker.enqueueTargetUpsert(targetId, clientId);
       totalDispatched++;
 
-      let postUrl = '#';
-      if (platStr === 'facebook') postUrl = 'https://facebook.com/1454740611044963';
-      else if (platStr === 'instagram') postUrl = 'https://instagram.com/ciflow904';
-      else if (platStr === 'youtube') postUrl = 'https://youtube.com/@flowerplant_yt';
-      else if (platStr === 'whatsapp') postUrl = 'https://wa.me/919876543210';
-      else if (platStr === 'linkedin') postUrl = 'https://linkedin.com/company/flower-plant-official';
-      else if (platStr === 'x') postUrl = 'https://x.com/flowerplant_in';
-
       platformResults[platStr] = {
-        status: 'published',
-        url: postUrl,
+        status: 'scheduled',
+        targetId,
+        url: null,
       };
     }
 
@@ -2809,36 +2802,25 @@ export async function publishTargetDirectly(target: any, post: any, executionId:
       }
 
     } else if (target.platform === 'youtube') {
-      if (hasReels) {
-        const uId = Date.now().toString(36);
-        publishedUrls.push(`https://youtube.com/shorts/${uId}`);
-        publishedIds.push(`YTSHORT-${uId}`);
-        placementReports.push({ placement: 'reels_shorts', platform: 'youtube', status: 'posted', id: `YTSHORT-${uId}`, url: `https://youtube.com/shorts/${uId}` });
-      }
-      if (hasFeed || (!hasReels && !hasStory)) {
-        const uId = Date.now().toString(36);
-        publishedUrls.push(`https://youtube.com/post/${uId}`);
-        publishedIds.push(`YTPOST-${uId}`);
-        placementReports.push({ placement: 'feed', platform: 'youtube', status: 'posted', id: `YTPOST-${uId}`, url: `https://youtube.com/post/${uId}` });
-      }
+      const err = 'YouTube API integration requires connecting OAuth credentials in Settings.';
+      errors.push(err);
+      placementReports.push({ placement: 'feed', platform: 'youtube', status: 'unsupported', error: err });
     } else if (target.platform === 'whatsapp') {
-      if (hasStory) {
-        const uId = Date.now().toString(36);
-        publishedUrls.push(`https://wa.me/status/${uId}`);
-        publishedIds.push(`WASTATUS-${uId}`);
-        placementReports.push({ placement: 'story', platform: 'whatsapp', status: 'posted', id: `WASTATUS-${uId}`, url: `https://wa.me/status/${uId}` });
-      }
-      if (hasFeed || (!hasStory && !hasReels)) {
-        const uId = Date.now().toString(36);
-        publishedUrls.push(`https://wa.me/channel/${uId}`);
-        publishedIds.push(`WACHANNEL-${uId}`);
-        placementReports.push({ placement: 'feed', platform: 'whatsapp', status: 'posted', id: `WACHANNEL-${uId}`, url: `https://wa.me/channel/${uId}` });
-      }
+      const err = 'WhatsApp Cloud API integration requires connecting API credentials in Settings.';
+      errors.push(err);
+      placementReports.push({ placement: 'feed', platform: 'whatsapp', status: 'unsupported', error: err });
+    } else if (target.platform === 'linkedin') {
+      const err = 'LinkedIn Community Management API integration requires connecting OAuth credentials in Settings.';
+      errors.push(err);
+      placementReports.push({ placement: 'feed', platform: 'linkedin', status: 'unsupported', error: err });
+    } else if (target.platform === 'x') {
+      const err = 'X (Twitter) API integration requires connecting Developer credentials in Settings.';
+      errors.push(err);
+      placementReports.push({ placement: 'feed', platform: 'x', status: 'unsupported', error: err });
     } else {
-      const uId = Date.now().toString(36);
-      publishedUrls.push(`https://${target.platform}.com/publish/${uId}`);
-      publishedIds.push(`${target.platform.toUpperCase()}-${uId}`);
-      placementReports.push({ placement: 'feed', platform: target.platform, status: 'posted', id: `${target.platform.toUpperCase()}-${uId}`, url: `https://${target.platform}.com/publish/${uId}` });
+      const err = `${target.platform.toUpperCase()} publishing requires connecting credentials in Settings.`;
+      errors.push(err);
+      placementReports.push({ placement: 'feed', platform: target.platform, status: 'unsupported', error: err });
     }
 
     const postedPlacements = placementReports.filter(r => r.status === 'posted');
@@ -3249,6 +3231,24 @@ publicRouter.get('/executions', (req: Request, res: Response) => {
       } catch {}
     }
 
+    const perPlatformResults: Record<string, any> = {};
+    if (e.target_ids) {
+      try {
+        const tIds: string[] = typeof e.target_ids === 'string' ? JSON.parse(e.target_ids) : e.target_ids;
+        if (Array.isArray(tIds) && tIds.length > 0) {
+          const placeholders = tIds.map(() => '?').join(',');
+          const targets = db.prepare(`SELECT platform, status, post_url, error_message FROM post_targets WHERE target_id IN (${placeholders})`).all(...tIds) as any[];
+          for (const t of targets) {
+            perPlatformResults[t.platform] = {
+              status: t.status === 'Posted' ? 'success' : t.status === 'Failed' ? 'failed' : t.status.toLowerCase(),
+              url: t.post_url || null,
+              error: t.error_message || null,
+            };
+          }
+        }
+      } catch {}
+    }
+
     return {
       id: e.execution_id,
       executionId: e.execution_id,
@@ -3262,13 +3262,8 @@ publicRouter.get('/executions', (req: Request, res: Response) => {
       finishedAtIst: stoppedZone ? stoppedZone.displayDateTime : null,
       durationMs,
       brandName: e.brand_name || 'Flower Plant',
-      postTitle: 'Automated Multi-Platform Sync',
-      perPlatformResults: {
-        facebook: {
-          status: e.status === 'succeeded' ? 'success' : 'failed',
-          url: 'https://facebook.com/1454740611044963',
-        },
-      },
+      postTitle: e.mode === 'instant_publish' ? 'Direct Multi-Platform Publish' : 'Automated Scheduled Orchestration',
+      perPlatformResults,
     };
   });
 
