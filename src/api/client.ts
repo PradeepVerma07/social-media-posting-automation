@@ -242,6 +242,10 @@ export const api = {
   },
 
   // Auth & Session
+  async getAuthConfig(): Promise<{ publicSignupEnabled: boolean }> {
+    return request<{ publicSignupEnabled: boolean }>('/auth/config');
+  },
+
   async login(credentials: { email?: string; identifier?: string; password: string }): Promise<{ user: User; accessToken: string; expiresIn: string; clientIp?: string }> {
     return request<{ user: User; accessToken: string; expiresIn: string; clientIp?: string }>('/auth/login', {
       method: 'POST',

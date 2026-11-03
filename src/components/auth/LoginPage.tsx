@@ -45,12 +45,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [gatewayHost, setGatewayHost] = useState<string>('360.webtrionix.com');
   const [hoveredStep, setHoveredStep] = useState<number | null>(null);
+  const [publicSignupEnabled, setPublicSignupEnabled] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const host = window.location.host || '360.webtrionix.com';
       setGatewayHost(host);
     }
+    api.getAuthConfig().then(config => setPublicSignupEnabled(config.publicSignupEnabled)).catch(() => setPublicSignupEnabled(false));
   }, []);
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -418,14 +420,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
                       <div className="flex justify-end pt-0.5">
                         <button
                           type="button"
-                          onClick={() =>
-                            alert(
-                              'Please contact your Webtrionix system administrator or check Hostinger Environment Variables for credentials.'
-                            )
-                          }
+                          onClick={() => setErrorMsg('Password recovery is not enabled for this workspace. Contact your administrator to reset your password.')}
                           className="text-xs text-[#E85D75] hover:text-[#F06A6A] hover:underline transition-colors cursor-pointer"
                         >
-                          Forgot password?
+                          Need help signing in?
                         </button>
                       </div>
                     </div>
@@ -550,21 +548,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
             {/* Bottom Toggle Link with hover slide & color highlight */}
             <div className="text-xs text-center text-slate-400 pt-1">
               {authMode === 'signin' ? (
-                <span>
+                publicSignupEnabled ? <span>
                   No account yet?{' '}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setErrorMsg(null);
-                      setSuccessMsg(null);
-                      setAuthMode('signup');
-                    }}
-                    className="text-[#E85D75] hover:text-[#F06A6A] hover:underline font-semibold transition-all duration-200 cursor-pointer inline-flex items-center gap-1 hover:translate-x-0.5"
-                  >
-                    <span>Create one</span>
-                    <ArrowRight className="w-3 h-3" />
+                  <button type="button" onClick={() => { setErrorMsg(null); setSuccessMsg(null); setAuthMode('signup'); }}
+                    className="text-[#E85D75] hover:text-[#F06A6A] hover:underline font-semibold transition-all duration-200 cursor-pointer inline-flex items-center gap-1 hover:translate-x-0.5">
+                    <span>Create one</span><ArrowRight className="w-3 h-3" />
                   </button>
-                </span>
+                </span> : <span>Account access is managed by your workspace administrator.</span>
               ) : (
                 <span>
                   Already have an account?{' '}

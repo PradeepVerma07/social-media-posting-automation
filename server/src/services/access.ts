@@ -56,6 +56,10 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
 }
 
 export const authRouter = Router();
+authRouter.get('/config', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ publicSignupEnabled: process.env.ALLOW_PUBLIC_SIGNUP === 'true' });
+});
 authRouter.post('/login', (req, res) => {
   const identifier = String(req.body?.identifier || req.body?.email || '').trim().toLowerCase();
   const password = String(req.body?.password || '');
