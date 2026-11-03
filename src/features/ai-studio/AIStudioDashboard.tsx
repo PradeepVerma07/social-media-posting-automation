@@ -769,7 +769,7 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <Layers className="w-4 h-4 text-violet-400" />
-                  Platform audit results · {activeBrandBrain?.brandName || selectedBrandId}
+                  Platform audit results · {activeBrandBrain?.brandName || brandOptions.find((brand) => brand.brandId === selectedBrandId)?.brandName || 'Selected brand'}
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Scores and velocity from saved feed audits for this workspace.
