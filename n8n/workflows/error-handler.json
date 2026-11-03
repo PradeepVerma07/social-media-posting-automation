@@ -1,38 +1,53 @@
 {
-  "name": "CI360 Error Handler & Dead Letter Pipeline",
+  "name": "Webtrionix \u2014 record automation failures",
+  "active": false,
   "nodes": [
     {
-      "parameters": {},
-      "id": "node-error-trigger",
-      "name": "Error Trigger",
+      "id": "errors",
+      "name": "Automatic execution failed",
       "type": "n8n-nodes-base.errorTrigger",
       "typeVersion": 1,
-      "position": [100, 300]
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $env.BACKEND_INTERNAL_URL || 'http://localhost:3000' }}/internal/n8n/callback",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ target_id: $json.execution?.target_id || 'UNKNOWN', execution_id: String($json.execution?.id), stage: 'execution_crashed', error_message: $json.execution?.error?.message || 'Workflow execution crashed unexpectedly' }) }}",
-        "options": {
-          "timeout": 5000
-        }
-      },
-      "id": "node-report-crash",
-      "name": "Report Crash to Backend",
+      "id": "record-safe-error-metadata",
+      "name": "Record safe error metadata",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [360, 300]
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR-APPLICATION-HOST/internal/automation/errors",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ execution_id: $json.execution.id, workflow_id: $json.workflow.id }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Webtrionix internal API"
+        }
+      },
+      "retryOnFail": false
     }
   ],
   "connections": {
-    "Error Trigger": {
+    "Automatic execution failed": {
       "main": [
         [
           {
-            "node": "Report Crash to Backend",
+            "node": "Record safe error metadata",
             "type": "main",
             "index": 0
           }
@@ -42,7 +57,9 @@
   },
   "settings": {
     "executionOrder": "v1",
-    "timezone": "Asia/Kolkata"
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false
   },
-  "id": "WF-ERROR-HANDLER"
+  "pinData": {}
 }

@@ -36,13 +36,18 @@ import {
   AtSign,
   X
 } from 'lucide-react';
-import { Brand, SocialPlatform, ContentPlacement } from '../../../server/src/types';
+import { Brand, SocialAccount, SocialPlatform, ContentPlacement, RoleName } from '../../../server/src/types';
 import { fromISTInputValues } from '../../utils/timezone';
 import { api } from '../../api/client';
 import { MediaViewerModal } from '../../components/media/MediaViewerModal';
 
 interface CreatePostComposerProps {
   brands: Brand[];
+  // Kept optional for callers that share the enterprise composer contract.
+  socialAccounts?: SocialAccount[];
+  currentUserId?: string | number;
+  currentRole?: RoleName;
+  initialDate?: string;
   onSavePost: (postData: any) => void;
   onCancel: () => void;
   onMultiBrandPublish?: (data: any) => Promise<any>;
@@ -52,6 +57,7 @@ interface CreatePostComposerProps {
 
 export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
   brands,
+  initialDate,
   onSavePost,
   onCancel,
   onMultiBrandPublish,
@@ -300,7 +306,7 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
 
   // Step 5: Schedule
   const [publishTiming, setPublishTiming] = useState<'now' | 'scheduled'>('scheduled');
-  const [scheduledDate, setScheduledDate] = useState('2026-10-28');
+  const [scheduledDate, setScheduledDate] = useState(initialDate || new Date().toISOString().slice(0, 10));
   const [scheduledTime, setScheduledTime] = useState('14:00');
 
   // Step 6: Approval

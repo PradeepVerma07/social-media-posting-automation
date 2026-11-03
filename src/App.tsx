@@ -193,6 +193,7 @@ export default function App() {
   };
 
   const handleSignOut = () => {
+    void api.logout().catch(() => {});
     setCurrentUser(null);
     setCurrentRole('Client');
     try {
@@ -240,13 +241,13 @@ export default function App() {
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [commentsMap, setCommentsMap] = useState<Record<number, PostComment[]>>({});
   const [analytics, setAnalytics] = useState<AnalyticsOverview>({
-    totalScheduledPosts: 2,
+    totalScheduledPosts: 0,
     totalPublishedPosts: 0,
     pendingApprovals: 0,
     rejectedPosts: 0,
     failedAutomations: 0,
-    activeWorkflows: 7,
-    connectedPlatforms: 2,
+    activeWorkflows: 0,
+    connectedPlatforms: 0,
     totalEngagement: 0,
     totalImpressions: 0,
     totalReach: 0,
@@ -370,7 +371,7 @@ export default function App() {
     let eventSource: EventSource | null = null;
     try {
       eventSource = new EventSource('/api/v1/events');
-      
+
       const handleLiveUpdate = () => {
         loadInitialData();
         setLastRefreshedAt(new Date());
@@ -407,7 +408,21 @@ export default function App() {
     };
   }, [currentUser, autoRefreshSec]);
 
+  useEffect(() => {
+    const expire = () => { setCurrentUser(null); localStorage.removeItem('ci360_auth_user'); localStorage.removeItem('ci360_auth_token'); };
+    window.addEventListener('webtrionix:session-expired', expire);
+    if (currentUser) api.getMe().then(({ user }) => { setCurrentRole(user.role); }).catch(expire);
+    return () => window.removeEventListener('webtrionix:session-expired', expire);
+  }, [currentUser?.id]);
+
   // Handlers for Post Operations
+  const reviewedVersion = (id: number) => {
+    const post = posts.find(p => p.id === id);
+    if (!post) throw new Error('Refresh the list before changing this post.');
+    return post.versionNumber;
+  };
+  const handleSubmitPost = async (id: number) => { const post = await api.submitPost(id, reviewedVersion(id)); setPosts(prev => prev.map(p => p.id === id ? post : p)); };
+
   const handleCreatePost = async (postData: any) => {
     try {
       await api.createPost(postData);
@@ -419,37 +434,37 @@ export default function App() {
       setAnalytics(refreshedAnalytics);
       setActiveTab('content');
     } catch (err) {
-      console.error('Failed to create post:', err);
+      console.error('Failed to create post:', err); throw err;
     }
   };
 
   const handleApprovePost = async (postId: number) => {
     try {
-      const updated = await api.approvePost(postId);
+      const updated = await api.approvePost(postId, reviewedVersion(postId));
       setPosts(prev => prev.map(p => (p.id === postId ? updated : p)));
       api.getAnalyticsOverview().then(setAnalytics).catch(() => {});
     } catch (err) {
-      console.error('Failed to approve post:', err);
+      console.error('Failed to approve post:', err); throw err;
     }
   };
 
   const handleRejectPost = async (postId: number, reason: string) => {
     try {
-      const updated = await api.rejectPost(postId, reason);
+      const updated = await api.rejectPost(postId, reason, reviewedVersion(postId));
       setPosts(prev => prev.map(p => (p.id === postId ? updated : p)));
       api.getAnalyticsOverview().then(setAnalytics).catch(() => {});
     } catch (err) {
-      console.error('Failed to reject post:', err);
+      console.error('Failed to reject post:', err); throw err;
     }
   };
 
   const handleRequestRevision = async (postId: number, comments: string) => {
     try {
-      const updated = await api.requestRevision(postId, comments);
+      const updated = await api.requestRevision(postId, comments, reviewedVersion(postId));
       setPosts(prev => prev.map(p => (p.id === postId ? updated : p)));
       api.getAnalyticsOverview().then(setAnalytics).catch(() => {});
     } catch (err) {
-      console.error('Failed to request revision:', err);
+      console.error('Failed to request revision:', err); throw err;
     }
   };
 
@@ -465,7 +480,7 @@ export default function App() {
       setExecutions(refreshedExecutions);
       setAnalytics(refreshedAnalytics);
     } catch (err) {
-      console.error('Failed to publish post:', err);
+      console.error('Failed to publish post:', err); throw err;
     }
   };
 
@@ -495,13 +510,13 @@ export default function App() {
       setPosts(prev => prev.filter(p => p.id !== postId));
       api.getAnalyticsOverview().then(setAnalytics).catch(() => {});
     } catch (err) {
-      console.error('Failed to delete post:', err);
+      console.error('Failed to delete post:', err); throw err;
     }
   };
 
   const handleAddComment = async (postId: number, text: string) => {
     try {
-      const newComment = await api.addPostComment(postId, text, 1);
+      const newComment = await api.addPostComment(postId, text, currentUser!.id);
       setCommentsMap(prev => ({
         ...prev,
         [postId]: [...(prev[postId] || []), newComment],
@@ -769,7 +784,7 @@ export default function App() {
                   onApprovePost={handleApprovePost}
                   onRejectPost={handleRejectPost}
                   onRequestRevision={handleRequestRevision}
-                  onSubmitPost={() => {}}
+                  onSubmitPost={handleSubmitPost}
                   onPublishNow={handlePublishNow}
                   onDeletePost={handleDeletePost}
                   currentRole={currentRole}
@@ -778,6 +793,7 @@ export default function App() {
 
               {activeTab === 'calendar' && (
                 <ContentCalendar
+                  socialAccounts={socialAccounts} currentUserId={currentUser?.id}
                   posts={posts}
                   brands={brands}
                   onSelectPost={() => handleTabChange('approvals')}
@@ -803,10 +819,11 @@ export default function App() {
 
               {activeTab === 'create' && (
                 <CreatePostComposer
+                  socialAccounts={socialAccounts} currentUserId={currentUser?.id} currentRole={currentRole}
                   brands={brands}
                   onSavePost={handleCreatePost}
                   onCancel={() => handleTabChange('content')}
-                  onMultiBrandPublish={handleMultiBrandPublish}
+
                   onViewExecutions={() => handleTabChange('executions')}
                   onViewAnalytics={() => handleTabChange('analytics')}
                 />
@@ -834,7 +851,7 @@ export default function App() {
                   onApprovePost={handleApprovePost}
                   onRejectPost={handleRejectPost}
                   onRequestRevision={handleRequestRevision}
-                  onSubmitPost={() => {}}
+                  onSubmitPost={handleSubmitPost}
                   onPublishNow={handlePublishNow}
                   onDeletePost={handleDeletePost}
                   currentRole={currentRole}
@@ -862,6 +879,7 @@ export default function App() {
 
               {activeTab === 'automations' && (
                 <AutomationsPage
+                  currentRole={currentRole}
                   workflows={workflows}
                   onExecuteWorkflow={handleExecuteWorkflow}
                   onTestConnection={() => api.testN8nConnection()}
@@ -885,7 +903,7 @@ export default function App() {
               )}
 
               {activeTab === 'analytics' && (
-                <AnalyticsPage analytics={analytics} />
+                <AnalyticsPage analytics={analytics} loadReport={api.getAnalyticsReport} />
               )}
 
               {activeTab === 'sheets' && (

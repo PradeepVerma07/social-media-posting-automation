@@ -10,15 +10,19 @@ import { backgroundSweeper } from './services/sweeper';
 import { n8nApiPoller } from './services/n8nApiPoller';
 import { scheduledPublisher } from './services/scheduledPublisher';
 import { logger } from './logging/logger';
+import { authRouter, authenticate, authorize } from './services/access';
+import { enterpriseRouter } from './routes/enterpriseRoutes';
+import { db } from './db/sqlite';
+import { aiStudioRouter } from './routes/aiStudioRoutes';
 
 export const app = express();
 
-const uploadsDir = path.resolve(process.cwd(), 'uploads');
+const uploadsDir = path.resolve(process.env.UPLOADS_DIRECTORY || path.join(process.env.DATA_DIRECTORY || process.cwd(), 'uploads'));
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-app.use(express.json({ limit: '100mb' }));
+app.use(express.json({ limit: '70mb', verify: (req, _res, buffer) => { (req as Request).rawBody = buffer; } }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Serve uploaded media (images & videos) statically
@@ -37,27 +41,37 @@ app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'healthy', uptimeSeconds: Math.floor(process.uptime()), timestamp: new Date().toISOString() });
 });
 
-app.get('/ready', (req: Request, res: Response) => {
-  res.json({ status: 'ready', database: 'connected', timestamp: new Date().toISOString() });
-});
+const readiness = (_req: Request, res: Response) => {
+  try {
+    db.prepare('SELECT 1').get();
+    res.json({ status: 'ready', database: 'connected', timestamp: new Date().toISOString() });
+  } catch { res.status(503).json({ status: 'not_ready', database: 'unavailable' }); }
+};
+app.get('/ready', readiness);
 
 app.get('/healthz', (req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.get('/readyz', (req: Request, res: Response) => {
-  res.json({ status: 'ready', database: 'connected', timestamp: new Date().toISOString() });
-});
+app.get('/readyz', readiness);
 
 // Mount V2 Production Routers
 app.use('/internal', internalRouter);
+app.use('/api/v1/auth', authRouter);
+app.use('/api/v1', authenticate, authorize);
+app.use('/api/v1/ai/studio', aiStudioRouter);
+app.use('/api/v1', enterpriseRouter);
 app.use('/api/v1', publicRouter);
 
 // Start V2 Production Background Engines
-sheetsOutboxWorker.startWorker(2000);
-sheetsReconciliationService.startReconciliation(60);
-backgroundSweeper.startSweeper(60);
-n8nApiPoller.startPoller(15);
-scheduledPublisher.startService(15);
+if (process.env.ENABLE_BACKGROUND_WORKERS === 'true') {
+  if (process.env.ENABLE_SHEETS_SYNC === 'true') {
+    sheetsOutboxWorker.startWorker(2000);
+    sheetsReconciliationService.startReconciliation(60);
+  }
+  backgroundSweeper.startSweeper(60);
+  if (process.env.N8N_API_KEY) n8nApiPoller.startPoller(15);
+  scheduledPublisher.startService(15);
+}
 
-logger.info('CI360 v2 Production Core initialized with durable SQLite WAL, Outbox, and Sweepers.');
+logger.info({ backgroundWorkers: process.env.ENABLE_BACKGROUND_WORKERS === 'true' }, 'Webtrionix 360 initialized');

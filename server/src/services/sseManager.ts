@@ -19,7 +19,7 @@ class SSEManager {
     // Send 25-second keepalive heartbeat to prevent proxy timeout
     setInterval(() => {
       this.broadcastComment(': heartbeat\n\n');
-    }, 25000);
+    }, 25000).unref();
   }
 
   addClient(clientId: string, res: Response, lastEventId?: number) {

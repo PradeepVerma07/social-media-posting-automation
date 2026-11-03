@@ -30,12 +30,13 @@ import { MediaViewerModal } from '../../components/media/MediaViewerModal';
 interface ApprovalQueueProps {
   posts: Post[];
   commentsMap: Record<number, PostComment[]>;
-  onApprove: (postId: number) => void;
-  onReject: (postId: number, reason: string) => void;
-  onRequestRevision: (postId: number, comments: string) => void;
-  onAddComment: (postId: number, text: string) => void;
-  onPublishNow: (postId: number) => void;
+  onApprove: (postId: number) => Promise<void> | void;
+  onReject: (postId: number, reason: string) => Promise<void> | void;
+  onRequestRevision: (postId: number, comments: string) => Promise<void> | void;
+  onAddComment: (postId: number, text: string) => Promise<void> | void;
+  onPublishNow: (postId: number) => Promise<void> | void;
   currentRole?: RoleName;
+  currentUserId?: number | string;
 }
 
 export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
@@ -46,15 +47,19 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
   onRequestRevision,
   onAddComment,
   onPublishNow,
-  currentRole = 'Super Admin',
+  currentRole = 'Client',
+  currentUserId,
 }) => {
   const permissions = getRolePermissions(currentRole);
   const [activeTab, setActiveTab] = useState<'pending' | 'revision' | 'approved' | 'rejected'>('pending');
-  const [selectedPostId, setSelectedPostId] = useState<number | string>(posts[0]?.id || 101);
+  const [selectedPostId, setSelectedPostId] = useState<number | string>(posts[0]?.id || '');
   const [newCommentText, setNewCommentText] = useState('');
   const [rejectReasonModalOpen, setRejectReasonModalOpen] = useState(false);
   const [revisionModalOpen, setRevisionModalOpen] = useState(false);
   const [modalInputText, setModalInputText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [actionNotice, setActionNotice] = useState('');
 
   // Lightbox & Video Player Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -62,7 +67,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
   const [modalType, setModalType] = useState<'image' | 'video'>('image');
 
   const filteredPosts = posts.filter(p => {
-    if (activeTab === 'pending') return p.approvalStatus === 'in_review';
+    if (activeTab === 'pending') return ['in_review', 'overdue'].includes(p.approvalStatus);
     if (activeTab === 'revision') return p.approvalStatus === 'revision_requested';
     if (activeTab === 'approved') return p.approvalStatus === 'approved';
     if (activeTab === 'rejected') return p.approvalStatus === 'rejected';
@@ -72,25 +77,41 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
   const selectedPost = filteredPosts.find(p => String(p.id) === String(selectedPostId)) || (filteredPosts.length > 0 ? filteredPosts[0] : null);
   const postComments = selectedPost ? commentsMap[selectedPost.id as any] || [] : [];
 
+  const runAction = async (action: () => Promise<void> | void, message: string, after?: () => void) => {
+    setBusy(true);
+    setActionError('');
+    setActionNotice('');
+    try {
+      await action();
+      setActionNotice(message);
+      after?.();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'The change could not be saved. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleSendComment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCommentText.trim() || !selectedPost) return;
-    onAddComment(selectedPost.id, newCommentText.trim());
-    setNewCommentText('');
+    void runAction(() => onAddComment(selectedPost.id, newCommentText.trim()), 'Comment saved.', () => setNewCommentText(''));
   };
 
   const handleConfirmReject = () => {
     if (!selectedPost || !modalInputText.trim()) return;
-    onReject(selectedPost.id, modalInputText.trim());
-    setRejectReasonModalOpen(false);
-    setModalInputText('');
+    void runAction(() => onReject(selectedPost.id, modalInputText.trim()), 'Rejection recorded.', () => {
+      setRejectReasonModalOpen(false);
+      setModalInputText('');
+    });
   };
 
   const handleConfirmRevision = () => {
     if (!selectedPost || !modalInputText.trim()) return;
-    onRequestRevision(selectedPost.id, modalInputText.trim());
-    setRevisionModalOpen(false);
-    setModalInputText('');
+    void runAction(() => onRequestRevision(selectedPost.id, modalInputText.trim()), 'Changes requested.', () => {
+      setRevisionModalOpen(false);
+      setModalInputText('');
+    });
   };
 
   return (
@@ -98,29 +119,34 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-[#101828]">Approval Queue &amp; Review Chat</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-[#101828]">Approvals</h2>
           <p className="text-xs text-[#667085] mt-1">
-            Collaborative review workspace with WhatsApp/Instagram-style internal discussion.
+            Review the exact content revision, leave feedback, and approve publication when it is ready.
           </p>
         </div>
       </div>
+
+      {actionError && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{actionError}</p>}
+      {actionNotice && <p role="status" className="rounded-xl bg-blue-50 p-3 text-sm text-blue-900">{actionNotice}</p>}
+      {busy && <p role="status" className="text-sm text-slate-600">Saving your change…</p>}
 
       {/* Tabs */}
       <div className="flex items-center gap-2 border-b border-[#EAECF0] pb-2.5 overflow-x-auto no-scrollbar">
         {(
           [
-            { id: 'pending', label: 'Pending Review', count: posts.filter(p => p.approvalStatus === 'in_review').length },
+            { id: 'pending', label: 'Pending Review', count: posts.filter(p => ['in_review', 'overdue'].includes(p.approvalStatus)).length },
             { id: 'revision', label: 'Revision Requested', count: posts.filter(p => p.approvalStatus === 'revision_requested').length },
-            { id: 'approved', label: 'Approved & Scheduled', count: posts.filter(p => p.approvalStatus === 'approved').length },
+            { id: 'approved', label: 'Approved', count: posts.filter(p => p.approvalStatus === 'approved').length },
             { id: 'rejected', label: 'Rejected', count: posts.filter(p => p.approvalStatus === 'rejected').length },
           ] as const
         ).map(tab => (
           <button
             key={tab.id}
+            aria-pressed={activeTab === tab.id}
             onClick={() => {
               setActiveTab(tab.id);
               const nextFiltered = posts.filter(p => {
-                if (tab.id === 'pending') return p.approvalStatus === 'in_review';
+                if (tab.id === 'pending') return ['in_review', 'overdue'].includes(p.approvalStatus);
                 if (tab.id === 'revision') return p.approvalStatus === 'revision_requested';
                 if (tab.id === 'approved') return p.approvalStatus === 'approved';
                 if (tab.id === 'rejected') return p.approvalStatus === 'rejected';
@@ -161,6 +187,11 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
             return (
               <div
                 key={post.id}
+                role="button"
+                tabIndex={0}
+                aria-pressed={isSelected}
+                aria-label={'Review ' + post.title}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedPostId(post.id); } }}
                 onClick={() => setSelectedPostId(post.id)}
                 className={`p-4 rounded-2xl border cursor-pointer transition-all ${
                   isSelected
@@ -226,17 +257,19 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                     </span>
                     <span className="text-xs text-[#98A2B3]">·</span>
                     <span className="text-xs font-medium text-[#475467] whitespace-nowrap">
-                      Created by <strong className="text-[#101828] font-semibold">{selectedPost.createdByName || 'David Vance (Super Admin)'}</strong>
+                      Created by <strong className="text-[#101828] font-semibold">{selectedPost.createdByName || 'Not recorded'}</strong>
                     </span>
                   </div>
                   <h3 className="text-base sm:text-lg font-bold text-[#101828] leading-snug">{selectedPost.title}</h3>
+                  <p className="text-xs text-slate-600">Version {selectedPost.versionNumber} · {selectedPost.timezone || 'Timezone not set'} · {selectedPost.publishingStatus.replaceAll('_', ' ')}</p>
                 </div>
 
                 {/* Primary Approval Actions */}
                 <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto shrink-0 pt-1 xl:pt-0">
-                  {permissions.canApprovePost && selectedPost.approvalStatus !== 'approved' && (
+                  {permissions.canApprovePost && ['in_review', 'overdue'].includes(selectedPost.approvalStatus) && (
                     <>
                       <button
+                        disabled={busy}
                         onClick={() => {
                           setModalInputText('');
                           setRevisionModalOpen(true);
@@ -246,6 +279,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                         Request Revision
                       </button>
                       <button
+                        disabled={busy}
                         onClick={() => {
                           setModalInputText('');
                           setRejectReasonModalOpen(true);
@@ -255,7 +289,8 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                         Reject
                       </button>
                       <button
-                        onClick={() => onApprove(selectedPost.id)}
+                        disabled={busy}
+                        onClick={() => { if (window.confirm('Approve version ' + selectedPost.versionNumber + ' of "' + selectedPost.title + '"? Approval allows publication at its requested time.')) void runAction(() => onApprove(selectedPost.id), 'Approval recorded.'); }}
                         className="w-full sm:w-auto min-h-[38px] px-4 py-2 bg-[#12B76A] hover:bg-[#027A48] text-white text-xs font-semibold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <Check className="w-3.5 h-3.5" />
@@ -272,13 +307,14 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                     </span>
                   )}
 
-                  {permissions.canPublishPost && selectedPost.approvalStatus === 'approved' && selectedPost.publishingStatus !== 'published' && (
+                  {permissions.canPublishPost && selectedPost.approvalStatus === 'approved' && ['idle', 'scheduled'].includes(selectedPost.publishingStatus) && (
                     <button
-                      onClick={() => onPublishNow(selectedPost.id)}
+                      disabled={busy}
+                      onClick={() => { if (window.confirm('Publish "' + selectedPost.title + '" now instead of its scheduled time?')) void runAction(() => onPublishNow(selectedPost.id), 'Publication requested. Check destination results for confirmation.'); }}
                       className="w-full sm:w-auto min-h-[38px] px-4 py-2 bg-[#1336E8] hover:bg-[#0E27B3] text-white text-xs font-semibold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      <span>Trigger n8n Publish Now</span>
+                      <span>Publish now</span>
                     </button>
                   )}
                 </div>
@@ -374,7 +410,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                   </div>
                   <div>
                     <div className="text-xs font-bold text-[#101828]">Internal Review Discussion</div>
-                    <div className="text-[10px] text-[#667085]">End-to-end encrypted approval log</div>
+                    <div className="text-xs text-[#667085]">Comments and review decisions for this post</div>
                   </div>
                 </div>
                 <span className="text-[11px] font-mono text-[#12B76A] flex items-center gap-1">
@@ -396,7 +432,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                     );
                   }
 
-                  const isMe = comment.userId === 1; // David
+                  const isMe = currentUserId !== undefined && String(comment.userId) === String(currentUserId);
                   return (
                     <div
                       key={comment.id}
@@ -443,6 +479,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
               >
                 <input
                   type="text"
+                  aria-label="Internal review comment"
                   value={newCommentText}
                   onChange={e => setNewCommentText(e.target.value)}
                   placeholder="Type an internal review comment..."
@@ -450,7 +487,8 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                 />
                 <button
                   type="submit"
-                  disabled={!newCommentText.trim()}
+                  disabled={busy || !newCommentText.trim()}
+                  aria-label="Send review comment"
                   className="w-10 h-10 rounded-xl bg-[#1336E8] hover:bg-[#0E27B3] disabled:opacity-50 text-white flex items-center justify-center transition-colors shadow-sm"
                 >
                   <Send className="w-4 h-4" />
@@ -485,13 +523,14 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
 
       {/* Reject Reason Modal */}
       {rejectReasonModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+        <div role="dialog" aria-modal="true" aria-label="Reject post" onKeyDown={e => { if (e.key === 'Escape' && !busy) setRejectReasonModalOpen(false); }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <h3 className="text-base font-bold text-[#101828]">Reject Post</h3>
             <p className="text-xs text-[#667085]">
               Please provide an explicit business or compliance reason for rejecting this content. This will be recorded in the audit log.
             </p>
             <textarea
+              aria-label="Reason for rejection"
               rows={3}
               value={modalInputText}
               onChange={e => setModalInputText(e.target.value)}
@@ -510,7 +549,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
               <button
                 type="button"
                 onClick={handleConfirmReject}
-                disabled={!modalInputText.trim()}
+                disabled={busy || !modalInputText.trim()}
                 className="px-4 py-2 bg-[#F04438] hover:bg-[#D92D20] disabled:opacity-50 text-white text-xs font-semibold rounded-xl"
               >
                 Confirm Rejection
@@ -522,13 +561,14 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
 
       {/* Revision Comments Modal */}
       {revisionModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+        <div role="dialog" aria-modal="true" aria-label="Request changes" onKeyDown={e => { if (e.key === 'Escape' && !busy) setRevisionModalOpen(false); }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <h3 className="text-base font-bold text-[#101828]">Request Revision</h3>
             <p className="text-xs text-[#667085]">
               Specify what edits, captions, or asset changes the content creator should apply before resubmitting.
             </p>
             <textarea
+              aria-label="Requested changes"
               rows={3}
               value={modalInputText}
               onChange={e => setModalInputText(e.target.value)}
@@ -547,7 +587,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
               <button
                 type="button"
                 onClick={handleConfirmRevision}
-                disabled={!modalInputText.trim()}
+                disabled={busy || !modalInputText.trim()}
                 className="px-4 py-2 bg-[#F79009] hover:bg-[#DC6803] disabled:opacity-50 text-white text-xs font-semibold rounded-xl"
               >
                 Send Revision Request

@@ -28,7 +28,7 @@ const ALLOWED_TRANSITIONS: Record<TargetStatus, TargetStatus[]> = {
   Draft: ['Scheduled'],
   Scheduled: ['Processing', 'Draft', 'Cancelled', 'Missed'],
   Processing: ['Posted', 'Retrying', 'Failed', 'NeedsVerification'],
-  Retrying: ['Processing', 'Failed', 'Cancelled'],
+  Retrying: ['Processing', 'Failed', 'Cancelled', 'Missed'],
   NeedsVerification: ['Posted', 'Retrying', 'Failed'],
   Failed: ['Scheduled'], // Human explicit reschedule
   Missed: ['Scheduled'], // Human explicit reschedule
@@ -65,6 +65,8 @@ export function transitionTarget(
   };
 
   // Persist to DB
+  db.exec('SAVEPOINT target_transition');
+  try {
   const stmt = db.prepare(`
     UPDATE post_targets
     SET status = ?,
@@ -82,10 +84,10 @@ export function transitionTarget(
         error_message = ?,
         version = ?,
         updated_at = ?
-    WHERE target_id = ?
+    WHERE target_id = ? AND version = ? AND status = ?
   `);
 
-  stmt.run(
+  const result = stmt.run(
     updatedTarget.status,
     updatedTarget.attempt_count,
     updatedTarget.max_retries,
@@ -101,8 +103,11 @@ export function transitionTarget(
     updatedTarget.error_message || null,
     nextVersion,
     now,
-    target.target_id
+    target.target_id,
+    target.version,
+    target.status
   );
+  if (result.changes !== 1) throw new Error(`Target ${target.target_id} changed; reload before retrying`);
 
   // Write immutable audit log row
   const auditStmt = db.prepare(`
@@ -119,6 +124,12 @@ export function transitionTarget(
     JSON.stringify({ status: toStatus, reason, ...updates }),
     now
   );
+  db.exec('RELEASE target_transition');
+  } catch (error) {
+    db.exec('ROLLBACK TO target_transition');
+    db.exec('RELEASE target_transition');
+    throw error;
+  }
 
   logger.info(
     { target_id: target.target_id, from: target.status, to: toStatus, actor, reason },

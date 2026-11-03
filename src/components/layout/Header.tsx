@@ -258,7 +258,6 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Sparkles className="w-3.5 h-3.5 text-pink-200 animate-pulse" />
           <span className="hidden sm:inline">AI Neural Studio</span>
-          <span className="px-1.5 py-0.5 rounded bg-white/20 text-[9px] uppercase font-mono font-extrabold hidden md:inline">AI v2</span>
         </button>
 
         {/* Direct n8n Workflows Link (opens in new tab) - Only if role has automation permissions */}

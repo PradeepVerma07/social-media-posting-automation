@@ -1,135 +1,67 @@
-import https from 'https';
 import { db } from '../db/sqlite';
 import { logger } from '../logging/logger';
 import { decryptToken } from '../crypto/tokenVault';
 import { transitionTarget } from './stateMachine';
-import { alertService } from './alerts';
+import { loadDelivery } from './deliveryClaims';
 import { sheetsOutboxWorker } from './sheetsOutboxWorker';
 import { sseManager } from './sseManager';
 
+export type VerifyProvider = (target: any, token: string) => Promise<{ id: string; url?: string } | null>;
+
+// Reconcile only an exact provider ID. Caption-prefix search cannot establish
+// identity and an empty feed can never prove that an uncertain post was not sent.
+export const verifyExactMetaPost: VerifyProvider = async (target, token) => {
+  if (!['facebook', 'instagram'].includes(target.platform) || !/^[0-9_]+$/.test(target.platform_post_id || '')) return null;
+  const version = process.env.META_GRAPH_VERSION || 'v21.0';
+  if (!/^v\d+\.\d+$/.test(version)) return null;
+  const id = encodeURIComponent(target.platform_post_id);
+  const fields = target.platform === 'facebook' ? 'id,from,is_published,permalink_url' : 'id,owner,permalink';
+  const response = await fetch(`https://graph.facebook.com/${version}/${id}?fields=${fields}`, {
+    headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) return null;
+  const body: any = await response.json();
+  if (body.error || String(body.id) !== target.platform_post_id) return null;
+  const owner = target.platform === 'facebook' ? body.from?.id : body.owner?.id;
+  if (String(owner || '') !== String(target.external_id)) return null;
+  if (target.platform === 'facebook' && body.is_published !== true) return null;
+  const url = target.platform === 'facebook' ? body.permalink_url : body.permalink;
+  if (typeof url !== 'string' || !url.startsWith('https://')) return null;
+  return { id: String(body.id), url };
+};
+
 export class MetaVerifierService {
-  async verifyTarget(targetId: string): Promise<boolean> {
-    const target = db.prepare(`
-      SELECT t.*, p.caption, p.client_id, a.external_id, a.token_ciphertext, a.token_iv, a.token_tag, a.token_version
-      FROM post_targets t
-      JOIN posts p ON t.post_id = p.post_id
-      JOIN social_accounts a ON t.account_id = a.account_id
-      WHERE t.target_id = ? AND t.status = 'NeedsVerification'
-    `).get(targetId) as any;
-
-    if (!target) return false;
-
+  private active = new Set<string>();
+  async verifyTarget(targetId: string, provider: VerifyProvider = verifyExactMetaPost): Promise<boolean> {
+    if (this.active.has(targetId)) return false;
+    this.active.add(targetId);
     try {
-      const accessToken = decryptToken({
-        ciphertext: target.token_ciphertext,
-        iv: target.token_iv,
-        tag: target.token_tag,
-        version: target.token_version,
-      });
-
-      const prefixMatch = target.caption.trim().substring(0, 80);
-      const graphVersion = process.env.META_GRAPH_VERSION || 'v21.0';
-
-      if (target.platform === 'facebook') {
-        const published = await this.fetchFacebookPosts(target.external_id, accessToken, graphVersion);
-        const match = published.find((p: any) => p.message && p.message.startsWith(prefixMatch));
-        if (match) {
-          const postUrl = match.permalink_url || `https://facebook.com/${match.id}`;
-          transitionTarget(target, 'Posted', 'meta_verifier', 'Found confirmed post on Facebook during verification', {
-            platform_post_id: match.id,
-            post_url: postUrl,
-            posted_at: match.created_time || new Date().toISOString(),
-          });
-          sheetsOutboxWorker.enqueueTargetUpsert(targetId, target.client_id);
-          sseManager.emit('target.status_changed', target.client_id, { targetId, status: 'Posted', postUrl });
-          return true;
-        }
-      } else if (target.platform === 'instagram') {
-        const mediaList = await this.fetchInstagramMedia(target.external_id, accessToken, graphVersion);
-        const match = mediaList.find((m: any) => m.caption && m.caption.startsWith(prefixMatch));
-        if (match) {
-          const postUrl = match.permalink || `https://instagram.com/p/${match.id}`;
-          transitionTarget(target, 'Posted', 'meta_verifier', 'Found confirmed post on Instagram during verification', {
-            platform_post_id: match.id,
-            post_url: postUrl,
-            posted_at: match.timestamp || new Date().toISOString(),
-          });
-          sheetsOutboxWorker.enqueueTargetUpsert(targetId, target.client_id);
-          sseManager.emit('target.status_changed', target.client_id, { targetId, status: 'Posted', postUrl });
-          return true;
-        }
-      }
-
-      // Not found yet -> allow retry if retries remain
-      if (target.attempt_count < target.max_retries) {
-        transitionTarget(target, 'Retrying', 'meta_verifier', 'Confirmed not on Meta after verification check', {
-          next_retry_at: new Date(Date.now() + 60000).toISOString(),
+      const target = loadDelivery(targetId);
+      if (!target || target.status !== 'NeedsVerification' || !target.platform_post_id
+        || target.account_client_id !== target.client_id || target.account_brand_id !== target.brand_id
+        || target.account_status !== 'active') return false;
+      const token = decryptToken({ ciphertext: target.token_ciphertext, iv: target.token_iv, tag: target.token_tag, version: target.token_version });
+      const receipt = await provider(target, token);
+      if (!receipt || receipt.id !== target.platform_post_id) return false;
+      const now = new Date().toISOString();
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        transitionTarget(target, 'Posted', 'provider_verifier', 'Exact provider ID and account ownership confirmed', {
+          post_url: receipt.url || null, posted_at: target.posted_at || now,
+          lock_execution_id: null, lock_stage: null, locked_at: null,
+          error_code: null, error_category: null, error_message: null,
         });
-        sheetsOutboxWorker.enqueueTargetUpsert(targetId, target.client_id);
-        sseManager.emit('target.status_changed', target.client_id, { targetId, status: 'Retrying' });
-      } else {
-        transitionTarget(target, 'Failed', 'meta_verifier', 'Post not found and retries exhausted', {
-          error_category: 'unknown',
-          error_message: 'Verification check failed to locate post on Meta.',
-        });
-        sheetsOutboxWorker.enqueueTargetUpsert(targetId, target.client_id);
-      }
+        db.prepare(`UPDATE publish_attempts SET result = 'success', finished_at = ?, error_code = NULL
+          WHERE target_id = ? AND execution_id = ? AND result = 'unknown'`).run(now, targetId, target.lock_execution_id);
+        db.exec('COMMIT');
+      } catch { db.exec('ROLLBACK'); return false; }
+      sheetsOutboxWorker.enqueueTargetUpsert(targetId, target.client_id);
+      sseManager.emit('target.status_changed', target.client_id, { targetId, status: 'Posted', postUrl: receipt.url });
+      return true;
+    } catch {
+      logger.warn({ targetId }, 'Provider verification unavailable; delivery remains unresolved');
       return false;
-
-    } catch (err) {
-      logger.error({ err, targetId }, 'Error running Meta verification');
-      alertService.notify(`verify_${targetId}`, 'High', 'Meta verifier API call failed', { targetId, err: String(err) });
-      return false;
-    }
-  }
-
-  private fetchFacebookPosts(pageId: string, token: string, graphVersion: string): Promise<any[]> {
-    return new Promise((resolve, reject) => {
-      const options = {
-        hostname: 'graph.facebook.com',
-        path: `/${graphVersion}/${pageId}/published_posts?fields=id,message,created_time,permalink_url&limit=10&access_token=${token}`,
-        method: 'GET',
-      };
-      const req = https.request(options, (res) => {
-        let body = '';
-        res.on('data', chunk => (body += chunk));
-        res.on('end', () => {
-          try {
-            const json = JSON.parse(body);
-            resolve(json.data || []);
-          } catch (e) {
-            resolve([]);
-          }
-        });
-      });
-      req.on('error', reject);
-      req.end();
-    });
-  }
-
-  private fetchInstagramMedia(igUserId: string, token: string, graphVersion: string): Promise<any[]> {
-    return new Promise((resolve, reject) => {
-      const options = {
-        hostname: 'graph.facebook.com',
-        path: `/${graphVersion}/${igUserId}/media?fields=id,caption,timestamp,permalink&limit=10&access_token=${token}`,
-        method: 'GET',
-      };
-      const req = https.request(options, (res) => {
-        let body = '';
-        res.on('data', chunk => (body += chunk));
-        res.on('end', () => {
-          try {
-            const json = JSON.parse(body);
-            resolve(json.data || []);
-          } catch (e) {
-            resolve([]);
-          }
-        });
-      });
-      req.on('error', reject);
-      req.end();
-    });
+    } finally { this.active.delete(targetId); }
   }
 }
-
 export const metaVerifierService = new MetaVerifierService();

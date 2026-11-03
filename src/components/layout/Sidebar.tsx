@@ -204,17 +204,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="p-3.5 border-t border-[#EAECF0] bg-[#F8F9FC] text-xs space-y-2">
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#101828]">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#12B76A] opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#12B76A]"></span>
-                </span>
-                <span>System Online</span>
+                <span>Webtrionix 360</span>
               </span>
-              <span className="text-[10px] font-mono text-[#667085] bg-white px-1.5 py-0.5 rounded border border-[#EAECF0]">v2.4.0</span>
-            </div>
-            <div className="text-[10px] font-mono text-[#667085] flex items-center justify-between">
-              <span>DB: SQLite WAL</span>
-              <span className="text-[#1336E8] font-semibold">n8n Connected</span>
             </div>
             <div className="pt-1.5 border-t border-slate-200/60 flex items-center justify-between">
               <span className="text-[10px] text-slate-500 font-medium">Role Policy:</span>

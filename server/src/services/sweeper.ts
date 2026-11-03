@@ -1,88 +1,82 @@
 import { db } from '../db/sqlite';
 import { logger } from '../logging/logger';
 import { transitionTarget } from './stateMachine';
-import { alertService } from './alerts';
 import { metaVerifierService } from './verifier';
 import { sheetsOutboxWorker } from './sheetsOutboxWorker';
 import { sseManager } from './sseManager';
+import { maxLatenessMinutes } from './deliveryClaims';
 
 export class BackgroundSweeper {
-  private lockTtlMinutes = Number(process.env.LOCK_TTL_MINUTES) || 10;
-  private maxLatenessMinutes = Number(process.env.MAX_LATENESS_MINUTES) || 360; // 6 hours
+  private timer: NodeJS.Timeout | null = null;
+  private running = false;
 
   async runSweepCycle() {
-    await this.sweepStaleLocks();
-    await this.sweepMissedPosts();
+    if (this.running) return;
+    this.running = true;
+    try {
+      this.sweepStaleLocks();
+      this.sweepMissedPosts();
+      const pending = db.prepare(`SELECT target_id FROM post_targets WHERE status = 'NeedsVerification'
+        AND platform_post_id IS NOT NULL ORDER BY updated_at LIMIT 10`).all() as any[];
+      for (const target of pending) await metaVerifierService.verifyTarget(target.target_id);
+    } finally { this.running = false; }
   }
 
-  /**
-   * Stale lock sweeper: targets in Processing older than LOCK_TTL_MINUTES
-   */
-  private async sweepStaleLocks() {
-    const threshold = new Date(Date.now() - this.lockTtlMinutes * 60000).toISOString();
-    const staleTargets = db.prepare(`
-      SELECT t.*, p.client_id
-      FROM post_targets t
-      JOIN posts p ON t.post_id = p.post_id
-      WHERE t.status = 'Processing' AND t.locked_at <= ?
-    `).all(threshold) as any[];
-
-    for (const t of staleTargets) {
-      if (t.lock_stage === 'claimed') {
-        // Meta was never called: move to Retrying
-        logger.info({ targetId: t.target_id }, 'Stale lock at claimed stage. Moving to Retrying.');
-        transitionTarget(t, 'Retrying', 'sweeper', 'Lock TTL expired at claimed stage (Meta not called)', {
-          next_retry_at: new Date().toISOString(),
-          lock_stage: null,
-          lock_execution_id: null,
+  private sweepStaleLocks() {
+    const ttl = Math.max(5, Number(process.env.LOCK_TTL_MINUTES) || 10);
+    const threshold = new Date(Date.now() - ttl * 60000).toISOString();
+    const rows = db.prepare(`SELECT t.*, p.client_id FROM post_targets t JOIN posts p ON t.post_id = p.post_id
+      WHERE t.status = 'Processing' AND (t.locked_at IS NULL OR t.locked_at <= ?)`)
+      .all(threshold) as any[];
+    for (const target of rows) {
+      const safeToRetry = target.lock_stage === 'claimed';
+      const status = safeToRetry ? target.attempt_count < target.max_retries ? 'Retrying' : 'Failed' : 'NeedsVerification';
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        transitionTarget(target, status, 'sweeper', safeToRetry ? 'Claim expired before provider submission' : 'Provider outcome is unknown after execution expired', {
+          next_retry_at: status === 'Retrying' ? new Date().toISOString() : null,
+          lock_stage: safeToRetry ? null : target.lock_stage,
+          lock_execution_id: safeToRetry ? null : target.lock_execution_id,
+          locked_at: safeToRetry ? null : target.locked_at,
+          error_code: safeToRetry ? 'CLAIM_EXPIRED' : 'UNKNOWN_OUTCOME',
+          error_category: safeToRetry ? 'retryable' : 'unknown',
+          error_message: safeToRetry ? 'The worker stopped before publishing.' : 'Check the provider account before any retry.',
         });
-        sheetsOutboxWorker.enqueueTargetUpsert(t.target_id, t.client_id);
-        sseManager.emit('target.status_changed', t.client_id, { targetId: t.target_id, status: 'Retrying' });
-      } else if (t.lock_stage === 'publishing') {
-        // Meta may have received the post: move to NeedsVerification
-        logger.warn({ targetId: t.target_id }, 'Stale lock at publishing stage. Moving to NeedsVerification.');
-        transitionTarget(t, 'NeedsVerification', 'sweeper', 'Lock TTL expired at publishing stage (verification required)');
-        sheetsOutboxWorker.enqueueTargetUpsert(t.target_id, t.client_id);
-        sseManager.emit('target.status_changed', t.client_id, { targetId: t.target_id, status: 'NeedsVerification' });
-
-        // Trigger verifier check
-        metaVerifierService.verifyTarget(t.target_id).catch(err => {
-          logger.error({ err, targetId: t.target_id }, 'Error during background verification');
-        });
-      }
+        db.prepare(`UPDATE publish_attempts SET result = ?, finished_at = ?, error_code = ?
+          WHERE target_id = ? AND execution_id = ? AND result = 'running'`)
+          .run(safeToRetry ? 'failed' : 'unknown', new Date().toISOString(), safeToRetry ? 'CLAIM_EXPIRED' : 'UNKNOWN_OUTCOME', target.target_id, target.lock_execution_id);
+        db.exec('COMMIT');
+      } catch { db.exec('ROLLBACK'); continue; }
+      this.notify(target, status);
     }
   }
 
-  /**
-   * Missed posts sweeper: Scheduled targets older than MAX_LATENESS_MINUTES
-   */
-  private async sweepMissedPosts() {
-    const threshold = new Date(Date.now() - this.maxLatenessMinutes * 60000).toISOString();
-    const missedTargets = db.prepare(`
-      SELECT t.*, p.client_id, p.scheduled_utc
-      FROM post_targets t
-      JOIN posts p ON t.post_id = p.post_id
-      WHERE t.status = 'Scheduled' AND p.scheduled_utc <= ?
-    `).all(threshold) as any[];
-
-    for (const t of missedTargets) {
-      logger.warn({ targetId: t.target_id, scheduledUtc: t.scheduled_utc }, 'Target exceeded max lateness window. Moving to Missed.');
-      transitionTarget(t, 'Missed', 'sweeper', `Scheduled time is over ${this.maxLatenessMinutes} minutes in the past.`);
-      sheetsOutboxWorker.enqueueTargetUpsert(t.target_id, t.client_id);
-      sseManager.emit('target.status_changed', t.client_id, { targetId: t.target_id, status: 'Missed' });
-
-      alertService.notify(`missed_${t.target_id}`, 'High', `Post target missed schedule window`, {
-        targetId: t.target_id,
-        scheduledUtc: t.scheduled_utc,
-      });
+  private sweepMissedPosts() {
+    const threshold = new Date(Date.now() - maxLatenessMinutes() * 60000).toISOString();
+    const rows = db.prepare(`SELECT t.*, p.client_id FROM post_targets t JOIN posts p ON t.post_id = p.post_id
+      WHERE t.status IN ('Scheduled', 'Retrying') AND p.scheduled_utc < ? AND p.deleted_at IS NULL`)
+      .all(threshold) as any[];
+    for (const target of rows) {
+      try {
+        transitionTarget(target, 'Missed', 'sweeper', 'Delivery exceeded the configured lateness window', {
+          next_retry_at: null, error_code: 'MISSED_SCHEDULE', error_message: 'Choose a new time and approve this post before publishing.',
+        });
+        this.notify(target, 'Missed');
+      } catch { /* Another worker changed the target after selection. */ }
     }
+  }
+
+  private notify(target: any, status: string) {
+    sheetsOutboxWorker.enqueueTargetUpsert(target.target_id, target.client_id);
+    sseManager.emit('target.status_changed', target.client_id, { targetId: target.target_id, status });
   }
 
   startSweeper(intervalSeconds = 60) {
-    setInterval(() => {
-      this.runSweepCycle().catch(err => logger.error({ err }, 'Sweeper error'));
+    this.stopSweeper();
+    this.timer = setInterval(() => {
+      void this.runSweepCycle().catch(() => logger.error('Sweeper cycle failed'));
     }, intervalSeconds * 1000);
   }
+  stopSweeper() { if (this.timer) clearInterval(this.timer); this.timer = null; }
 }
-
 export const backgroundSweeper = new BackgroundSweeper();

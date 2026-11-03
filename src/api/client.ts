@@ -1,3 +1,4 @@
+import type { AnalyticsReport, ReportFilters } from '../../server/src/types/reporting';
 import {
   User,
   Post,
@@ -29,7 +30,9 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: 'Request failed' }));
-      throw new Error(errorData.error || (errorData as any).message || `HTTP ${res.status}`);
+      if (res.status === 401 && endpoint !== '/auth/login') window.dispatchEvent(new Event('webtrionix:session-expired'));
+      const detail = errorData.error;
+      throw new Error(typeof detail === 'string' ? detail : detail?.message || errorData.message || `HTTP ${res.status}`);
     }
 
     return res.json();
@@ -42,6 +45,14 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  async getStudioStatus(): Promise<{configured:boolean; provider:string; models:{text:string;image:string}; canGenerate:boolean; message:string}> { return request('/ai/studio/status'); },
+  async getStudioHistory(): Promise<{data:any[]}> { return request('/ai/studio/history'); },
+  async generateStudio(input: import('../../server/src/services/ai/studioGemini').StudioInput): Promise<any> { return request('/ai/studio/generate',{method:'POST',body:JSON.stringify(input)}); },
+  async logout() { return request('/auth/logout', { method: 'POST' }); },
+  async getAnalyticsReport(filters: ReportFilters): Promise<AnalyticsReport> {
+    const params = new URLSearchParams(Object.entries(filters).filter(([,v]) => v !== undefined) as [string,string][]);
+    return request<AnalyticsReport>('/analytics/report?' + params.toString());
+  },
   // Posts
   async getPosts(filters?: {
     brandId?: number;
@@ -85,25 +96,25 @@ export const api = {
     });
   },
 
-  async submitPost(id: number): Promise<Post> {
-    return request<Post>(`/posts/${id}/submit`, { method: 'POST' });
+  async submitPost(id: number, versionNumber: number): Promise<Post> {
+    return request<Post>(`/posts/${id}/submit`, { method: 'POST', body: JSON.stringify({ versionNumber }) });
   },
 
-  async approvePost(id: number): Promise<Post> {
-    return request<Post>(`/posts/${id}/approve`, { method: 'POST' });
+  async approvePost(id: number, versionNumber: number): Promise<Post> {
+    return request<Post>(`/posts/${id}/approve`, { method: 'POST', body: JSON.stringify({ versionNumber }) });
   },
 
-  async rejectPost(id: number, reason: string): Promise<Post> {
+  async rejectPost(id: number, reason: string, versionNumber: number): Promise<Post> {
     return request<Post>(`/posts/${id}/reject`, {
       method: 'POST',
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify({ reason, versionNumber }),
     });
   },
 
-  async requestRevision(id: number, comments: string): Promise<Post> {
+  async requestRevision(id: number, comments: string, versionNumber: number): Promise<Post> {
     return request<Post>(`/posts/${id}/request-revision`, {
       method: 'POST',
-      body: JSON.stringify({ comments }),
+      body: JSON.stringify({ comments, versionNumber }),
     });
   },
 

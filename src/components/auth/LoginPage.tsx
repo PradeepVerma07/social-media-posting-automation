@@ -59,7 +59,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
     setSuccessMsg(null);
 
     const cleanId = identifier.trim();
-    const cleanPass = password.trim();
+    const cleanPass = password;
 
     if (!cleanId || !cleanPass) {
       setErrorMsg('Please enter both your email and password.');
@@ -74,13 +74,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
         password: cleanPass,
       });
 
-      if (res && res.user) {
+      if (res && res.user && res.accessToken) {
         try {
           localStorage.setItem('ci360_auth_user', JSON.stringify(res.user));
-          localStorage.setItem('ci360_auth_token', res.accessToken || 'token');
+          localStorage.setItem('ci360_auth_token', res.accessToken);
           localStorage.removeItem('ci360_is_signed_out');
         } catch {}
-        onLoginSuccess(res.user, res.accessToken || 'token');
+        onLoginSuccess(res.user, res.accessToken);
       } else {
         setErrorMsg('Authentication failed. Please verify credentials.');
       }
@@ -101,8 +101,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
       return;
     }
 
-    if (signupPassword.length < 6) {
-      setErrorMsg('Password must be at least 6 characters.');
+    if (signupPassword.length < 12 || signupPassword.length > 128) {
+      setErrorMsg('Password must be 12–128 characters.');
       return;
     }
 
@@ -117,15 +117,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
         platforms: ['facebook', 'instagram', 'youtube', 'linkedin'],
       });
 
-      if (res && res.user) {
+      if (res && res.user && res.accessToken) {
         try {
           localStorage.setItem('ci360_auth_user', JSON.stringify(res.user));
-          localStorage.setItem('ci360_auth_token', res.accessToken || 'token');
+          localStorage.setItem('ci360_auth_token', res.accessToken);
           localStorage.removeItem('ci360_is_signed_out');
         } catch {}
         setSuccessMsg('Account created successfully! Entering dashboard...');
         setTimeout(() => {
-          onLoginSuccess(res.user, res.accessToken || 'token');
+          onLoginSuccess(res.user, res.accessToken);
         }, 600);
       } else {
         setErrorMsg(res.message || 'Registration failed. Please try again.');
@@ -163,11 +163,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
             }}
           />
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white transition-colors duration-200 group-hover:text-pink-100">
-            Webtrionix Technology Hub
+            Webtrionix 360
           </h1>
         </div>
         <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto mb-4">
-          Social Media Automation, Multi-Channel Publishing &amp; n8n Orchestrator
+          Plan, approve, and schedule your social content in one place.
         </p>
 
         {/* Security Gateway Pill with hover effect */}
@@ -181,7 +181,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
           </div>
           <div className="flex items-center gap-1.5 text-slate-300">
             <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-            <span>AES-256 Vault Active</span>
+            <span>Workspace sign-in</span>
           </div>
         </div>
       </header>
@@ -196,7 +196,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
               <h2 className="text-3xl sm:text-4xl lg:text-[42px] font-extrabold tracking-tight text-white leading-[1.18]">
                 Know how your{' '}
                 <span className="bg-gradient-to-r from-[#F06A6A] via-[#E85D75] to-[#B368E8] bg-clip-text text-transparent">
-                  brand&apos;s schedule workflow works
+                  content moves from idea to published post
                 </span>
               </h2>
               <p className="text-xs sm:text-sm text-slate-400 mt-2.5 max-w-lg leading-relaxed">
@@ -343,7 +343,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
             <h2 className="text-2xl font-bold text-white tracking-tight flex items-center justify-between">
               <span>{authMode === 'signin' ? 'Sign in' : 'Create an account'}</span>
               <span className="text-[11px] font-normal text-slate-400 bg-white/5 px-2.5 py-1 rounded-full border border-white/10">
-                {authMode === 'signin' ? 'Vault Protected' : 'Brand Registration'}
+                {authMode === 'signin' ? 'Welcome back' : 'Brand Registration'}
               </span>
             </h2>
 
@@ -591,10 +591,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
       <footer className="w-full max-w-5xl text-center pb-2 sm:pb-4 space-y-1 text-slate-500 text-xs z-10 animate-in fade-in duration-300">
         <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
           <Shield className="w-3.5 h-3.5 text-blue-400" />
-          <span>Encrypted with AES-256-GCM &bull; Hardware Vault Protected</span>
+          <span>Manage your social content &bull; Workspace access</span>
         </div>
         <p className="text-[11px] text-slate-500">
-          &copy; {new Date().getFullYear()} CI360 Studio. All rights reserved.
+          &copy; {new Date().getFullYear()} Webtrionix 360. All rights reserved.
         </p>
       </footer>
     </div>

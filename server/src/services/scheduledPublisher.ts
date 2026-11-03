@@ -1,24 +1,26 @@
+import { randomUUID } from 'node:crypto';
 import { db } from '../db/sqlite';
 import { logger } from '../logging/logger';
-import { publishTargetDirectly } from '../routes/publicRoutes';
-import { sseManager } from './sseManager';
+import { publishDelivery } from './reliablePublisher';
+import { DeliveryConflict, maxLatenessMinutes } from './deliveryClaims';
 
 export class ScheduledPublisherService {
   private timer: NodeJS.Timeout | null = null;
-  private isRunning: boolean = false;
+  private initialTimer: NodeJS.Timeout | null = null;
+  private isRunning = false;
 
   startService(intervalSeconds = 20) {
-    if (this.timer) clearInterval(this.timer);
-    this.timer = setInterval(() => this.publishDuePosts(), intervalSeconds * 1000);
-    logger.info({ intervalSeconds }, 'ScheduledPublisher background service started');
-    setTimeout(() => this.publishDuePosts(), 2000);
+    this.stopService();
+    this.timer = setInterval(() => void this.publishDuePosts(), intervalSeconds * 1000);
+    this.initialTimer = setTimeout(() => void this.publishDuePosts(), 2000);
+    logger.info({ intervalSeconds }, 'Scheduled publisher started');
   }
 
   stopService() {
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
+    if (this.timer) clearInterval(this.timer);
+    if (this.initialTimer) clearTimeout(this.initialTimer);
+    this.timer = null;
+    this.initialTimer = null;
   }
 
   async publishDuePosts() {
@@ -26,52 +28,21 @@ export class ScheduledPublisherService {
     this.isRunning = true;
     try {
       const now = new Date().toISOString();
-      const query = `
-        SELECT t.*, p.title, p.caption, p.hashtags, p.media_urls, p.media_type, p.placement,
-               p.scheduled_utc, p.client_id, p.tagged_users
-        FROM post_targets t
-        JOIN posts p ON t.post_id = p.post_id
-        WHERE t.status = 'Scheduled'
-          AND p.approval_status = 'Approved'
-          AND p.deleted_at IS NULL
-          AND p.scheduled_utc <= ?
-        ORDER BY p.scheduled_utc ASC
-        LIMIT 10
-      `;
-      const dueTargets = db.prepare(query).all(now) as any[];
-
-      for (const target of dueTargets) {
-        try {
-          logger.info({ targetId: target.target_id, platform: target.platform, title: target.title }, 'Auto-publishing scheduled post target');
-          const execId = `EXEC-AUTO-${Date.now().toString(36).toUpperCase()}`;
-          const post = {
-            post_id: target.post_id,
-            client_id: target.client_id,
-            caption: target.caption,
-            hashtags: target.hashtags,
-            media_urls: target.media_urls,
-            media_type: target.media_type,
-            placement: target.placement,
-            tagged_users: target.tagged_users,
-          };
-          const pubResult = await publishTargetDirectly(target, post, execId);
-          if (pubResult.result === 'succeeded' || pubResult.result === 'partial') {
-            const finalStatus = pubResult.targetStatus || (pubResult.result === 'succeeded' ? 'Posted' : 'NeedsVerification');
-            sseManager.emit('target.status_changed', target.client_id, { targetId: target.target_id, status: finalStatus });
-            sseManager.emit('post.updated', target.client_id, { postId: target.post_id });
-          } else {
-            sseManager.emit('target.status_changed', target.client_id, { targetId: target.target_id, status: 'Failed' });
-          }
-        } catch (targetErr: any) {
-          logger.error({ targetId: target.target_id, platform: target.platform, err: targetErr.message }, 'ScheduledPublisher target auto-publishing error');
+      const targets = db.prepare(`SELECT t.target_id FROM post_targets t JOIN posts p ON t.post_id = p.post_id
+        WHERE t.status IN ('Scheduled', 'Retrying') AND p.approval_status = 'Approved'
+        AND p.approved_version = p.version AND p.deleted_at IS NULL
+        AND p.scheduled_utc <= ? AND p.scheduled_utc >= ?
+        AND (t.next_retry_at IS NULL OR t.next_retry_at <= ?)
+        AND t.attempt_count < t.max_retries ORDER BY p.scheduled_utc LIMIT 10`)
+        .all(now, new Date(Date.now() - maxLatenessMinutes() * 60000).toISOString(), now) as any[];
+      for (const target of targets) {
+        try { await publishDelivery(target.target_id, `auto-${randomUUID()}`); }
+        catch (error) {
+          if (!(error instanceof DeliveryConflict)) logger.error({ targetId: target.target_id }, 'Scheduled delivery requires reconciliation');
         }
       }
-    } catch (err: any) {
-      logger.error({ err: err.message }, 'ScheduledPublisher error');
-    } finally {
-      this.isRunning = false;
-    }
+    } catch { logger.error('Scheduled publisher cycle failed'); }
+    finally { this.isRunning = false; }
   }
 }
-
 export const scheduledPublisher = new ScheduledPublisherService();

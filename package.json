@@ -7,14 +7,14 @@
     "dev": "node node_modules/tsx/dist/cli.mjs watch server.ts",
     "build:client": "node node_modules/vite/bin/vite.js build",
     "build:server": "node node_modules/esbuild/bin/esbuild server.ts --bundle --platform=node --format=esm --external:vite \"--banner:js=import { createRequire } from 'module'; const require = createRequire(import.meta.url);\" --outfile=server.js && node -e \"const fs=require('fs'); fs.mkdirSync('dist', {recursive:true}); fs.copyFileSync('server.js', 'dist/server.js');\"",
-    "build": "node node_modules/vite/bin/vite.js build && node -e \"const fs=require('fs'); fs.copyFileSync('server.js', 'dist/server.js');\"",
+    "build": "npm run build:client && npm run build:server",
     "start": "node server.js",
     "n8n:start": "powershell -ExecutionPolicy Bypass -File scripts/start_n8n.ps1",
     "preview": "node node_modules/vite/bin/vite.js preview",
     "clean": "node -e \"const fs=require('fs'); fs.rmSync('dist', { recursive: true, force: true });\"",
     "lint": "node node_modules/typescript/bin/tsc --noEmit",
     "seed": "node node_modules/tsx/dist/cli.mjs scripts/seed.ts",
-    "test": "node node_modules/tsx/dist/cli.mjs --test server/test/timezone.test.ts server/test/stateMachine.test.ts server/test/metaErrors.test.ts server/test/tokenVault.test.ts server/test/idempotency.test.ts server/test/postLifecycle.test.ts"
+    "test": "node scripts/run-tests.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

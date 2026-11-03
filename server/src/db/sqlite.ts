@@ -9,14 +9,16 @@ try {
 } catch {}
 
 import { DatabaseSync } from 'node:sqlite';
+import { migrateEnterprise, provisionAdministrator } from './enterpriseSchema';
 import { encryptToken } from '../crypto/tokenVault';
 
-const dbDir = path.resolve(process.cwd(), 'database');
+const dbDir = path.resolve(process.env.DATA_DIRECTORY || process.cwd(), 'database');
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
 const dbPath = process.env.DATABASE_URL?.replace('sqlite://', '') || path.join(dbDir, 'ci360.sqlite');
+if (dbPath !== ':memory:') fs.mkdirSync(path.dirname(path.resolve(dbPath)), { recursive: true });
 export const db = new DatabaseSync(dbPath);
 
 // Enable WAL mode, Foreign Keys and busy timeout for high-concurrency production reliability
@@ -690,8 +692,13 @@ export function initDatabase() {
     db.prepare(`ALTER TABLE brands ADD COLUMN tokens_json TEXT DEFAULT '{}'`).run();
   } catch {}
   try {
-    db.prepare(`ALTER TABLE users ADD COLUMN password TEXT DEFAULT 'Admin@123'`).run();
+    db.prepare(`ALTER TABLE users ADD COLUMN password TEXT DEFAULT ''`).run();
   } catch {}
+
+  migrateEnterprise(db);
+  provisionAdministrator(db);
+  // Sample data is opt-in and never populated automatically in production.
+  if (process.env.ENABLE_DEMO_DATA !== 'true' || process.env.NODE_ENV === 'production') return;
 
   // Seed default clients if empty
   const clientCount = db.prepare('SELECT count(*) as c FROM clients').get() as { c: number };
@@ -753,34 +760,6 @@ export function initDatabase() {
       );
     }
   }
-
-  // Secure Super Admin Provisioning: Exclusively configured via environment variables
-  const envAdminEmail = (process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase();
-  const envAdminPassword = (process.env.SUPER_ADMIN_PASSWORD || '').trim();
-  const envAdminName = (process.env.SUPER_ADMIN_NAME || 'Super Admin').trim();
-
-  if (envAdminEmail && envAdminPassword) {
-    const nowAdminTime = new Date().toISOString();
-    const existing: any = db.prepare('SELECT user_id FROM users WHERE LOWER(email) = LOWER(?)').get(envAdminEmail);
-    if (!existing) {
-      db.prepare(`
-        INSERT INTO users (email, full_name, role, tenant_scope, is_active, two_factor_enabled, password, created_at)
-        VALUES (?, ?, 'Super Admin', 'Global (All Brands)', 1, 0, ?, ?)
-      `).run(envAdminEmail, envAdminName, envAdminPassword, nowAdminTime);
-    } else {
-      db.prepare(`UPDATE users SET is_active = 1, password = ?, role = 'Super Admin', full_name = ? WHERE user_id = ?`)
-        .run(envAdminPassword, envAdminName, existing.user_id);
-    }
-  }
-
-  // Clean up any legacy dummy demo accounts for security
-  try {
-    db.prepare(`
-      DELETE FROM users 
-      WHERE email IN ('admin@ci360.agency', 'sarah@ci360.agency', 'marcus@ci360.agency')
-        AND LOWER(email) != LOWER(?)
-    `).run(envAdminEmail || '');
-  } catch {}
 
   // Seed notifications if empty
   const notifCount = db.prepare('SELECT count(*) as c FROM notifications').get() as { c: number };
