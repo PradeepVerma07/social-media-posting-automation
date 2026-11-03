@@ -749,7 +749,7 @@ export default function App() {
         />
 
         {/* Viewport Workspace */}
-        <main className={`flex-1 ${activeTab === 'calendar' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto pb-20 lg:pb-0'}`}>
+        <main className="min-h-0 flex-1 overflow-y-auto pb-20 lg:pb-0">
           {activeTab === 'overview' && (
             <OverviewDashboard
               analytics={analytics}
