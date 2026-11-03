@@ -3447,14 +3447,21 @@ publicRouter.post('/webhooks/sheets', async (req: Request, res: Response) => {
  */
 publicRouter.get('/ai/overview', (req: Request, res: Response) => {
   try {
+    const brandId = String(req.query.brandId || '').trim();
+    if (!brandId) return res.status(400).json({ error: 'A brand ID is required.' });
+    const brand = db.prepare('SELECT brand_id, client_id FROM brands WHERE brand_id = ?').get(brandId) as any;
+    if (!brand || (!req.principal.global && brand.client_id !== req.principal.clientId)) {
+      return res.status(404).json({ error: 'Brand not found in this workspace.' });
+    }
+
     const auditStats = db.prepare(`
       SELECT 
         COUNT(*) as totalAudits,
         AVG(hook_score) as avgHookScore,
         AVG(visual_score) as avgVisualScore,
         AVG(engagement_velocity) as avgVelocity
-      FROM feed_audits
-    `).get() as any;
+      FROM feed_audits WHERE brand_id = ?
+    `).get(brandId) as any;
 
     const queueStats = db.prepare(`
       SELECT 
@@ -3462,8 +3469,8 @@ publicRouter.get('/ai/overview', (req: Request, res: Response) => {
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pendingCount,
         SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approvedCount,
         AVG(virality_score) as avgViralityScore
-      FROM ai_intercepted_posts
-    `).get() as any;
+      FROM ai_intercepted_posts WHERE brand_id = ?
+    `).get(brandId) as any;
 
     const platformBreakdown = db.prepare(`
       SELECT 
@@ -3472,32 +3479,37 @@ publicRouter.get('/ai/overview', (req: Request, res: Response) => {
         AVG(hook_score) as avgHook,
         AVG(visual_score) as avgVisual,
         AVG(engagement_velocity) as avgVelocity
-      FROM feed_audits
+      FROM feed_audits WHERE brand_id = ?
       GROUP BY platform
-    `).all() as any[];
+    `).all(brandId) as any[];
 
     const recentAudits = db.prepare(`
-      SELECT * FROM feed_audits ORDER BY created_at DESC LIMIT 5
-    `).all() as any[];
+      SELECT * FROM feed_audits WHERE brand_id = ? ORDER BY created_at DESC LIMIT 5
+    `).all(brandId) as any[];
+    const totalAudits = Number(auditStats?.totalAudits || 0);
+    const avgHookScore = auditStats?.avgHookScore == null ? 0 : Number(auditStats.avgHookScore);
+    const avgVisualScore = auditStats?.avgVisualScore == null ? 0 : Number(auditStats.avgVisualScore);
+    const avgVelocity = auditStats?.avgVelocity == null ? 0 : Number(auditStats.avgVelocity);
+    const avgViralityScore = queueStats?.avgViralityScore == null ? 0 : Number(queueStats.avgViralityScore);
 
     res.json({
-      healthScore: Math.round(((auditStats?.avgHookScore || 85) + (auditStats?.avgVisualScore || 88)) / 2),
-      avgHookScore: Math.round(auditStats?.avgHookScore || 85),
-      avgVisualScore: Math.round(auditStats?.avgVisualScore || 88),
-      avgEngagementVelocity: Number((auditStats?.avgVelocity || 1.8).toFixed(1)),
-      totalAudits: auditStats?.totalAudits || 0,
+      healthScore: totalAudits ? Math.round((avgHookScore + avgVisualScore) / 2) : 0,
+      avgHookScore: Math.round(avgHookScore),
+      avgVisualScore: Math.round(avgVisualScore),
+      avgEngagementVelocity: Number(avgVelocity.toFixed(1)),
+      totalAudits,
       interceptQueue: {
         pendingCount: queueStats?.pendingCount || 0,
         approvedCount: queueStats?.approvedCount || 0,
         total: queueStats?.totalIntercepted || 0,
-        avgViralityScore: Math.round(queueStats?.avgViralityScore || 86),
+        avgViralityScore: Math.round(avgViralityScore),
       },
       platformBreakdown: platformBreakdown.map((p) => ({
         platform: p.platform,
         count: p.count,
         avgHook: Math.round(p.avgHook || 0),
         avgVisual: Math.round(p.avgVisual || 0),
-        avgVelocity: Number((p.avgVelocity || 1).toFixed(1)),
+        avgVelocity: Number((p.avgVelocity == null ? 0 : p.avgVelocity).toFixed(1)),
       })),
       recentAudits: recentAudits.map((a) => ({
         ...a,

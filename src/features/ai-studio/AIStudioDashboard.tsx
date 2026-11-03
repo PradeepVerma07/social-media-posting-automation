@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Sparkles,
   Bot,
@@ -199,6 +199,7 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
   // Live Feed Sync State
   const [syncingFeed, setSyncingFeed] = useState<boolean>(false);
   const hasAuditData = (overview?.totalAudits ?? 0) > 0;
+  const brandLoadSequence = useRef(0);
 
   useEffect(() => {
     if (brandOptions.length > 0 && !brandOptions.some((brand) => brand.brandId === selectedBrandId)) {
@@ -208,8 +209,18 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
 
   // Load Brand-Specific Intelligence
   const loadBrandData = async (brandId: string) => {
+    const requestId = ++brandLoadSequence.current;
     try {
       setLoading(true);
+      setActiveBrandBrain(null);
+      setLearnedPreferences([]);
+      setTopicsData({ opportunityTopics: [], overusedTopics: [], missingTopics: [] });
+      setDetectedLeads([]);
+      setCompetitors([]);
+      setAiUsage(null);
+      setOverview(null);
+      setFeedAudits([]);
+      setInterceptQueue([]);
       const [
         brainRes,
         prefsRes,
@@ -227,20 +238,22 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
         api.getDetectedLeads(brandId).catch(() => ({ leads: [] })),
         api.getCompetitors(brandId).catch(() => ({ competitors: [] })),
         api.getAIUsage(brandId).catch(() => null),
-        api.getAIOverview().catch(() => null),
+        api.getAIOverview(brandId).catch(() => null),
         api.getFeedAudits('all').catch(() => ({ items: [] })),
         api.getInterceptQueue('all').catch(() => ({ items: [] })),
       ]);
 
-      if (brainRes) setActiveBrandBrain(brainRes);
-      if (prefsRes?.preferences) setLearnedPreferences(prefsRes.preferences);
-      if (topicsRes) setTopicsData(topicsRes);
-      if (leadsRes?.leads) setDetectedLeads(leadsRes.leads);
-      if (compsRes?.competitors) setCompetitors(compsRes.competitors);
-      if (usageRes) setAiUsage(usageRes);
-      if (overviewRes) setOverview(overviewRes);
-      if (auditsRes?.items) setFeedAudits(auditsRes.items);
-      if (queueRes?.items) setInterceptQueue(queueRes.items);
+      if (requestId !== brandLoadSequence.current) return;
+
+      setActiveBrandBrain(brainRes);
+      setLearnedPreferences(prefsRes?.preferences || []);
+      setTopicsData(topicsRes || { opportunityTopics: [], overusedTopics: [], missingTopics: [] });
+      setDetectedLeads(leadsRes?.leads || []);
+      setCompetitors(compsRes?.competitors || []);
+      setAiUsage(usageRes);
+      setOverview(overviewRes);
+      setFeedAudits(auditsRes?.items || []);
+      setInterceptQueue(queueRes?.items || []);
 
       // Run initial diagnostic & prediction on sample post
       runPostDiagnostic(diagnosticPostText, brandId);
@@ -248,8 +261,10 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
     } catch (err) {
       console.error('Failed to load brand intelligence data:', err);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (requestId === brandLoadSequence.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
@@ -590,7 +605,7 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
               <span>CI360 AI Neural Studio & Predictive Feed Intelligence</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
-              {activeBrandBrain?.brandName || 'Station Satcom'} · Marketing Strategist
+              {activeBrandBrain?.brandName || brandOptions.find(brand => brand.brandId === selectedBrandId)?.brandName || 'Selected brand'} · Marketing Strategist
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
               Autonomous multi-brand intelligence: Pre-flight post interception, statistical performance forecasting (LightGBM), Mode A Public Discovery, Gemini Multimodal Canvas, and Brand Brain learning.

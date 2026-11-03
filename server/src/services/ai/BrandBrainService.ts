@@ -57,12 +57,7 @@ export class BrandBrainService {
       SELECT * FROM brand_intelligence_profiles WHERE brand_id = ?
     `).get(brandId) as any;
 
-    if (!row) {
-      // Fallback to first available profile
-      const first = db.prepare('SELECT * FROM brand_intelligence_profiles LIMIT 1').get() as any;
-      if (!first) return null;
-      return this.formatProfileRow(first);
-    }
+    if (!row) return null;
 
     return this.formatProfileRow(row);
   }

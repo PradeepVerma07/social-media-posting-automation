@@ -438,8 +438,8 @@ export const api = {
   // CI360 AI Neural Studio & Predictive Feed Intelligence APIs
   // =========================================================================
 
-  async getAIOverview(): Promise<AIStudioOverview> {
-    return request('/ai/overview');
+  async getAIOverview(brandId: string): Promise<AIStudioOverview> {
+    return request(`/ai/overview?brandId=${encodeURIComponent(brandId)}`);
   },
 
   async getFeedAudits(platform?: string, limit: number = 50): Promise<{ items: FeedAuditItem[] }> {
