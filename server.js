@@ -130633,14 +130633,23 @@ try {
 var PORT = Number(process.env.PORT) || 3e3;
 async function startServer() {
   const possibleDistPaths = [
-    path7.resolve(process.cwd()),
     path7.resolve(process.cwd(), "dist"),
     path7.resolve(process.cwd(), "server", "dist", "public"),
-    path7.resolve(process.cwd(), "public_html")
+    path7.resolve(process.cwd(), "public_html"),
+    path7.resolve(process.cwd())
   ];
-  const distPath = possibleDistPaths.find((p) => fs8.existsSync(path7.join(p, "index.html"))) || possibleDistPaths[0];
+  const distPath = possibleDistPaths.find((p) => fs8.existsSync(path7.join(p, "index.html")) && fs8.existsSync(path7.join(p, "assets"))) || possibleDistPaths.find((p) => fs8.existsSync(path7.join(p, "index.html"))) || possibleDistPaths[0];
   const hasDist = fs8.existsSync(path7.join(distPath, "index.html"));
   const isProd = process.env.NODE_ENV === "production" || hasDist;
+  const staticOptions = {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".js") || filePath.endsWith(".mjs")) {
+        res.setHeader("Content-Type", "application/javascript; charset=UTF-8");
+      } else if (filePath.endsWith(".css")) {
+        res.setHeader("Content-Type", "text/css; charset=UTF-8");
+      }
+    }
+  };
   if (!isProd) {
     try {
       const { createServer: createViteServer } = await import("vite");
@@ -130651,14 +130660,14 @@ async function startServer() {
       app.use(vite.middlewares);
     } catch {
       if (hasDist) {
-        app.use(import_express4.default.static(distPath));
+        app.use(import_express4.default.static(distPath, staticOptions));
         app.get("*", (req, res) => {
           res.sendFile(path7.join(distPath, "index.html"));
         });
       }
     }
   } else {
-    app.use(import_express4.default.static(distPath));
+    app.use(import_express4.default.static(distPath, staticOptions));
     app.get("*", (req, res) => {
       res.sendFile(path7.join(distPath, "index.html"));
     });

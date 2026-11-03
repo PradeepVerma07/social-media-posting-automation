@@ -20,14 +20,24 @@ const PORT = Number(process.env.PORT) || 3000;
 
 async function startServer() {
   const possibleDistPaths = [
-    path.resolve(process.cwd()),
     path.resolve(process.cwd(), 'dist'),
     path.resolve(process.cwd(), 'server', 'dist', 'public'),
     path.resolve(process.cwd(), 'public_html'),
+    path.resolve(process.cwd()),
   ];
-  const distPath = possibleDistPaths.find(p => fs.existsSync(path.join(p, 'index.html'))) || possibleDistPaths[0];
+  const distPath = possibleDistPaths.find(p => fs.existsSync(path.join(p, 'index.html')) && fs.existsSync(path.join(p, 'assets'))) || possibleDistPaths.find(p => fs.existsSync(path.join(p, 'index.html'))) || possibleDistPaths[0];
   const hasDist = fs.existsSync(path.join(distPath, 'index.html'));
   const isProd = process.env.NODE_ENV === 'production' || hasDist;
+
+  const staticOptions = {
+    setHeaders: (res: any, filePath: string) => {
+      if (filePath.endsWith('.js') || filePath.endsWith('.mjs')) {
+        res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+      } else if (filePath.endsWith('.css')) {
+        res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+      }
+    },
+  };
 
   if (!isProd) {
     try {
@@ -41,15 +51,15 @@ async function startServer() {
     } catch {
       // Fallback to static serving if vite middleware fails
       if (hasDist) {
-        app.use(express.static(distPath));
+        app.use(express.static(distPath, staticOptions));
         app.get('*', (req, res) => {
           res.sendFile(path.join(distPath, 'index.html'));
         });
       }
     }
   } else {
-    // In production, serve built SPA
-    app.use(express.static(distPath));
+    // In production, serve built SPA with explicit MIME types
+    app.use(express.static(distPath, staticOptions));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
