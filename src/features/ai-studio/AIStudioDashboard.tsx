@@ -105,6 +105,13 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
   // Enterprise Data States
   const [overview, setOverview] = useState<AIStudioOverview | null>(null);
   const [availableBrands, setAvailableBrands] = useState<BrandBrainProfile[]>([]);
+  const brandOptions: BrandBrainProfile[] = availableBrands.length > 0
+    ? availableBrands
+    : brands.map((brand) => ({
+        brandId: brand.brandId || `BR-${String(brand.id).padStart(3, '0')}`,
+        brandName: brand.name,
+        industry: '',
+      } as BrandBrainProfile));
   const [activeBrandBrain, setActiveBrandBrain] = useState<BrandBrainProfile | null>(null);
   const [learnedPreferences, setLearnedPreferences] = useState<BrandLearnedPreference[]>([]);
   const [feedAudits, setFeedAudits] = useState<FeedAuditItem[]>([]);
@@ -191,6 +198,12 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
 
   // Live Feed Sync State
   const [syncingFeed, setSyncingFeed] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (brandOptions.length > 0 && !brandOptions.some((brand) => brand.brandId === selectedBrandId)) {
+      setSelectedBrandId(brandOptions[0].brandId);
+    }
+  }, [brands, availableBrands, selectedBrandId]);
 
   // Load Brand-Specific Intelligence
   const loadBrandData = async (brandId: string) => {
@@ -524,13 +537,16 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
             <div className="flex items-center gap-2 mt-0.5">
               <Building className="w-4 h-4 text-slate-400" />
               <select
+                aria-label="Select Brand Brain"
                 value={selectedBrandId}
                 onChange={(e) => handleBrandChange(e.target.value)}
-                className="bg-black/60 border border-violet-500/40 rounded-lg px-3 py-1 text-xs font-bold text-white focus:outline-none focus:border-pink-500 transition-all cursor-pointer"
+                disabled={brandOptions.length === 0}
+                className="min-w-64 max-w-[70vw] bg-black/60 border border-violet-500/40 rounded-lg px-3 py-1 text-xs font-bold text-white focus:outline-none focus:border-pink-500 transition-all cursor-pointer disabled:cursor-wait disabled:opacity-70"
               >
-                {availableBrands.map((b) => (
+                {brandOptions.length === 0 && <option value="">Loading brands…</option>}
+                {brandOptions.map((b) => (
                   <option key={b.brandId} value={b.brandId} className="bg-[#120F1D] text-white">
-                    {b.brandName} ({b.industry})
+                    {b.brandName}{b.industry ? ` (${b.industry})` : ''}
                   </option>
                 ))}
               </select>

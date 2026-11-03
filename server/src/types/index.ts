@@ -38,6 +38,8 @@ export interface BrandTokens {
 
 export interface Brand {
   id: number;
+  /** Stable enterprise ID (for example BR-002), when supplied by the API. */
+  brandId?: string;
   name: string;
   slug: string;
   logoUrl?: string;
