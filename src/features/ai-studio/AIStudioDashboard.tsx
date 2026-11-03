@@ -734,16 +734,16 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
             <div className="rounded-2xl bg-[#120F1D]/80 border border-violet-500/20 p-5 backdrop-blur-xl">
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>Active Leads Detected</span>
-                <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">
-                  HIGH INTENT
+                <span className={`px-2 py-0.5 rounded border font-bold ${detectedLeads.length > 0 ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20'}`}>
+                  {detectedLeads.length > 0 ? 'HIGH INTENT' : 'NO LEADS'}
                 </span>
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-3xl font-black text-white">{detectedLeads.length}</span>
-                <span className="text-xs text-amber-300 font-medium">procurement inquiries</span>
+                <span className="text-3xl font-black text-white">{detectedLeads.length > 0 ? detectedLeads.length : '—'}</span>
+                <span className="text-xs text-amber-300 font-medium">{detectedLeads.length === 1 ? 'active lead' : 'active leads'}</span>
               </div>
               <p className="mt-2 text-xs text-slate-400">
-                Purchase signals, price inquiries and DM requests detected from live comment feeds.
+                {detectedLeads.length > 0 ? 'Purchase signals found in saved comment analyses.' : 'Sync and analyze social comments to detect potential leads.'}
               </p>
             </div>
           </div>
@@ -754,48 +754,43 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
                   <Layers className="w-4 h-4 text-violet-400" />
-                  Multi-Channel Algorithmic Benchmarks · {activeBrandBrain?.brandName}
+                  Platform audit results · {activeBrandBrain?.brandName || selectedBrandId}
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Algorithmic resonance indices and optimal format performance.
+                  Scores and velocity from saved feed audits for this workspace.
                 </p>
               </div>
               <span className="px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold">
-                PROVENANCE: FIRST-PARTY
+                PROVENANCE: SAVED AUDITS
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {[
-                { platform: 'LinkedIn', icon: <Linkedin className="w-5 h-5 text-sky-400" />, hook: 94, visual: 92, rate: '4.8%', status: 'Technical Whitepapers & Carousels' },
-                { platform: 'Instagram', icon: <Instagram className="w-5 h-5 text-pink-400" />, hook: 88, visual: 94, rate: '3.6%', status: 'Vertical Reels & Bridge Telemetry' },
-                { platform: 'Facebook', icon: <Facebook className="w-5 h-5 text-blue-400" />, hook: 82, visual: 86, rate: '2.1%', status: 'Industry Community Discussion' },
-                { platform: 'WhatsApp', icon: <MessageCircle className="w-5 h-5 text-emerald-400" />, hook: 90, visual: 90, rate: '34.5%', status: 'VIP Broadcast Bulletins (High CTR)' },
-              ].map((p) => (
+            {overview?.platformBreakdown.length ? <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              {overview.platformBreakdown.map((p) => (
                 <div key={p.platform} className="p-4 rounded-xl bg-black/40 border border-white/5 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      {p.icon}
-                      <span className="font-bold text-white text-sm">{p.platform}</span>
+                      {p.platform.toLowerCase() === 'linkedin' ? <Linkedin className="w-5 h-5 text-sky-400" /> : p.platform.toLowerCase() === 'instagram' ? <Instagram className="w-5 h-5 text-pink-400" /> : p.platform.toLowerCase() === 'facebook' ? <Facebook className="w-5 h-5 text-blue-400" /> : p.platform.toLowerCase() === 'whatsapp' ? <MessageCircle className="w-5 h-5 text-emerald-400" /> : <Globe className="w-5 h-5 text-violet-400" />}
+                      <span className="font-bold text-white text-sm capitalize">{p.platform}</span>
                     </div>
-                    <span className="text-xs font-mono font-bold text-emerald-400">{p.rate} Rate</span>
+                    <span className="text-xs font-mono font-bold text-emerald-400">{p.count} audits</span>
                   </div>
                   <div className="space-y-1 text-xs">
                     <div className="flex justify-between text-slate-400">
                       <span>Hook Quality:</span>
-                      <span className="font-bold text-white">{p.hook}/100</span>
+                      <span className="font-bold text-white">{p.avgHook}/100</span>
                     </div>
                     <div className="flex justify-between text-slate-400">
                       <span>Visual Cohesion:</span>
-                      <span className="font-bold text-white">{p.visual}/100</span>
+                      <span className="font-bold text-white">{p.avgVisual}/100</span>
                     </div>
                   </div>
-                  <div className="text-[11px] text-violet-300 font-medium line-clamp-1 border-t border-white/5 pt-2">
-                    {p.status}
+                  <div className="text-[11px] text-violet-300 font-medium border-t border-white/5 pt-2">
+                    Engagement velocity: {p.avgVelocity}x
                   </div>
                 </div>
               ))}
-            </div>
+            </div> : <p className="rounded-xl border border-dashed border-white/15 px-4 py-8 text-center text-sm text-slate-400">No platform audit data yet. Run a feed analysis to see results for this workspace.</p>}
           </div>
         </div>
       )}
