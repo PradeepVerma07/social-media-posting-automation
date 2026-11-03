@@ -99,6 +99,8 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [geminiStatus, setGeminiStatus] = useState<Awaited<ReturnType<typeof api.getStudioStatus>> | null>(null);
+  const [geminiStatusChecked, setGeminiStatusChecked] = useState(false);
 
   // Enterprise Data States
   const [overview, setOverview] = useState<AIStudioOverview | null>(null);
@@ -239,6 +241,7 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
 
   // Initial Boot
   useEffect(() => {
+    api.getStudioStatus().then(setGeminiStatus).catch(() => setGeminiStatus(null)).finally(() => setGeminiStatusChecked(true));
     api.listBrandBrains().then((res) => {
       if (res?.brands?.length) {
         setAvailableBrands(res.brands);
@@ -598,10 +601,10 @@ export const AIStudioDashboard: React.FC<AIStudioDashboardProps> = ({
 
         {/* Real-time Subsystem Status */}
         <div className="mt-6 pt-4 border-t border-white/10 flex flex-wrap items-center gap-5 text-xs text-slate-300">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            <span className="text-slate-400">Gemini 2.5 Flash:</span> Active
-          </div>
+          <button type="button" onClick={() => setActiveTab('canvas')} className="flex items-center gap-2 rounded-md text-left hover:text-white" title="Open the Gemini Studio and check live provider configuration">
+            <span className={`w-2 h-2 rounded-full ${geminiStatus?.configured ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+            <span className="text-slate-400">Google Gemini:</span> {!geminiStatusChecked ? 'Checking…' : geminiStatus ? (geminiStatus.configured ? 'Configured' : 'API key required') : 'Status unavailable'}
+          </button>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-sky-400" />
             <span className="text-slate-400">Statistical ML:</span> LightGBM v2.1
