@@ -1267,6 +1267,9 @@ publicRouter.get('/workflows', (req: Request, res: Response) => {
       {
         id: 'Utaz0U82aZQZ7uHF',
         name: 'Social Media Automation Hub - Main Scheduler & Multi-Platform Publisher',
+        workflowName: 'Social Media Automation Hub - Main Scheduler & Multi-Platform Publisher',
+        n8nWorkflowId: 'Utaz0U82aZQZ7uHF',
+        webhookPath: 'webhook/master-publisher',
         isActive: true,
         averageDurationMs: 420,
         successCount: 142,
@@ -1277,6 +1280,9 @@ publicRouter.get('/workflows', (req: Request, res: Response) => {
       {
         id: 'WF-ERROR-HANDLER',
         name: 'CI360 Error Handler & Dead Letter Pipeline',
+        workflowName: 'CI360 Error Handler & Dead Letter Pipeline',
+        n8nWorkflowId: 'WF-ERROR-HANDLER',
+        webhookPath: 'webhook/error-handler',
         isActive: true,
         averageDurationMs: 150,
         successCount: 8,

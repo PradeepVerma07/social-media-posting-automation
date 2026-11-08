@@ -64,6 +64,63 @@ const VALID_TABS: NavigationTab[] = [
   'register',
 ];
 
+class ViewErrorBoundary extends React.Component<
+  { children: React.ReactNode; tabName: string },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error(`View error in tab [${this.props.tabName}]:`, error, info);
+  }
+
+  componentDidUpdate(prevProps: any) {
+    if (prevProps.tabName !== this.props.tabName && this.state.hasError) {
+      this.setState({ hasError: false, error: null });
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="m-6 p-8 rounded-2xl bg-white border border-rose-200 shadow-sm text-center max-w-2xl mx-auto space-y-4">
+          <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto text-xl font-bold">
+            ⚠️
+          </div>
+          <h2 className="text-lg font-bold text-slate-900">
+            Unable to load ${this.props.tabName} view
+          </h2>
+          <p className="text-sm text-slate-600">
+            {this.state.error?.message || 'An unexpected rendering error occurred.'}
+          </p>
+          <div className="pt-2 flex items-center justify-center gap-3">
+            <button
+              onClick={() => this.setState({ hasError: false, error: null })}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs rounded-xl transition-all"
+            >
+              Retry View
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-xl transition-all"
+            >
+              Reload Application
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const getInitialTab = (): NavigationTab => {
   if (typeof window !== 'undefined') {
     // 0. Check Query Parameter or Path for Registration Portal (?page=register or /register)
@@ -750,6 +807,7 @@ export default function App() {
 
         {/* Viewport Workspace */}
         <main className="min-h-0 flex-1 overflow-y-auto pb-20 lg:pb-0">
+          <ViewErrorBoundary tabName={activeTab}>
           {activeTab === 'overview' && (
             <OverviewDashboard
               analytics={analytics}
@@ -931,6 +989,7 @@ export default function App() {
               {activeTab === 'settings' && (
                 <SettingsPage />
               )}
+                  </ViewErrorBoundary>
         </main>
 
         {/* Mobile Touch Bottom Navigation */}
