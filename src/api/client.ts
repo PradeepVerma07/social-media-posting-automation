@@ -45,6 +45,10 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  async getVideoAutomationStatus(): Promise<any> { return request('/automation/videos/status'); },
+  async getVideoJobs(): Promise<{jobs:any[]}> { return request('/automation/videos/jobs'); },
+  async createVideoJob(input: any): Promise<{job:any;dispatchPending:boolean}> { return request('/automation/videos/jobs',{method:'POST',body:JSON.stringify(input)}); },
+  async setVideoFolderDefaults(input: any): Promise<any> { return request('/automation/videos/manual-defaults',{method:'POST',body:JSON.stringify(input)}); },
   async getStudioStatus(): Promise<{configured:boolean; provider:string; models:{text:string;image:string}; canGenerate:boolean; message:string}> { return request('/ai/studio/status'); },
   async getStudioHistory(): Promise<{data:any[]}> { return request('/ai/studio/history'); },
   async generateStudio(input: import('../../server/src/services/ai/studioGemini').StudioInput): Promise<any> { return request('/ai/studio/generate',{method:'POST',body:JSON.stringify(input)}); },

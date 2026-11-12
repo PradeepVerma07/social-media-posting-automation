@@ -1,0 +1,49 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { Video, Loader2, RefreshCw, Monitor, CheckCircle2 } from 'lucide-react';
+import { api } from '../../api/client';
+import type { Brand, SocialAccount } from '../../../server/src/types';
+
+const field='w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100';
+export function AntigravityVideoPanel({brands,onNavigateToTab}:{brands:Brand[];onNavigateToTab?:(tab:string)=>void}){
+  const [status,setStatus]=useState<any>(null);const [jobs,setJobs]=useState<any[]>([]);
+  const [brandId,setBrandId]=useState(brands[0]?.id||0);const [accounts,setAccounts]=useState<SocialAccount[]>([]);
+  const [accountIds,setAccountIds]=useState<string[]>([]);const [topic,setTopic]=useState('');
+  const [caption,setCaption]=useState('');const [language,setLanguage]=useState('English');
+  const [autoPublish,setAutoPublish]=useState(false);const [busy,setBusy]=useState(false);
+  const [error,setError]=useState('');const [notice,setNotice]=useState('');
+  const requestId=useRef<string|null>(null);
+  const refresh=async()=>{try{const [state,result]=await Promise.all([api.getVideoAutomationStatus(),api.getVideoJobs()]);setStatus(state);setJobs(result.jobs);}catch(e:any){setError(e.message);}};
+  useEffect(()=>{refresh();const timer=setInterval(()=>{if(document.visibilityState==='visible')void refresh();},10000);return()=>clearInterval(timer);},[]);
+  useEffect(()=>{if(!brands.some(b=>b.id===brandId))setBrandId(brands[0]?.id||0);},[brands,brandId]);
+  useEffect(()=>{let active=true;setAccountIds([]);api.getSocialAccounts(brandId).then(rows=>{if(active)setAccounts(rows.filter(a=>a.brandId===brandId&&a.connectionStatus==='connected'&&a.platform==='instagram'));}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[brandId]);
+  useEffect(()=>{requestId.current=null;},[topic,caption,brandId,accountIds,autoPublish,language]);
+  const submit=async(event:React.FormEvent)=>{
+    event.preventDefault();if(busy)return;setBusy(true);setError('');setNotice('');
+    try{requestId.current||=crypto.randomUUID();const result=await api.createVideoJob({requestId:requestId.current,brandId,accountIds,topic,caption:caption||topic.slice(0,5000),language,aspectRatio:'9:16',autoPublish});setNotice(`Video queued: ${result.job.id}.${result.dispatchPending?' n8n will release it on the next recovery check.':''}`);setTopic('');setCaption('');requestId.current=null;await refresh();}
+    catch(e:any){setError(e.message);}finally{setBusy(false);}
+  };
+  const defaults=async(enabled:boolean)=>{setBusy(true);setError('');try{await api.setVideoFolderDefaults({enabled,brandId,accountIds,autoPublish});setNotice(enabled?'New local videos will use this brand, caption from filename, and selected accounts. Existing files remain excluded.':'Automatic routing for new local files is disabled.');await refresh();}catch(e:any){setError(e.message);}finally{setBusy(false);}};
+  const eligible=!!status?.configured&&status?.canGenerate&&!!brandId&&accountIds.length>0;
+  return <section aria-label="Antigravity video automation" className="overflow-hidden rounded-2xl border border-indigo-200 bg-white">
+    <div className="flex flex-wrap items-start justify-between gap-4 bg-indigo-50 p-5 sm:p-6"><div><h2 className="flex items-center gap-2 text-xl font-semibold text-slate-950"><Video size={22}/>Antigravity videos</h2><p className="mt-2 max-w-2xl text-sm text-slate-600">Send a topic to Antigravity on your PC. Completed videos enter your publishing queue with a target time 10 minutes after upload.</p></div><span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium ${status?.workerOnline?'bg-emerald-100 text-emerald-800':'bg-slate-200 text-slate-700'}`}><Monitor size={14}/>{status?.workerOnline?'PC worker online':'PC worker offline'}</span></div>
+    <div className="space-y-5 p-5 sm:p-6">
+      {status&&!status.configured&&<p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">An administrator must configure the video worker and n8n machine credentials.</p>}
+      {status?.workerOnline&&status.worker?.cliReady===false&&<p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">The folder watcher is online. Connect the Antigravity CLI on the PC to enable topic-based generation.</p>}
+      {status?.configured&&!status.publishingEnabled&&<p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">The dashboard publishing service is disabled. Videos can be queued, but automatic posting requires the publishing service.</p>}
+      <form onSubmit={submit} className="grid gap-5 lg:grid-cols-2"><fieldset disabled={busy||!status?.canGenerate} className="space-y-4"><legend className="mb-3 font-semibold">Create a video</legend>
+        <label className="block space-y-2 text-sm font-medium">Brand<select className={field} value={brandId} onChange={e=>setBrandId(Number(e.target.value))} required><option value={0} disabled>Select a brand</option>{brands.map(brand=><option key={brand.id} value={brand.id}>{brand.name}</option>)}</select></label>
+        <label className="block space-y-2 text-sm font-medium">Video topic<textarea className={field} required minLength={10} maxLength={12000} rows={4} value={topic} onChange={e=>setTopic(e.target.value)} placeholder="Describe the video, audience, key points, and call to action."/></label>
+        <label className="block space-y-2 text-sm font-medium">Post caption (optional)<textarea className={field} maxLength={5000} rows={2} value={caption} onChange={e=>setCaption(e.target.value)} placeholder="Defaults to your topic."/></label>
+        <label className="block space-y-2 text-sm font-medium">Narration language<input className={field} required maxLength={50} value={language} onChange={e=>setLanguage(e.target.value)}/></label>
+      </fieldset><div className="space-y-4"><h3 className="font-semibold">Publish destination</h3>
+        {!accounts.length?<p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Connect an eligible Instagram account for this brand. The current dashboard adapter supports Instagram video publishing.</p>:<fieldset disabled={busy} className="space-y-2"><legend className="sr-only">Connected video accounts</legend>{accounts.map(account=>{const id=String((account as any).accountId||'');return <label key={id} className="flex items-center gap-3 rounded-xl border p-3 text-sm"><input type="checkbox" checked={accountIds.includes(id)} onChange={e=>setAccountIds(ids=>e.target.checked?[...ids,id]:ids.filter(value=>value!==id))}/><span>{account.accountName||account.accountHandle} <span className="text-slate-500">· Instagram Reels</span></span></label>;})}</fieldset>}
+        <label className="flex items-start gap-3 rounded-xl bg-slate-50 p-4 text-sm"><input className="mt-1" type="checkbox" checked={autoPublish} disabled={busy||!status?.canAutoPublish} onChange={e=>setAutoPublish(e.target.checked)}/><span><strong>Automatically schedule and publish</strong><span className="mt-1 block text-slate-600">{status?.canAutoPublish?'Authorise these selected destinations to publish after generation.':'Your current role or workspace requires a separate approval. Finished videos will enter the approval queue.'}</span></span></label>
+        <button type="submit" disabled={busy||!eligible||topic.trim().length<10} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{busy?<Loader2 size={18} className="animate-spin"/>:<Video size={18}/>}Send topic to Antigravity</button>
+        <div className="space-y-2 rounded-xl border border-dashed p-3 text-sm"><p className="text-slate-600">Also route new videos created directly in the local output folder to these accounts. Their filenames become their captions.</p><button type="button" disabled={busy||!eligible} onClick={()=>defaults(true)} className="font-medium text-indigo-700 disabled:opacity-50">Use selected accounts for local files</button>{status?.manualDefaults?.enabled&&<button type="button" disabled={busy} onClick={()=>defaults(false)} className="ml-4 text-slate-600 underline">Disable folder routing</button>}</div>
+      </div></form>
+      {error&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+      {notice&&<p role="status" className="flex items-start gap-2 rounded-xl bg-green-50 p-3 text-sm text-green-800"><CheckCircle2 size={18} className="shrink-0"/>{notice}</p>}
+      <div className="border-t pt-4"><div className="flex items-center justify-between"><h3 className="font-semibold">Recent videos</h3><button type="button" onClick={refresh} className="inline-flex items-center gap-1 text-sm text-indigo-700"><RefreshCw size={14}/>Refresh</button></div>{!jobs.length?<p className="mt-3 text-sm text-slate-500">Video topics and completed local files will appear here.</p>:<ul className="mt-2 divide-y">{jobs.map(job=><li key={job.id} className="flex flex-wrap justify-between gap-3 py-3 text-sm"><div className="min-w-0"><p className="max-w-xl truncate font-medium">{job.title||job.topic}</p><p className="mt-1 text-xs text-slate-500">{job.status.replaceAll('_',' ')}{job.publishAt?` · Target ${new Date(job.publishAt).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})} IST`:''}</p>{job.error&&<p className="mt-1 max-w-xl text-xs text-red-700">{job.error}</p>}</div><div className="flex items-center gap-3">{job.fileUrl&&<a href={job.fileUrl} target="_blank" rel="noreferrer" className="text-indigo-700 underline">Preview video</a>}{job.postId&&<button type="button" onClick={()=>onNavigateToTab?.(job.status==='AWAITING_APPROVAL'?'approvals':'calendar')} className="text-indigo-700 underline">Open post queue</button>}</div></li>)}</ul>}</div>
+    </div>
+  </section>;
+}

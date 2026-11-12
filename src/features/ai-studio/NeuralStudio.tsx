@@ -3,6 +3,7 @@ import { Sparkles, Loader2, AlertCircle, Copy, FileText, Download } from 'lucide
 import { api } from '../../api/client';
 import type { Brand, Post } from '../../../server/src/types';
 import type { StudioInput, StudioTextOutput } from '../../../server/src/services/ai/studioGemini';
+import { AntigravityVideoPanel } from './AntigravityVideoPanel';
 
 interface Props { brands?: Brand[]; posts?: Post[]; onNavigateToTab?: (tab:string)=>void; }
 type Result = { id:string; text:StudioTextOutput|null; imageUrl:string|null; model:string; usage:{inputTokens:number|null;outputTokens:number|null}; };
@@ -55,6 +56,7 @@ export const GeminiStudio: React.FC<Props> = ({brands=[],posts=[],onNavigateToTa
   return <div className="mx-auto max-w-7xl space-y-6 p-4 pb-24 sm:p-6">
     <header className="rounded-2xl bg-slate-950 p-6 text-white sm:p-8"><div className="mb-3 flex items-center gap-2 text-sm text-indigo-200"><Sparkles size={18}/>Google Gemini</div><h1 className="text-2xl font-semibold sm:text-3xl">AI Neural Studio</h1><p className="mt-2 max-w-2xl text-slate-300">Create content, improve your copy, and develop visuals for your brand. Review every result before adding it to your publishing workflow.</p></header>
     {!status ? <div className="rounded-xl border bg-white p-4"><p>{error||'Checking Gemini configuration…'}</p>{error&&<button onClick={loadStatus} className="mt-2 text-indigo-700">Retry connection check</button>}</div> : !status.configured || !status.canGenerate ? <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{!status.configured?status.message:'Content editing permission is required to generate.'}{!status.configured&&<button onClick={loadStatus} className="ml-3 underline">Check again</button>}</div> : null}
+    <AntigravityVideoPanel brands={brands} onNavigateToTab={onNavigateToTab}/>
     <div className="grid gap-6 lg:grid-cols-2">
       <form onSubmit={generate} className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
         <fieldset disabled={busy||saving} className="space-y-5">

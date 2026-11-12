@@ -43,12 +43,12 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  brands,
+  brands = [],
   selectedBrandId,
   onSelectBrand,
-  notifications,
+  notifications = [],
   currentUser,
-  currentRole,
+  currentRole = 'Super Admin',
   onChangeRole,
   onOpenN8nStatus,
   onToggleMobileMenu,
@@ -64,6 +64,8 @@ export const Header: React.FC<HeaderProps> = ({
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [dateRange] = useState('Last 30 Days');
+  const safeNotifications = Array.isArray(notifications) ? notifications : [];
+  const safeBrands = Array.isArray(brands) ? brands : [];
   const [n8nHealth, setN8nHealth] = useState<{
     reachable: boolean;
     status: 'checking' | 'connected' | 'unreachable' | 'unauthorized';
@@ -203,7 +205,7 @@ export const Header: React.FC<HeaderProps> = ({
     };
   }, []);
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unreadCount = safeNotifications.filter(n => n && !n.isRead).length;
 
   return (
     <header className="h-16 px-3 sm:px-6 bg-white border-b border-[#EAECF0] flex items-center justify-between gap-2 sm:gap-4 sticky top-0 z-30">
@@ -226,8 +228,8 @@ export const Header: React.FC<HeaderProps> = ({
             onChange={e => onSelectBrand(e.target.value ? Number(e.target.value) : null)}
             className="h-9 pl-2.5 pr-7 sm:pl-3 sm:pr-8 bg-[#F6F8FC] border border-[#D0D5DD] rounded-xl text-xs font-semibold text-[#101828] focus:outline-none focus:border-[#1336E8] cursor-pointer appearance-none transition-colors max-w-[140px] sm:max-w-[190px] md:max-w-[240px] truncate shadow-xs"
           >
-            <option value="">{brands.length > 0 ? `All Brands (${brands.length})` : 'All Brands'}</option>
-            {brands.map(b => (
+            <option value="">{safeBrands.length > 0 ? `All Brands (${safeBrands.length})` : 'All Brands'}</option>
+            {safeBrands.map(b => (
               <option key={b.id || b.name} value={b.id}>
                 {b.name}
               </option>
@@ -356,7 +358,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="text-[11px] text-[#1336E8] cursor-pointer hover:underline">Mark all read</span>
               </div>
               <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                {notifications.map(n => (
+                {safeNotifications.map(n => (
                   <div
                     key={n.id}
                     className={`p-2.5 rounded-xl text-xs space-y-1 transition-colors ${

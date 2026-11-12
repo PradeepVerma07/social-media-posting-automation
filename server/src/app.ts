@@ -14,6 +14,7 @@ import { authRouter, authenticate, authorize } from './services/access';
 import { enterpriseRouter } from './routes/enterpriseRoutes';
 import { db } from './db/sqlite';
 import { aiStudioRouter } from './routes/aiStudioRoutes';
+import { videoDashboardRouter, videoMachineRouter } from './routes/antigravityVideoRoutes';
 
 export const app = express();
 
@@ -58,7 +59,10 @@ app.get('/readyz', readiness);
 // Mount V2 Production Routers
 app.use('/internal', internalRouter);
 app.use('/api/v1/auth', authRouter);
+// Machine routes authenticate only their explicit paths; all dashboard routes still use sessions.
+app.use('/api/v1/automation/videos', videoMachineRouter);
 app.use('/api/v1', authenticate, authorize);
+app.use('/api/v1/automation/videos', videoDashboardRouter);
 app.use('/api/v1/ai/studio', aiStudioRouter);
 app.use('/api/v1', enterpriseRouter);
 app.use('/api/v1', publicRouter);

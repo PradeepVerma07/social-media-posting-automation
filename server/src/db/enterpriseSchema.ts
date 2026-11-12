@@ -33,6 +33,15 @@ export function migrateEnterprise(db: DatabaseSync) {
       input_tokens INTEGER, output_tokens INTEGER, created_at TEXT NOT NULL, completed_at TEXT);
       CREATE INDEX IF NOT EXISTS idx_studio_workspace_time ON studio_generations(client_id,created_at);
       CREATE INDEX IF NOT EXISTS idx_studio_user_time ON studio_generations(user_id,created_at);`);
+    db.exec(`CREATE TABLE IF NOT EXISTS antigravity_video_jobs (
+      id TEXT PRIMARY KEY, request_id TEXT UNIQUE NOT NULL, input_json TEXT NOT NULL,
+      client_id TEXT NOT NULL REFERENCES clients(client_id), brand_id TEXT NOT NULL REFERENCES brands(brand_id),
+      user_id INTEGER NOT NULL REFERENCES users(user_id), status TEXT NOT NULL DEFAULT 'QUEUED',
+      dispatched INTEGER NOT NULL DEFAULT 0, lease_token TEXT, lease_until TEXT,
+      file_url TEXT, file_sha256 TEXT, ready_at TEXT, publish_at TEXT,
+      post_id TEXT UNIQUE REFERENCES posts(post_id), error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+      CREATE INDEX IF NOT EXISTS idx_antigravity_jobs_state ON antigravity_video_jobs(status,dispatched,created_at);
+      CREATE TABLE IF NOT EXISTS antigravity_video_settings (key TEXT PRIMARY KEY, value_json TEXT NOT NULL);`);
     // Resolve only unambiguous existing memberships. Never infer access from a partial name.
     db.exec(`UPDATE users SET client_id = (
       SELECT MIN(client_id) FROM brands WHERE brand_name = users.tenant_scope

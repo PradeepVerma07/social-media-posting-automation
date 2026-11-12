@@ -95,7 +95,7 @@ class ViewErrorBoundary extends React.Component<
             ⚠️
           </div>
           <h2 className="text-lg font-bold text-slate-900">
-            Unable to load ${this.props.tabName} view
+            Unable to load {this.props.tabName} view
           </h2>
           <p className="text-sm text-slate-600">
             {this.state.error?.message || 'An unexpected rendering error occurred.'}

@@ -214,10 +214,10 @@ export const getRolePermissions = (role: RoleName): RolePermissionConfig => {
   return ROLE_CONFIGS[role] || ROLE_CONFIGS['Client'];
 };
 
-export const isTabAllowed = (tab: NavigationTab, role: RoleName): boolean => {
+export const isTabAllowed = (tab: NavigationTab, role?: RoleName | null): boolean => {
   if (tab === 'register') return true;
-  const config = getRolePermissions(role);
-  return config.allowedTabs.includes(tab);
+  const config = getRolePermissions(role as RoleName);
+  return (config?.allowedTabs || []).includes(tab);
 };
 
 interface RestrictedAccessProps {
