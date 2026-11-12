@@ -14,7 +14,7 @@ export function VideoApprovalManager(){
   useEffect(()=>{let alive=true;const load=async()=>{try{const data=await api.getVideoReviews();if(alive)setJobs(data.jobs);}catch(e:any){if(alive)setError(e.message);}finally{if(alive)setLoading(false);}};void load();const timer=setInterval(load,15000);return()=>{alive=false;clearInterval(timer);};},[]);
   const visible=jobs.filter(job=>matches(job,filter));
   const selected=visible.find(job=>job.id===selectedId)||visible[0];
-  useEffect(()=>{setNotes('');setNotice('');},[selected?.id]);
+  useEffect(()=>{setNotes('');},[selected?.id]);
   const act=async(action:'approve'|'reject'|'request-changes')=>{
     if(!selected)return;setBusy(true);setError('');setNotice('');
     try{const result=await api.reviewVideo(selected.id,{action,notes:notes.trim(),versionNumber:selected.postVersion});

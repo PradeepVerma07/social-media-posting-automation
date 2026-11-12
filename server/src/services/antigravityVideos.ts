@@ -62,7 +62,7 @@ export function createVideoJob(principal: Principal, raw: any, manual = false) {
   if (topic.length < 10 || topic.length > 12000 || !title || !caption || caption.length > 5000 || requestId.length < 8 || requestId.length > 200) return videoError('Enter a topic (10–12,000 characters), a caption up to 5,000 characters, and a request ID.');
   if (!['9:16', '16:9', '1:1'].includes(raw.aspectRatio || '9:16')) return videoError('Choose a supported aspect ratio.');
   const autoPublish = raw.autoPublish === true;
-  if (autoPublish && !canAutoPublishVideo(principal)) return videoError('Automatic video publishing requires approval permission and the video automation setting.', 403);
+  if (autoPublish) return videoError('Every Antigravity video requires approval from the manager.', 403);
   const input = { topic, title, caption, language: String(raw.language || 'English').slice(0, 50), aspectRatio: raw.aspectRatio || '9:16',
     accountIds: accounts.map(a => a.account_id).sort(), platforms: [...new Set(accounts.map(a => a.platform))], autoPublish, manual };
   const inputJson = JSON.stringify(input);

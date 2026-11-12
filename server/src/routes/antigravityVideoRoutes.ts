@@ -82,7 +82,7 @@ videoDashboardRouter.post('/manual-defaults',wrap((req,res)=>{
     return res.json({enabled:false});
   }
   const {brand,accounts}=videoAccounts(req.principal,req.body.brandId,req.body.accountIds);
-  if(req.body.autoPublish===true&&!canAutoPublishVideo(req.principal))return videoError('Automatic publishing is not enabled for your role and workspace.',403);
+  if(req.body.autoPublish===true)return videoError('Every Antigravity video requires approval from the manager.',403);
   const previous=videoSetting('manual:active');
   if(previous&&previous.userId!==req.principal.id)return videoError('Another user owns the local-folder routing. Ask that user to disable it before changing brands.',409);
   const value={userId:req.principal.id,brandId:brand.brand_id,accountIds:accounts.map(a=>a.account_id),autoPublish:req.body.autoPublish===true,enabled:true};
