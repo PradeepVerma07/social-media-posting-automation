@@ -57,6 +57,15 @@ test('Antigravity dashboard, local upload and scheduler maintain authentication 
       assert.equal((await request('/jobs',{...input,brandId:'BR-video-two'},editor)).status,404);
       assert.equal((await request('/jobs',input,editor)).status,403);
     });
+    await t.test('video automation can be enabled independently from manual self-approval',async()=>{
+      process.env.ALLOW_SELF_APPROVAL='false';process.env.ANTIGRAVITY_AUTO_PUBLISH='false';
+      assert.equal((await request('/jobs',input,owner)).status,403);
+      process.env.ANTIGRAVITY_AUTO_PUBLISH='true';
+      const status=await (await fetch(base+'/automation/videos/status',{headers:owner})).json() as any;
+      assert.equal(status.canAutoPublish,true);
+      assert.equal(process.env.ALLOW_SELF_APPROVAL,'false');
+      assert.equal((await request('/jobs',input,editor)).status,403);
+    });
     await t.test('topic submission is idempotent and n8n must release the job',async()=>{
       const first=await request('/jobs',input,owner);assert.equal(first.status,202,JSON.stringify(first.data));
       const repeated=await request('/jobs',input,owner);assert.equal(repeated.data.job.id,first.data.job.id);
