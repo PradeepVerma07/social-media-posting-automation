@@ -24,8 +24,8 @@ export function videoPrincipal(userId: number): Principal {
   if (!user || (!user.client_id && user.role !== 'Super Admin')) return videoError('The video author no longer has workspace access.', 403);
   return { id: user.user_id, email: user.email, fullName: user.full_name, role: user.role, clientId: user.client_id || 'CL-001', global: user.role === 'Super Admin' };
 }
-export const canAutoPublishVideo = (principal: Principal) => canEdit(principal) && canApprove(principal)
-  && (process.env.ANTIGRAVITY_AUTO_PUBLISH === 'true' || process.env.ALLOW_SELF_APPROVAL === 'true');
+// Every generated version requires a human review before it can publish.
+export const canAutoPublishVideo = (_principal: Principal) => false;
 export function videoAccounts(principal: Principal, brandId: unknown, accountIds: unknown): { brand: any; accounts: any[] } {
   const brand = resolveBrand(brandId);
   if (!canAccessBrand(principal, brand)) return videoError('Brand not found or access denied.', 404);
@@ -42,7 +42,12 @@ export function videoAccounts(principal: Principal, brandId: unknown, accountIds
 export function formatVideoJob(row: any) {
   if (!row) return null;
   const input = JSON.parse(row.input_json);
+  const review: any = db.prepare('SELECT action,notes,reviewer_name AS reviewerName,created_at AS createdAt,replacement_job_id AS replacementJobId FROM antigravity_video_reviews WHERE job_id=?').get(row.id);
+  const post: any = row.post_id && db.prepare('SELECT version,approval_status,deleted_at FROM posts WHERE post_id=?').get(row.post_id);
   return { id: row.id, topic: input.topic, title: input.title, caption: input.caption, language: input.language,
+    parentJobId: input.parentJobId || null, revisionNumber: input.revisionNumber || 1,
+    revisionNotes: input.revisionNotes || '', revisionHistory: input.revisionHistory || [], review: review || null,
+    postVersion: post?.version, approvalStatus: post?.approval_status, authorId: row.user_id,
     aspectRatio: input.aspectRatio, platforms: input.platforms, brandId: row.brand_id, status: row.status,
     dispatched: !!row.dispatched, autoPublish: input.autoPublish, fileUrl: row.file_url,
     readyAt: row.ready_at, publishAt: row.publish_at, postId: row.post_id, error: row.error, createdAt: row.created_at };
@@ -105,7 +110,7 @@ export function scheduleNextVideo() {
       const principal = videoPrincipal(row.user_id); const input = JSON.parse(row.input_json);
       if (!canEdit(principal)) return videoError('The author no longer has editing permission.', 403);
       const { brand, accounts } = videoAccounts(principal, row.brand_id, input.accountIds);
-      const auto = input.autoPublish && canAutoPublishVideo(principal);
+      const auto = false;
       if (!row.file_url || !row.publish_at) return videoError('Completed video metadata is missing.');
       if (auto && Date.parse(row.publish_at) <= Date.now()) return videoError('The publication target was missed. Review and reschedule this video.');
       const at = DateTime.fromISO(row.publish_at, { setZone: true }).setZone(brand.default_timezone || 'Asia/Kolkata');

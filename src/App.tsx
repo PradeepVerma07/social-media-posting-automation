@@ -25,6 +25,7 @@ import { OverviewDashboard } from './features/dashboard/OverviewDashboard';
 import { ContentTable } from './features/posts/ContentTable';
 import { CreatePostComposer } from './features/posts/CreatePostComposer';
 import { ApprovalQueue } from './features/approvals/ApprovalQueue';
+import { VideoApprovalManager } from './features/approvals/VideoApprovalManager';
 import { ContentCalendar } from './features/calendar/ContentCalendar';
 import { AutomationsPage } from './features/workflows/AutomationsPage';
 import { WorkflowExecutionsPage } from './features/executions/WorkflowExecutionsPage';
@@ -50,6 +51,7 @@ const VALID_TABS: NavigationTab[] = [
   'calendar',
   'create',
   'approvals',
+  'video-approvals',
   'published',
   'brands',
   'accounts',
@@ -899,6 +901,8 @@ export default function App() {
                   currentRole={currentRole}
                 />
               )}
+
+              {activeTab === 'video-approvals' && <VideoApprovalManager />}
 
               {activeTab === 'published' && (
                 <ContentTable

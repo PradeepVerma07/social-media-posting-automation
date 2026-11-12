@@ -45,6 +45,10 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  async getVideoReviews(): Promise<{jobs:any[]}> { return request('/automation/videos/reviews'); },
+  async reviewVideo(id:string,input:{action:'approve'|'reject'|'request-changes';notes:string;versionNumber:number}): Promise<{job:any;replacementJob:any}> {
+    return request(`/automation/videos/jobs/${encodeURIComponent(id)}/review`,{method:'POST',body:JSON.stringify(input)});
+  },
   async getVideoAutomationStatus(): Promise<any> { return request('/automation/videos/status'); },
   async getVideoJobs(): Promise<{jobs:any[]}> { return request('/automation/videos/jobs'); },
   async createVideoJob(input: any): Promise<{job:any;dispatchPending:boolean}> { return request('/automation/videos/jobs',{method:'POST',body:JSON.stringify(input)}); },

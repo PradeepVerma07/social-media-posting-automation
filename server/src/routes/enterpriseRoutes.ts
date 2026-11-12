@@ -7,6 +7,7 @@ import { getFormattedPostById, publishTargetDirectly } from './publicRoutes';
 import { generatePostId, generateTargetId, computeIdempotencyKey } from '../utils/idGenerator';
 import { sseManager } from '../services/sseManager';
 import { buildAnalyticsReport, parseReportFilters } from '../services/reporting';
+import { reviewVideoJob } from '../services/videoReviews';
 
 export const enterpriseRouter = Router();
 const wrap = (fn: (req: Request, res: Response) => any) => (req: Request, res: Response) => Promise.resolve().then(() => fn(req, res)).catch(error => res.status(error.status || 400).json({ error: error.status === 500 ? 'The operation could not be completed.' : error.message }));
@@ -188,6 +189,13 @@ enterpriseRouter.delete('/posts/:id', wrap((req, res) => {
 }));
 for (const action of ['submit', 'approve', 'reject', 'request-revision']) enterpriseRouter.post(`/posts/:id/${action}`, wrap((req, res) => {
   const post = postById(req); const now = new Date().toISOString();
+  const video:any=db.prepare('SELECT id FROM antigravity_video_jobs WHERE post_id=?').get(post.post_id);
+  if (video) {
+    if (action==='submit') return fail('Use the Video approvals dashboard to review or recreate this video.',409);
+    reviewVideoJob(req.principal,video.id,{action:action==='request-revision'?'request-changes':action,
+      notes:req.body.reason || req.body.comments || '',versionNumber:Number(req.headers['if-match'] || req.body?.versionNumber)});
+    return res.json(formatPost(post.post_id));
+  }
   if (db.prepare("SELECT 1 FROM post_targets WHERE post_id = ? AND status IN ('Processing', 'NeedsVerification', 'Posted')").get(post.post_id)) fail('This post has publishing activity and cannot change approval state.', 409);
   const expected = Number(req.headers['if-match'] || req.body?.versionNumber);
   if (!Number.isInteger(expected)) fail('Refresh the post before reviewing; its version is required.', 428);

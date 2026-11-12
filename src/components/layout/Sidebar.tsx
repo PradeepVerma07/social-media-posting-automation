@@ -32,6 +32,7 @@ export type NavigationTab =
   | 'calendar'
   | 'create'
   | 'approvals'
+  | 'video-approvals'
   | 'published'
   | 'brands'
   | 'accounts'
@@ -78,6 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'calendar', label: 'Content Calendar', icon: Calendar },
     { id: 'create', label: 'Create Post', icon: PlusCircle },
     { id: 'approvals', label: 'Approval Queue', icon: CheckSquare, badge: pendingApprovalsCount },
+    { id: 'video-approvals', label: 'Video Approvals', icon: Shield },
     { id: 'published', label: 'Published Posts', icon: Send },
     { id: 'brands', label: 'Brands', icon: Building2 },
     { id: 'accounts', label: 'Social Accounts', icon: Share2 },

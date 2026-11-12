@@ -3,7 +3,8 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { db } from '../db/sqlite';
-import { canEdit, audit } from '../services/access';
+import { canEdit, canApprove, audit } from '../services/access';
+import { reviewVideoJob } from '../services/videoReviews';
 import { canAutoPublishVideo, createVideoJob, claimVideoJob, formatVideoJob, leasedVideoJob,
   scheduleNextVideo, setVideoSetting, videoAccounts, videoError, videoPrincipal, videoSetting } from '../services/antigravityVideos';
 
@@ -32,7 +33,7 @@ const activeUploads = new Set<string>();
 videoDashboardRouter.get('/status', (req,res) => {
   const worker = videoSetting('worker');
   res.json({configured:configured(),dispatcherConfigured:!!process.env.ANTIGRAVITY_DISPATCH_URL,
-    canGenerate:canEdit(req.principal),canAutoPublish:canAutoPublishVideo(req.principal),
+    canGenerate:canEdit(req.principal),canAutoPublish:canAutoPublishVideo(req.principal),canReview:canApprove(req.principal),
     workerOnline:!!worker && Date.now()-Date.parse(worker.lastSeenAt)<90000,worker,
     publishingEnabled:process.env.ENABLE_BACKGROUND_WORKERS==='true',supportedPlatforms:['instagram'],
     manualDefaults:videoSetting(`manual:${req.principal.id}`)});
@@ -43,6 +44,19 @@ videoDashboardRouter.get('/jobs', (req,res) => {
     : db.prepare('SELECT * FROM antigravity_video_jobs WHERE client_id=? ORDER BY created_at DESC LIMIT 50').all(principal.clientId);
   res.json({jobs:rows.map(formatVideoJob)});
 });
+videoDashboardRouter.get('/reviews',wrap((req,res)=>{
+  if (!canApprove(req.principal)) return videoError('Approval permission is required.',403);
+  const query=`SELECT j.*,b.brand_name,u.full_name AS author_name FROM antigravity_video_jobs j
+    JOIN brands b ON b.brand_id=j.brand_id JOIN users u ON u.user_id=j.user_id`;
+  const order=" ORDER BY CASE WHEN j.status='AWAITING_APPROVAL' THEN 0 ELSE 1 END,j.created_at DESC LIMIT 200";
+  const rows=req.principal.global?db.prepare(query+order).all():db.prepare(query+' WHERE j.client_id=?'+order).all(req.principal.clientId);
+  res.json({jobs:rows.map((row:any)=>({...formatVideoJob(row),brandName:row.brand_name,authorName:row.author_name,
+    destinations:JSON.parse(row.input_json).accountIds.map((id:string)=>{
+      const a:any=db.prepare('SELECT account_name,platform FROM social_accounts WHERE account_id=? AND brand_id=?').get(id,row.brand_id);
+      return a?`${a.account_name || a.platform} · ${a.platform}`:'Disconnected account';
+    })}))});
+}));
+videoDashboardRouter.post('/jobs/:id/review',wrap((req,res)=>res.json(reviewVideoJob(req.principal,String(req.params.id),req.body))));
 videoDashboardRouter.post('/jobs',wrap(async(req,res)=>{
   if (!configured()) return videoError('An administrator must configure the local video worker connection first.',503);
   const row:any=createVideoJob(req.principal,req.body);
