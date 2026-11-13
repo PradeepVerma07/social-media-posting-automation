@@ -735,12 +735,12 @@ export function initDatabase() {
     const encrypted = encryptToken(liveToken);
 
     const accountsToSeed = [
-      { id: 'ACC-001', platform: 'facebook', handle: '@flowerplant', name: 'Flower Plant Official', externalId: '1454740611044963' },
-      { id: 'ACC-002', platform: 'instagram', handle: '@ciflow904', name: 'Flower Plant Instagram', externalId: '17841439037630316' },
-      { id: 'ACC-003', platform: 'youtube', handle: '@flowerplant_yt', name: 'Flower Plant YouTube & Shorts', externalId: 'UC_flowerplant_yt' },
-      { id: 'ACC-004', platform: 'whatsapp', handle: '+919876543210', name: 'Flower Plant WhatsApp Status & Channel', externalId: 'WA_flowerplant_91' },
-      { id: 'ACC-005', platform: 'linkedin', handle: 'flower-plant-official', name: 'Flower Plant AgriTech LinkedIn', externalId: 'urn:li:organization:123456' },
-      { id: 'ACC-006', platform: 'x', handle: '@flowerplant_in', name: 'Flower Plant X Channel', externalId: '1454740611044963_x' },
+      { id: 'ACC-001', platform: 'facebook', handle: '@flowerplant', name: 'Flower Plant Official', externalId: '1454740611044963', status: 'active' },
+      { id: 'ACC-002', platform: 'instagram', handle: '@ciflow904', name: 'Flower Plant Instagram', externalId: '17841439037630316', status: 'disconnected' },
+      { id: 'ACC-003', platform: 'youtube', handle: '@flowerplant_yt', name: 'Flower Plant YouTube & Shorts', externalId: 'UC_flowerplant_yt', status: 'disconnected' },
+      { id: 'ACC-004', platform: 'whatsapp', handle: '+919876543210', name: 'Flower Plant WhatsApp Status & Channel', externalId: 'WA_flowerplant_91', status: 'disconnected' },
+      { id: 'ACC-005', platform: 'linkedin', handle: 'flower-plant-official', name: 'Flower Plant AgriTech LinkedIn', externalId: 'urn:li:organization:123456', status: 'disconnected' },
+      { id: 'ACC-006', platform: 'x', handle: '@flowerplant_in', name: 'Flower Plant X Channel', externalId: '1454740611044963_x', status: 'disconnected' },
     ];
 
     for (const acc of accountsToSeed) {
@@ -751,15 +751,24 @@ export function initDatabase() {
           last_checked_at, created_at, updated_at, version
         ) VALUES (
           ?, 'CL-001', 'BR-001', ?, ?, ?,
-          ?, ?, ?, ?, ?, 'active', ?, ?, ?, 1
+          ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, 1
         )
       `).run(
         acc.id, acc.platform, acc.handle, acc.name, acc.externalId,
         encrypted.ciphertext, encrypted.iv, encrypted.tag, encrypted.version,
-        now, now, now
+        acc.status, now, now, now
       );
     }
   }
+
+  // Ensure unconfigured demo/seed accounts never falsely show as 'active'
+  db.exec(`
+    UPDATE social_accounts
+    SET status = 'disconnected'
+    WHERE external_id IN ('UC_flowerplant_yt', 'WA_flowerplant_91', 'urn:li:organization:123456', '1454740611044963_x')
+       OR account_handle IN ('@flowerplant_yt', '+919876543210', 'flower-plant-official', '@flowerplant_in');
+  `);
 
   // Seed notifications if empty
   const notifCount = db.prepare('SELECT count(*) as c FROM notifications').get() as { c: number };

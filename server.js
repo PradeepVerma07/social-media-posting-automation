@@ -72947,12 +72947,12 @@ function initDatabase() {
     const liveToken = process.env.META_ACCESS_TOKEN || process.env.META_PAGE_ACCESS_TOKEN || "EAGVJejn6LZAgBSxZAyX1example";
     const encrypted = encryptToken(liveToken);
     const accountsToSeed = [
-      { id: "ACC-001", platform: "facebook", handle: "@flowerplant", name: "Flower Plant Official", externalId: "1454740611044963" },
-      { id: "ACC-002", platform: "instagram", handle: "@ciflow904", name: "Flower Plant Instagram", externalId: "17841439037630316" },
-      { id: "ACC-003", platform: "youtube", handle: "@flowerplant_yt", name: "Flower Plant YouTube & Shorts", externalId: "UC_flowerplant_yt" },
-      { id: "ACC-004", platform: "whatsapp", handle: "+919876543210", name: "Flower Plant WhatsApp Status & Channel", externalId: "WA_flowerplant_91" },
-      { id: "ACC-005", platform: "linkedin", handle: "flower-plant-official", name: "Flower Plant AgriTech LinkedIn", externalId: "urn:li:organization:123456" },
-      { id: "ACC-006", platform: "x", handle: "@flowerplant_in", name: "Flower Plant X Channel", externalId: "1454740611044963_x" }
+      { id: "ACC-001", platform: "facebook", handle: "@flowerplant", name: "Flower Plant Official", externalId: "1454740611044963", status: "active" },
+      { id: "ACC-002", platform: "instagram", handle: "@ciflow904", name: "Flower Plant Instagram", externalId: "17841439037630316", status: "disconnected" },
+      { id: "ACC-003", platform: "youtube", handle: "@flowerplant_yt", name: "Flower Plant YouTube & Shorts", externalId: "UC_flowerplant_yt", status: "disconnected" },
+      { id: "ACC-004", platform: "whatsapp", handle: "+919876543210", name: "Flower Plant WhatsApp Status & Channel", externalId: "WA_flowerplant_91", status: "disconnected" },
+      { id: "ACC-005", platform: "linkedin", handle: "flower-plant-official", name: "Flower Plant AgriTech LinkedIn", externalId: "urn:li:organization:123456", status: "disconnected" },
+      { id: "ACC-006", platform: "x", handle: "@flowerplant_in", name: "Flower Plant X Channel", externalId: "1454740611044963_x", status: "disconnected" }
     ];
     for (const acc of accountsToSeed) {
       db.prepare(`
@@ -72962,7 +72962,8 @@ function initDatabase() {
           last_checked_at, created_at, updated_at, version
         ) VALUES (
           ?, 'CL-001', 'BR-001', ?, ?, ?,
-          ?, ?, ?, ?, ?, 'active', ?, ?, ?, 1
+          ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, 1
         )
       `).run(
         acc.id,
@@ -72974,12 +72975,19 @@ function initDatabase() {
         encrypted.iv,
         encrypted.tag,
         encrypted.version,
+        acc.status,
         now2,
         now2,
         now2
       );
     }
   }
+  db.exec(`
+    UPDATE social_accounts
+    SET status = 'disconnected'
+    WHERE external_id IN ('UC_flowerplant_yt', 'WA_flowerplant_91', 'urn:li:organization:123456', '1454740611044963_x')
+       OR account_handle IN ('@flowerplant_yt', '+919876543210', 'flower-plant-official', '@flowerplant_in');
+  `);
   const notifCount = db.prepare("SELECT count(*) as c FROM notifications").get();
   if (notifCount.c === 0) {
     const now2 = (/* @__PURE__ */ new Date()).toISOString();
@@ -133174,6 +133182,17 @@ enterpriseRouter.post("/social-accounts/connect", (req, res, next) => {
     res2.json(await connectMetaAccount(req2.principal, ownBrand(req2, req2.body.brandId), req2.body));
   })(req, res);
 });
+enterpriseRouter.post("/social-accounts/:id/disconnect", wrap(async (req, res) => {
+  if (!isAdmin(req.principal)) return fail4("Only administrators can disconnect social accounts.", 403);
+  const accountId = String(req.params.id);
+  const account = db.prepare("SELECT * FROM social_accounts WHERE account_id=?").get(accountId);
+  if (!account || !req.principal.global && account.client_id !== req.principal.clientId) return fail4("Account not found.", 404);
+  const now2 = (/* @__PURE__ */ new Date()).toISOString();
+  db.prepare("UPDATE social_accounts SET status='disconnected',updated_at=?,version=version+1 WHERE account_id=?").run(now2, accountId);
+  audit(req.principal, "social_account", accountId, "disconnect");
+  sseManager.emit("account.updated", account.client_id, { accountId, status: "disconnected" });
+  return res.json({ success: true, message: `${account.platform.toUpperCase()} channel disconnected.` });
+}));
 var postById = (req) => {
   const post = db.prepare("SELECT * FROM posts WHERE post_id = ? AND deleted_at IS NULL").get(req.params.id);
   if (!post || !req.principal.global && post.client_id !== req.principal.clientId) fail4("Post not found.", 404);

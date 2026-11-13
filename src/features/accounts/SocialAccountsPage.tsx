@@ -57,6 +57,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [checkingId,setCheckingId]=useState(''),[checkNotice,setCheckNotice]=useState(''),[checkFailed,setCheckFailed]=useState(false);
+  const [disconnectingId, setDisconnectingId] = useState('');
   const verifySaved=async(account:SocialAccount)=>{const id=String((account as any).accountId||account.id);if(checkingId)return;setCheckingId(id);setCheckNotice('');setCheckFailed(false);try{const result=await api.checkMetaAccount(id);setCheckNotice(result.message);}catch(error:any){setCheckNotice(error.message);setCheckFailed(true);}finally{await onRefreshAccounts?.();setCheckingId('');}};
 
   // Form states per platform
@@ -444,20 +445,47 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
                             <ShieldCheck className="w-3 h-3 text-emerald-600" />
                             <span>AES-256</span>
                           </span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openConnectModal(meta.typeKey,group.brandId);
-                            }}
-                            className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-colors border ${
-                              isConnected
-                                ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
-                                : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 shadow-xs'
-                            }`}
-                          >
-                            {isConnected ? 'Update' : '+ Connect'}
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            {isConnected && permissions.canManageAccounts && (
+                              <button
+                                type="button"
+                                disabled={disconnectingId === String((acc as any).accountId || acc.id)}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  const id = String((acc as any).accountId || acc.id);
+                                  setDisconnectingId(id);
+                                  try {
+                                    await api.disconnectSocialAccount(id);
+                                    setCheckNotice(`${meta.name} channel disconnected.`);
+                                    setCheckFailed(false);
+                                    await onRefreshAccounts?.();
+                                  } catch (err: any) {
+                                    setCheckNotice(err.message || 'Failed to disconnect account');
+                                    setCheckFailed(true);
+                                  } finally {
+                                    setDisconnectingId('');
+                                  }
+                                }}
+                                className="px-2 py-1 text-[11px] font-semibold rounded-lg text-rose-600 hover:text-rose-800 hover:bg-rose-50 border border-rose-200 transition-colors cursor-pointer"
+                              >
+                                {disconnectingId === String((acc as any).accountId || acc.id) ? 'Disconnecting…' : 'Disconnect'}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openConnectModal(meta.typeKey,group.brandId);
+                              }}
+                              className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-colors border cursor-pointer ${
+                                isConnected
+                                  ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
+                                  : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 shadow-xs'
+                              }`}
+                            >
+                              {isConnected ? 'Update' : '+ Connect'}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
