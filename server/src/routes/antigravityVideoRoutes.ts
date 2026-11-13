@@ -1,3 +1,4 @@
+import {recordCreationProgress,retryCreation,trashCreation,restoreCreation} from '../services/creatorJobs';
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import crypto from 'node:crypto';
 import path from 'node:path';
@@ -42,13 +43,14 @@ videoDashboardRouter.get('/status', (req,res) => {
 });
 videoDashboardRouter.get('/jobs', (req,res) => {
   const principal=req.principal;
-  const rows = principal.global ? db.prepare('SELECT * FROM antigravity_video_jobs ORDER BY created_at DESC LIMIT 50').all()
-    : db.prepare('SELECT * FROM antigravity_video_jobs WHERE client_id=? ORDER BY created_at DESC LIMIT 50').all(principal.clientId);
+  const filter=req.query.trash==='true'?'deleted_at IS NOT NULL':'deleted_at IS NULL';
+  const rows = principal.global ? db.prepare(`SELECT * FROM antigravity_video_jobs WHERE ${filter} ORDER BY created_at DESC LIMIT 100`).all()
+    : db.prepare(`SELECT * FROM antigravity_video_jobs WHERE ${filter} AND client_id=? ORDER BY created_at DESC LIMIT 100`).all(principal.clientId);
   res.json({jobs:rows.map(formatVideoJob)});
 });
 videoDashboardRouter.get('/desk',wrap((req,res)=>{
   if(!canEdit(req.principal)&&!canApprove(req.principal))return videoError('Content workspace access is required.',403);
-  const query="SELECT * FROM antigravity_video_jobs WHERE json_extract(input_json,'$.workflow')='creator' AND post_id IS NOT NULL";
+  const query="SELECT * FROM antigravity_video_jobs WHERE deleted_at IS NULL AND json_extract(input_json,'$.workflow')='creator' AND post_id IS NOT NULL";
   const rows=req.principal.global?db.prepare(query+' ORDER BY created_at DESC LIMIT 200').all():db.prepare(query+' AND client_id=? ORDER BY created_at DESC LIMIT 200').all(req.principal.clientId);
   res.json({jobs:rows.map(formatVideoJob)});
 }));
@@ -57,15 +59,18 @@ videoDashboardRouter.post('/jobs/:id/submit',wrap((req,res)=>res.json(submitCrea
 videoDashboardRouter.get('/reviews',wrap((req,res)=>{
   if (!canApprove(req.principal)) return videoError('Approval permission is required.',403);
   const query=`SELECT j.*,b.brand_name,u.full_name AS author_name FROM antigravity_video_jobs j
-    JOIN brands b ON b.brand_id=j.brand_id JOIN users u ON u.user_id=j.user_id`;
+    JOIN brands b ON b.brand_id=j.brand_id JOIN users u ON u.user_id=j.user_id WHERE j.deleted_at IS NULL`;
   const order=" ORDER BY CASE WHEN j.status='AWAITING_APPROVAL' THEN 0 ELSE 1 END,j.created_at DESC LIMIT 200";
-  const rows=req.principal.global?db.prepare(query+order).all():db.prepare(query+' WHERE j.client_id=?'+order).all(req.principal.clientId);
+  const rows=req.principal.global?db.prepare(query+order).all():db.prepare(query+' AND j.client_id=?'+order).all(req.principal.clientId);
   res.json({jobs:rows.map((row:any)=>({...formatVideoJob(row),brandName:row.brand_name,authorName:row.author_name,
     destinations:JSON.parse(row.input_json).accountIds.map((id:string)=>{
       const a:any=db.prepare('SELECT account_name,platform FROM social_accounts WHERE account_id=? AND brand_id=?').get(id,row.brand_id);
       return a?`${a.account_name || a.platform} · ${a.platform}`:'Disconnected account';
     })}))});
 }));
+videoDashboardRouter.delete('/jobs/:id',wrap((req,res)=>res.json(trashCreation(req.principal,String(req.params.id),req.body.versionNumber))));
+videoDashboardRouter.post('/jobs/:id/restore',wrap((req,res)=>res.json(restoreCreation(req.principal,String(req.params.id)))));
+videoDashboardRouter.post('/jobs/:id/retry',wrap((req,res)=>res.status(202).json(retryCreation(req.principal,String(req.params.id)))));
 videoDashboardRouter.post('/jobs/:id/review',wrap((req,res)=>res.json(reviewVideoJob(req.principal,String(req.params.id),req.body))));
 videoDashboardRouter.post('/jobs',wrap(async(req,res)=>{
   if (!configured()) return videoError('An administrator must configure the local video worker connection first.',503);
@@ -102,11 +107,11 @@ videoDashboardRouter.post('/manual-defaults',wrap((req,res)=>{
 }));
 
 videoMachineRouter.post('/dispatch',automationAuth,wrap((req,res)=>{
-  const result=db.prepare("UPDATE antigravity_video_jobs SET dispatched=1,updated_at=? WHERE id=? AND status='QUEUED'").run(new Date().toISOString(),String(req.body.jobId||''));
+  const result=db.prepare("UPDATE antigravity_video_jobs SET dispatched=1,updated_at=? WHERE deleted_at IS NULL AND id=? AND status='QUEUED'").run(new Date().toISOString(),String(req.body.jobId||''));
   res.json({accepted:true,updated:Number(result.changes)});
 }));
 videoMachineRouter.post('/dispatch-pending',automationAuth,wrap((_req,res)=>{
-  const result=db.prepare("UPDATE antigravity_video_jobs SET dispatched=1,updated_at=? WHERE dispatched=0 AND status='QUEUED'").run(new Date().toISOString());
+  const result=db.prepare("UPDATE antigravity_video_jobs SET dispatched=1,updated_at=? WHERE deleted_at IS NULL AND dispatched=0 AND status='QUEUED'").run(new Date().toISOString());
   res.json({released:Number(result.changes)});
 }));
 videoMachineRouter.post('/schedule-next',automationAuth,wrap((_req,res)=>res.json(scheduleNextVideo())));
@@ -115,6 +120,7 @@ videoMachineRouter.post('/worker/ping',workerAuth,wrap((req,res)=>{
   res.json({ok:true});
 }));
 videoMachineRouter.post('/worker/claim',workerAuth,wrap((req,res)=>res.json(claimVideoJob(String(req.body.workerId||'')))));
+videoMachineRouter.post('/worker/progress',workerAuth,wrap((req,res)=>res.json(recordCreationProgress(String(req.body.jobId||''),String(req.body.leaseToken||''),req.body))));
 videoMachineRouter.post('/worker/heartbeat',workerAuth,wrap((req,res)=>{
   const row=leasedVideoJob(String(req.body.jobId||''),String(req.body.leaseToken||''));
   if(!['GENERATING','NEEDS_ATTENTION'].includes(row.status))return videoError('This generation is no longer active.',409);

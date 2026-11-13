@@ -32,7 +32,10 @@ export const api = {
     return request(`/automation/videos/jobs/${encodeURIComponent(id)}/review`,{method:'POST',body:JSON.stringify(input)});
   },
   async getVideoAutomationStatus(): Promise<any> { return request('/automation/videos/status'); },
-  async getVideoJobs(): Promise<{jobs:any[]}> { return request('/automation/videos/jobs'); },
+  async getVideoJobs(trash=false): Promise<{jobs:any[]}> { return request('/automation/videos/jobs'+(trash?'?trash=true':'')); },
+  async trashCreation(id:string,versionNumber?:number):Promise<{job:any}>{return request(`/automation/videos/jobs/${encodeURIComponent(id)}`,{method:'DELETE',body:JSON.stringify({versionNumber})});},
+  async restoreCreation(id:string):Promise<{job:any}>{return request(`/automation/videos/jobs/${encodeURIComponent(id)}/restore`,{method:'POST'});},
+  async retryCreation(id:string):Promise<{job:any}>{return request(`/automation/videos/jobs/${encodeURIComponent(id)}/retry`,{method:'POST'});},
   async createVideoJob(input: any): Promise<{job:any;dispatchPending:boolean}> { return request('/automation/videos/jobs',{method:'POST',body:JSON.stringify(input)}); },
   async setVideoFolderDefaults(input: any): Promise<any> { return request('/automation/videos/manual-defaults',{method:'POST',body:JSON.stringify(input)}); },
   async getStudioStatus(): Promise<{configured:boolean; provider:string; models:{text:string;image:string}; canGenerate:boolean; message:string}> { return request('/ai/studio/status'); },

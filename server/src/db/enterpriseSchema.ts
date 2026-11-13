@@ -47,6 +47,9 @@ export function migrateEnterprise(db: DatabaseSync) {
         notes TEXT NOT NULL, reviewer_id INTEGER NOT NULL REFERENCES users(user_id),
         reviewer_name TEXT NOT NULL, created_at TEXT NOT NULL,
         replacement_job_id TEXT REFERENCES antigravity_video_jobs(id));`);
+    add('antigravity_video_jobs', 'deleted_at', 'TEXT');
+    add('antigravity_video_jobs', 'progress_json', "TEXT NOT NULL DEFAULT '{}'");
+    add('antigravity_video_jobs', 'retry_job_id', 'TEXT');
     // Resolve only unambiguous existing memberships. Never infer access from a partial name.
     db.exec(`UPDATE users SET client_id = (
       SELECT MIN(client_id) FROM brands WHERE brand_name = users.tenant_scope

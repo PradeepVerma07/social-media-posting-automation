@@ -44,3 +44,15 @@ body {
   background-image: radial-gradient(#334155 1.2px, transparent 1.2px);
   background-size: 20px 20px;
 }
+
+
+/* Keep long briefs and history inside the preview, independently of the editor. */
+.creator-preview-panel {
+  height: clamp(560px, calc(100dvh - 150px), 960px);
+}
+@media (min-width: 1280px) {
+  .creator-preview-panel { position: sticky; top: 24px; }
+}
+@media (max-width: 639px) {
+  .creator-preview-panel { height: min(800px, 85dvh); min-height: 480px; }
+}

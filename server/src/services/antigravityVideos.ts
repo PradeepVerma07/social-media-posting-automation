@@ -52,6 +52,7 @@ export function formatVideoJob(row: any) {
     scheduledAt:post && !unscheduled ? post.scheduled_utc : null,unscheduled:!!unscheduled,
     parentJobId: input.parentJobId || null, revisionNumber: input.revisionNumber || 1,
     revisionNotes: input.revisionNotes || '', revisionHistory: input.revisionHistory || [], review: ['SCHEDULED','REJECTED','CHANGES_REQUESTED'].includes(row.status)?review || null:null,
+    deletedAt:row.deleted_at || null,updatedAt:row.updated_at,progress:JSON.parse(row.progress_json || '{}'),retryJobId:row.retry_job_id || null,durationSeconds:input.durationSeconds,
     postVersion: post?.version, approvalStatus: post?.approval_status, authorId: row.user_id,
     aspectRatio: input.aspectRatio, platforms: input.platforms, brandId: row.brand_id, status: row.status,
     dispatched: !!row.dispatched, autoPublish: input.autoPublish, fileUrl: row.file_url,
@@ -96,8 +97,8 @@ export function claimVideoJob(workerId: string) {
   const now = new Date().toISOString();
   setVideoSetting('worker', { workerId: workerId.slice(0, 100), lastSeenAt: now });
   return videoTx(() => {
-    db.prepare("UPDATE antigravity_video_jobs SET status='NEEDS_ATTENTION',error='Worker lease expired. Inspect the local output before retrying.',updated_at=? WHERE status='GENERATING' AND lease_until < ?").run(now, now);
-    const row: any = db.prepare("SELECT * FROM antigravity_video_jobs WHERE status='QUEUED' AND dispatched=1 ORDER BY created_at LIMIT 1").get();
+    db.prepare("UPDATE antigravity_video_jobs SET status='NEEDS_ATTENTION',error='Worker lease expired. Inspect the local output before retrying.',updated_at=? WHERE deleted_at IS NULL AND status='GENERATING' AND lease_until < ?").run(now, now);
+    const row: any = db.prepare("SELECT * FROM antigravity_video_jobs WHERE deleted_at IS NULL AND status='QUEUED' AND dispatched=1 ORDER BY created_at LIMIT 1").get();
     if (!row) return { job: null };
     const leaseToken = crypto.randomBytes(32).toString('hex');
     db.prepare("UPDATE antigravity_video_jobs SET status='GENERATING',lease_token=?,lease_until=?,updated_at=? WHERE id=? AND status='QUEUED'")
@@ -108,13 +109,13 @@ export function claimVideoJob(workerId: string) {
 export function leasedVideoJob(jobId: string, leaseToken: string): any {
   if (!/^[a-f0-9-]{36}$/.test(String(jobId))) return videoError('Invalid job ID.');
   const row: any = db.prepare('SELECT * FROM antigravity_video_jobs WHERE id = ?').get(jobId);
-  if (!row?.lease_token || !/^[a-f0-9]{64}$/.test(String(leaseToken)) || !crypto.timingSafeEqual(Buffer.from(row.lease_token), Buffer.from(leaseToken))) return videoError('The video upload lease is invalid.', 403);
+  if (row?.deleted_at || !row?.lease_token || !/^[a-f0-9]{64}$/.test(String(leaseToken)) || !crypto.timingSafeEqual(Buffer.from(row.lease_token), Buffer.from(leaseToken))) return videoError('The video upload lease is invalid.', 403);
   return row;
 }
 export function scheduleNextVideo() {
   let tenant: string | undefined;
   const result = videoTx(() => {
-    const row: any = db.prepare("SELECT * FROM antigravity_video_jobs WHERE status='READY' ORDER BY ready_at LIMIT 1").get();
+    const row: any = db.prepare("SELECT * FROM antigravity_video_jobs WHERE deleted_at IS NULL AND status='READY' ORDER BY ready_at LIMIT 1").get();
     if (!row) return { job: null };
     try {
       const principal = videoPrincipal(row.user_id); const input = JSON.parse(row.input_json);
