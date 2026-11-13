@@ -30,10 +30,35 @@ export function SocialMediaDesk({initialJobId,currentRole,onCreate}:{initialJobI
   const editable=canEdit&&!!selected&&['READY_FOR_SCHEDULING','AWAITING_APPROVAL','SCHEDULED'].includes(selected.status);
   const save=async(submit:boolean)=>{
     if(!selected||busy)return;setBusy(true);setError('');setNotice('');
-    try{const saved=await api.saveCreatorSchedule(selected.id,{title,caption,hashtags,timezone,localDateTime:localTime,accountIds,versionNumber:version});setDirty(false);setVersion(saved.job.postVersion);
-      if(submit){await api.submitCreatorForApproval(selected.id,saved.job.postVersion);setNotice('Sent to the approver with the selected publication time. Publishing waits for approval.');}
+    try{
+      if(submit){
+        if(!localTime){
+          setError('Please select a publication time before sending for approval.');
+          setBusy(false);
+          return;
+        }
+        const targetMs=DateTime.fromISO(localTime,{zone:timezone}).toMillis();
+        if(Number.isNaN(targetMs)||targetMs<=Date.now()){
+          setError('Please choose a future publication time before sending for approval. Use the +1 Hour helper if needed.');
+          setBusy(false);
+          return;
+        }
+      }
+      const saved=await api.saveCreatorSchedule(selected.id,{
+        title,caption,hashtags,timezone,localDateTime:localTime,accountIds,versionNumber:version,submitForApproval:submit
+      });
+      setDirty(false);setVersion(saved.job.postVersion);
+      if(submit){
+        await api.submitCreatorForApproval(selected.id,saved.job.postVersion);
+        setNotice('Sent to the approver with the selected publication time. Publishing waits for approval.');
+      }
       else setNotice('Draft saved. Send it for approval when the content and schedule are ready.');
-    }catch(e:any){setError(e.message);}finally{await refresh().catch(e=>setError(e.message));setBusy(false);}
+    }catch(e:any){
+      setError(e.message);
+    }finally{
+      await refresh().catch(e=>setError(e.message));
+      setBusy(false);
+    }
   };
   const update=(fn:()=>void)=>{fn();setDirty(true);};
   const eligible=accounts.filter(a=>a.connectionStatus==='connected'&&status?.capabilities?.[a.platform]?.placements?.[selected?.kind==='post'?'feed':'reels_shorts']?.includes(selected?.kind==='post'?'image':'video'));
@@ -46,10 +71,47 @@ export function SocialMediaDesk({initialJobId,currentRole,onCreate}:{initialJobI
       <nav aria-label="Content scheduling queue" className="max-h-[800px] space-y-2 overflow-y-auto">{visible.map(job=><button key={job.id} onClick={()=>{setSelectedId(job.id);setDirty(false);}} className={`w-full rounded-xl border p-4 text-left ${job.id===selected.id?'border-indigo-300 bg-indigo-50':'bg-white'}`}><p className="text-xs font-medium text-indigo-600">{job.brandName} · {job.kind==='post'?'Image post':'Video'}</p><p className="mt-2 line-clamp-2 text-sm font-semibold">{job.title}</p><p className="mt-2 text-xs text-slate-500">{job.status.replaceAll('_',' ')}</p></button>)}</nav>
       <section className="space-y-5 rounded-2xl border bg-white p-5 sm:p-6"><div className="grid items-start gap-5 xl:grid-cols-[.8fr_1fr]"><div>{selected.kind==='post'?<img src={selected.fileUrl} alt={selected.title} className="max-h-[420px] w-full rounded-xl object-contain"/>:<video src={selected.fileUrl} controls preload="metadata" className="max-h-[420px] w-full rounded-xl bg-slate-950"/>}<p className="mt-3 text-xs text-slate-500">{selected.brandName} · Version {selected.revisionNumber} · {selected.status.replaceAll('_',' ')}</p><details className="mt-4 text-sm"><summary className="cursor-pointer font-medium">Original brief</summary><p className="mt-2 whitespace-pre-wrap text-slate-600">{selected.topic}</p></details></div>
         <fieldset disabled={!editable||busy} className="space-y-4"><label className="block space-y-2 text-sm font-medium">Title<input className={field} maxLength={255} value={title} onChange={e=>update(()=>setTitle(e.target.value))}/></label><label className="block space-y-2 text-sm font-medium">Caption<textarea className={field} rows={6} maxLength={5000} value={caption} onChange={e=>update(()=>setCaption(e.target.value))}/></label><label className="block space-y-2 text-sm font-medium">Hashtags<input className={field} maxLength={2000} value={hashtags} onChange={e=>update(()=>setHashtags(e.target.value))}/></label>
-          <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-2 text-sm font-medium">Publication time<input type="datetime-local" className={field} value={localTime} onChange={e=>update(()=>setLocalTime(e.target.value))}/></label><label className="block space-y-2 text-sm font-medium">Timezone<input className={field} value={timezone} maxLength={80} onChange={e=>update(()=>setTimezone(e.target.value))}/></label></div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium">Publication time</label>
+                <div className="flex items-center gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => update(() => setLocalTime(DateTime.now().setZone(timezone).plus({ hours: 1 }).toFormat("yyyy-MM-dd'T'HH:mm")))}
+                    className="text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer underline"
+                  >
+                    +1 Hr
+                  </button>
+                  <span className="text-slate-300">|</span>
+                  <button
+                    type="button"
+                    onClick={() => update(() => setLocalTime(DateTime.now().setZone(timezone).plus({ days: 1 }).set({ hour: 10, minute: 0 }).toFormat("yyyy-MM-dd'T'HH:mm")))}
+                    className="text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer underline"
+                  >
+                    +Tomorrow 10 AM
+                  </button>
+                </div>
+              </div>
+              <input type="datetime-local" className={field} value={localTime} onChange={e=>update(()=>setLocalTime(e.target.value))}/>
+            </div>
+            <label className="block space-y-2 text-sm font-medium">Timezone<input className={field} value={timezone} maxLength={80} onChange={e=>update(()=>setTimezone(e.target.value))}/></label>
+          </div>
           <fieldset className="space-y-2"><legend className="mb-2 text-sm font-semibold">Publish destinations</legend>{eligible.map(a=>{const id=String((a as any).accountId);return <label key={id} className="flex gap-2 rounded-lg border p-3 text-sm"><input type="checkbox" checked={accountIds.includes(id)} onChange={e=>update(()=>setAccountIds(ids=>e.target.checked?[...ids,id]:ids.filter(v=>v!==id)))}/>{a.accountName||a.accountHandle} · {a.platform}</label>;})}{!eligible.length&&<p className="text-sm text-amber-800">Reconnect an eligible account for this brand before sending for approval.</p>}</fieldset>
         </fieldset></div>
-        {editable&&<><p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">Saving an edit returns this version to Draft. A manager must approve the updated content and schedule before publication.</p><div className="flex flex-wrap gap-3"><button disabled={busy||!accountIds.length} onClick={()=>void save(false)} className="inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold disabled:opacity-50"><Save size={17}/>Save draft</button><button disabled={busy||!localTime||!accountIds.length} onClick={()=>void save(true)} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"><Send size={17}/>{busy?'Saving…':'Send for approval'}</button></div></>}
+        {editable&&<>
+          {error&&<p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800 animate-in fade-in duration-150">{error}</p>}
+          {notice&&<p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800 animate-in fade-in duration-150">{notice}</p>}
+          <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">Saving an edit returns this version to Draft. A manager must approve the updated content and schedule before publication.</p>
+          <div className="flex flex-wrap gap-3">
+            <button disabled={busy||!accountIds.length} onClick={()=>void save(false)} className="inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold disabled:opacity-50 cursor-pointer hover:bg-slate-50 transition-colors">
+              <Save size={17}/>Save draft
+            </button>
+            <button disabled={busy||!localTime||!accountIds.length} onClick={()=>void save(true)} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50 cursor-pointer hover:bg-indigo-700 transition-colors">
+              <Send size={17}/>{busy?'Saving…':'Send for approval'}
+            </button>
+          </div>
+        </>}
         {selected.review?.notes&&<div className="rounded-xl bg-amber-50 p-4 text-sm"><h3 className="font-semibold">Manager feedback</h3><p className="mt-2 whitespace-pre-wrap">{selected.review.notes}</p></div>}
       </section>
     </div>}

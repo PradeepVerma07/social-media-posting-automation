@@ -33,14 +33,20 @@ export function saveCreatorSchedule(principal:Principal,id:string,raw:any){
     if(Object.hasOwn(raw,'localDateTime')){
       if(!raw.localDateTime)scheduledAt=null;
       else{
-        const at=DateTime.fromISO(String(raw.localDateTime),{zone:timezone});
-        if(!at.isValid||at.toFormat("yyyy-MM-dd'T'HH:mm")!==raw.localDateTime||at.getPossibleOffsets().length>1)return videoError('Choose an unambiguous, valid local publication time.');
+        const rawStr=String(raw.localDateTime).trim();
+        const norm=rawStr.length>=16?rawStr.slice(0,16):rawStr;
+        const at=DateTime.fromISO(norm,{zone:timezone});
+        if(!at.isValid||at.toFormat("yyyy-MM-dd'T'HH:mm")!==norm||at.getPossibleOffsets().length>1)return videoError('Choose an unambiguous, valid local publication time.');
         scheduledAt=at.toUTC().toISO();
       }
     }else if(Object.hasOwn(raw,'scheduledAt')){
-      if(!/([zZ]|[+-]\d{2}:\d{2})$/.test(String(raw.scheduledAt)))return videoError('Publication time must include a timezone offset.');
-      const at=DateTime.fromISO(String(raw.scheduledAt),{setZone:true});
-      if(!at.isValid)return videoError('Choose a valid publication time.');scheduledAt=at.toUTC().toISO();
+      if(!raw.scheduledAt)scheduledAt=null;
+      else{
+        if(!/([zZ]|[+-]\d{2}:\d{2})$/.test(String(raw.scheduledAt)))return videoError('Publication time must include a timezone offset.');
+        const at=DateTime.fromISO(String(raw.scheduledAt),{setZone:true});
+        if(!at.isValid)return videoError('Choose a valid publication time.');
+        scheduledAt=at.toUTC().toISO();
+      }
     }
     if(scheduledAt&&Date.parse(scheduledAt)<=Date.now())return videoError('Choose a future publication time.');
     const now=new Date().toISOString();const date=DateTime.fromISO(scheduledAt||now).setZone(timezone);const version=post.version+1;

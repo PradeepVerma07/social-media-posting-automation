@@ -19004,14 +19004,14 @@ var require_etag = __commonJS({
   "node_modules/etag/index.js"(exports, module) {
     "use strict";
     module.exports = etag;
-    var crypto12 = __require("crypto");
+    var crypto14 = __require("crypto");
     var Stats = __require("fs").Stats;
     var toString = Object.prototype.toString;
     function entitytag(entity) {
       if (entity.length === 0) {
         return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"';
       }
-      var hash2 = crypto12.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
+      var hash2 = crypto14.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
       var len = typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length;
       return '"' + len.toString(16) + "-" + hash2 + '"';
     }
@@ -21920,11 +21920,11 @@ var require_request = __commonJS({
 // node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
   "node_modules/cookie-signature/index.js"(exports) {
-    var crypto12 = __require("crypto");
+    var crypto14 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" !== typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
-      return val + "." + crypto12.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto14.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports.unsign = function(val, secret) {
       if ("string" !== typeof val) throw new TypeError("Signed cookie string must be provided.");
@@ -21933,7 +21933,7 @@ var require_cookie_signature = __commonJS({
       return sha1(mac3) == sha1(val) ? str : false;
     };
     function sha1(str) {
-      return crypto12.createHash("sha1").update(str).digest("hex");
+      return crypto14.createHash("sha1").update(str).digest("hex");
     }
   }
 });
@@ -39194,9 +39194,9 @@ var require_client = __commonJS({
 var require_auth_41 = __commonJS({
   "node_modules/mysql2/lib/auth_41.js"(exports) {
     "use strict";
-    var crypto12 = __require("crypto");
+    var crypto14 = __require("crypto");
     function sha1(msg, msg1, msg2) {
-      const hash2 = crypto12.createHash("sha1");
+      const hash2 = crypto14.createHash("sha1");
       hash2.update(msg);
       if (msg1) {
         hash2.update(msg1);
@@ -41622,7 +41622,7 @@ var require_sha256_password = __commonJS({
   "node_modules/mysql2/lib/auth_plugins/sha256_password.js"(exports, module) {
     "use strict";
     var PLUGIN_NAME = "sha256_password";
-    var crypto12 = __require("crypto");
+    var crypto14 = __require("crypto");
     var { xorRotating } = require_auth_41();
     var Tls = __require("tls");
     var REQUEST_SERVER_KEY_PACKET = Buffer.from([1]);
@@ -41631,7 +41631,7 @@ var require_sha256_password = __commonJS({
     var STATE_FINAL = -1;
     function encrypt(password, scramble, key) {
       const stage1 = xorRotating(Buffer.from(`${password}\0`, "utf8"), scramble);
-      return crypto12.publicEncrypt(
+      return crypto14.publicEncrypt(
         {
           key,
           oaepHash: "sha1"
@@ -41683,7 +41683,7 @@ var require_caching_sha2_password = __commonJS({
   "node_modules/mysql2/lib/auth_plugins/caching_sha2_password.js"(exports, module) {
     "use strict";
     var PLUGIN_NAME = "caching_sha2_password";
-    var crypto12 = __require("crypto");
+    var crypto14 = __require("crypto");
     var { xor: xor2, xorRotating } = require_auth_41();
     var REQUEST_SERVER_KEY_PACKET = Buffer.from([2]);
     var FAST_AUTH_SUCCESS_PACKET = Buffer.from([3]);
@@ -41693,7 +41693,7 @@ var require_caching_sha2_password = __commonJS({
     var STATE_WAIT_SERVER_KEY = 2;
     var STATE_FINAL = -1;
     function sha256(msg) {
-      const hash2 = crypto12.createHash("sha256");
+      const hash2 = crypto14.createHash("sha256");
       hash2.update(msg);
       return hash2.digest();
     }
@@ -41708,11 +41708,11 @@ var require_caching_sha2_password = __commonJS({
     }
     function encrypt(password, scramble, key) {
       const stage1 = xorRotating(Buffer.from(`${password}\0`, "utf8"), scramble);
-      return crypto12.publicEncrypt(
+      return crypto14.publicEncrypt(
         {
           key,
           oaepHash: "sha1",
-          padding: crypto12.constants.RSA_PKCS1_OAEP_PADDING
+          padding: crypto14.constants.RSA_PKCS1_OAEP_PADDING
         },
         stage1
       );
@@ -59831,22 +59831,22 @@ var require_crypto2 = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.NodeCrypto = void 0;
-    var crypto12 = __require("crypto");
+    var crypto14 = __require("crypto");
     var NodeCrypto = class {
       async sha256DigestBase64(str) {
-        return crypto12.createHash("sha256").update(str).digest("base64");
+        return crypto14.createHash("sha256").update(str).digest("base64");
       }
       randomBytesBase64(count) {
-        return crypto12.randomBytes(count).toString("base64");
+        return crypto14.randomBytes(count).toString("base64");
       }
       async verify(pubkey, data, signature) {
-        const verifier = crypto12.createVerify("RSA-SHA256");
+        const verifier = crypto14.createVerify("RSA-SHA256");
         verifier.update(data);
         verifier.end();
         return verifier.verify(pubkey, signature, "base64");
       }
       async sign(privateKey, data) {
-        const signer = crypto12.createSign("RSA-SHA256");
+        const signer = crypto14.createSign("RSA-SHA256");
         signer.update(data);
         signer.end();
         return signer.sign(privateKey, "base64");
@@ -59864,7 +59864,7 @@ var require_crypto2 = __commonJS({
        *   string in hexadecimal encoding.
        */
       async sha256DigestHex(str) {
-        return crypto12.createHash("sha256").update(str).digest("hex");
+        return crypto14.createHash("sha256").update(str).digest("hex");
       }
       /**
        * Computes the HMAC hash of a message using the provided crypto key and the
@@ -59876,7 +59876,7 @@ var require_crypto2 = __commonJS({
        */
       async signWithHmacSha256(key, msg) {
         const cryptoKey = typeof key === "string" ? key : toBuffer(key);
-        return toArrayBuffer(crypto12.createHmac("sha256", cryptoKey).update(msg).digest());
+        return toArrayBuffer(crypto14.createHmac("sha256", cryptoKey).update(msg).digest());
       }
     };
     exports.NodeCrypto = NodeCrypto;
@@ -60731,10 +60731,10 @@ var require_oauth2client = __commonJS({
        * https://github.com/googleapis/google-auth-library-nodejs/blob/main/samples/oauth2-codeVerifier.js
        */
       async generateCodeVerifierAsync() {
-        const crypto12 = (0, crypto_1.createCrypto)();
-        const randomString2 = crypto12.randomBytesBase64(96);
+        const crypto14 = (0, crypto_1.createCrypto)();
+        const randomString2 = crypto14.randomBytesBase64(96);
         const codeVerifier = randomString2.replace(/\+/g, "~").replace(/=/g, "_").replace(/\//g, "-");
-        const unencodedCodeChallenge = await crypto12.sha256DigestBase64(codeVerifier);
+        const unencodedCodeChallenge = await crypto14.sha256DigestBase64(codeVerifier);
         const codeChallenge = unencodedCodeChallenge.split("=")[0].replace(/\+/g, "-").replace(/\//g, "_");
         return { codeVerifier, codeChallenge };
       }
@@ -61175,7 +61175,7 @@ var require_oauth2client = __commonJS({
        * @return Returns a promise resolving to LoginTicket on verification.
        */
       async verifySignedJwtWithCertsAsync(jwt2, certs, requiredAudience, issuers, maxExpiry) {
-        const crypto12 = (0, crypto_1.createCrypto)();
+        const crypto14 = (0, crypto_1.createCrypto)();
         if (!maxExpiry) {
           maxExpiry = _OAuth2Client.DEFAULT_MAX_TOKEN_LIFETIME_SECS_;
         }
@@ -61188,7 +61188,7 @@ var require_oauth2client = __commonJS({
         let envelope;
         let payload;
         try {
-          envelope = JSON.parse(crypto12.decodeBase64StringUtf8(segments[0]));
+          envelope = JSON.parse(crypto14.decodeBase64StringUtf8(segments[0]));
         } catch (err) {
           if (err instanceof Error) {
             err.message = `Can't parse token envelope: ${segments[0]}': ${err.message}`;
@@ -61199,7 +61199,7 @@ var require_oauth2client = __commonJS({
           throw new Error("Can't parse token envelope: " + segments[0]);
         }
         try {
-          payload = JSON.parse(crypto12.decodeBase64StringUtf8(segments[1]));
+          payload = JSON.parse(crypto14.decodeBase64StringUtf8(segments[1]));
         } catch (err) {
           if (err instanceof Error) {
             err.message = `Can't parse token payload '${segments[0]}`;
@@ -61216,7 +61216,7 @@ var require_oauth2client = __commonJS({
         if (envelope.alg === "ES256") {
           signature = formatEcdsa.joseToDer(signature, "ES256").toString("base64");
         }
-        const verified = await crypto12.verify(cert, signed, signature);
+        const verified = await crypto14.verify(cert, signed, signature);
         if (!verified) {
           throw new Error("Invalid token signature: " + jwt2);
         }
@@ -61591,14 +61591,14 @@ var require_buffer_equal_constant_time = __commonJS({
 var require_jwa = __commonJS({
   "node_modules/jwa/index.js"(exports, module) {
     var Buffer4 = require_safe_buffer().Buffer;
-    var crypto12 = __require("crypto");
+    var crypto14 = __require("crypto");
     var formatEcdsa = require_ecdsa_sig_formatter();
     var util = __require("util");
     var MSG_INVALID_ALGORITHM = '"%s" is not a valid algorithm.\n  Supported algorithms are:\n  "HS256", "HS384", "HS512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512", "ES256", "ES384", "ES512" and "none".';
     var MSG_INVALID_SECRET = "secret must be a string or buffer";
     var MSG_INVALID_VERIFIER_KEY = "key must be a string or a buffer";
     var MSG_INVALID_SIGNER_KEY = "key must be a string, a buffer or an object";
-    var supportsKeyObjects = typeof crypto12.createPublicKey === "function";
+    var supportsKeyObjects = typeof crypto14.createPublicKey === "function";
     if (supportsKeyObjects) {
       MSG_INVALID_VERIFIER_KEY += " or a KeyObject";
       MSG_INVALID_SECRET += "or a KeyObject";
@@ -61688,17 +61688,17 @@ var require_jwa = __commonJS({
       return function sign(thing, secret) {
         checkIsSecretKey(secret);
         thing = normalizeInput(thing);
-        var hmac = crypto12.createHmac("sha" + bits, secret);
+        var hmac = crypto14.createHmac("sha" + bits, secret);
         var sig = (hmac.update(thing), hmac.digest("base64"));
         return fromBase64(sig);
       };
     }
     var bufferEqual;
-    var timingSafeEqual2 = "timingSafeEqual" in crypto12 ? function timingSafeEqual3(a, b) {
+    var timingSafeEqual2 = "timingSafeEqual" in crypto14 ? function timingSafeEqual3(a, b) {
       if (a.byteLength !== b.byteLength) {
         return false;
       }
-      return crypto12.timingSafeEqual(a, b);
+      return crypto14.timingSafeEqual(a, b);
     } : function timingSafeEqual3(a, b) {
       if (!bufferEqual) {
         bufferEqual = require_buffer_equal_constant_time();
@@ -61715,7 +61715,7 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto12.createSign("RSA-SHA" + bits);
+        var signer = crypto14.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign(privateKey, "base64"));
         return fromBase64(sig);
       };
@@ -61725,7 +61725,7 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto12.createVerify("RSA-SHA" + bits);
+        var verifier = crypto14.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify(publicKey, signature, "base64");
       };
@@ -61734,11 +61734,11 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto12.createSign("RSA-SHA" + bits);
+        var signer = crypto14.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign({
           key: privateKey,
-          padding: crypto12.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto12.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto14.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto14.constants.RSA_PSS_SALTLEN_DIGEST
         }, "base64"));
         return fromBase64(sig);
       };
@@ -61748,12 +61748,12 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto12.createVerify("RSA-SHA" + bits);
+        var verifier = crypto14.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify({
           key: publicKey,
-          padding: crypto12.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto12.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto14.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto14.constants.RSA_PSS_SALTLEN_DIGEST
         }, signature, "base64");
       };
     }
@@ -64329,14 +64329,14 @@ var require_awsrequestsigner = __commonJS({
       }
     };
     exports.AwsRequestSigner = AwsRequestSigner;
-    async function sign(crypto12, key, msg) {
-      return await crypto12.signWithHmacSha256(key, msg);
+    async function sign(crypto14, key, msg) {
+      return await crypto14.signWithHmacSha256(key, msg);
     }
-    async function getSigningKey(crypto12, key, dateStamp, region, serviceName) {
-      const kDate = await sign(crypto12, `AWS4${key}`, dateStamp);
-      const kRegion = await sign(crypto12, kDate, region);
-      const kService = await sign(crypto12, kRegion, serviceName);
-      const kSigning = await sign(crypto12, kService, "aws4_request");
+    async function getSigningKey(crypto14, key, dateStamp, region, serviceName) {
+      const kDate = await sign(crypto14, `AWS4${key}`, dateStamp);
+      const kRegion = await sign(crypto14, kDate, region);
+      const kService = await sign(crypto14, kRegion, serviceName);
+      const kSigning = await sign(crypto14, kService, "aws4_request");
       return kSigning;
     }
     async function generateAuthenticationHeaderMap(options) {
@@ -65302,7 +65302,7 @@ var require_gdchclient = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.GdchClient = exports.GDCH_SERVICE_ACCOUNT_TYPE = void 0;
-    var crypto12 = __require("crypto");
+    var crypto14 = __require("crypto");
     var fs11 = __require("fs");
     var https4 = __require("https");
     var oauth2client_1 = require_oauth2client();
@@ -65493,7 +65493,7 @@ var require_gdchclient = __commonJS({
         const encodedHeader = this.base64UrlEncode(JSON.stringify(header));
         const encodedPayload = this.base64UrlEncode(JSON.stringify(payload));
         const signingInput = `${encodedHeader}.${encodedPayload}`;
-        const signature = crypto12.sign("sha256", Buffer.from(signingInput), {
+        const signature = crypto14.sign("sha256", Buffer.from(signingInput), {
           key: this.privateKey,
           dsaEncoding: "ieee-p1363"
         });
@@ -66356,24 +66356,24 @@ var require_googleauth = __commonJS({
           const signed = await client.sign(data);
           return signed.signedBlob;
         }
-        const crypto12 = (0, crypto_1.createCrypto)();
+        const crypto14 = (0, crypto_1.createCrypto)();
         if (client instanceof jwtclient_1.JWT && client.key) {
-          const sign = await crypto12.sign(client.key, data);
+          const sign = await crypto14.sign(client.key, data);
           return sign;
         }
         const creds = await this.getCredentials();
         if (!creds.client_email) {
           throw new Error("Cannot sign data without `client_email`.");
         }
-        return this.signBlob(crypto12, creds.client_email, data, endpoint);
+        return this.signBlob(crypto14, creds.client_email, data, endpoint);
       }
-      async signBlob(crypto12, emailOrUniqueId, data, endpoint) {
+      async signBlob(crypto14, emailOrUniqueId, data, endpoint) {
         const url2 = new URL(endpoint + `${emailOrUniqueId}:signBlob`);
         const res = await this.request({
           method: "POST",
           url: url2.href,
           data: {
-            payload: crypto12.encodeBase64StringUtf8(data)
+            payload: crypto14.encodeBase64StringUtf8(data)
           },
           retry: true,
           retryConfig: {
@@ -72141,7 +72141,12 @@ function migrateEnterprise(db2) {
       file_url TEXT, file_sha256 TEXT, ready_at TEXT, publish_at TEXT,
       post_id TEXT UNIQUE REFERENCES posts(post_id), error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS idx_antigravity_jobs_state ON antigravity_video_jobs(status,dispatched,created_at);
-      CREATE TABLE IF NOT EXISTS antigravity_video_settings (key TEXT PRIMARY KEY, value_json TEXT NOT NULL);`);
+      CREATE TABLE IF NOT EXISTS antigravity_video_settings (key TEXT PRIMARY KEY, value_json TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS antigravity_video_reviews (
+        job_id TEXT PRIMARY KEY REFERENCES antigravity_video_jobs(id), action TEXT NOT NULL,
+        notes TEXT NOT NULL, reviewer_id INTEGER NOT NULL REFERENCES users(user_id),
+        reviewer_name TEXT NOT NULL, created_at TEXT NOT NULL,
+        replacement_job_id TEXT REFERENCES antigravity_video_jobs(id));`);
     db2.exec(`UPDATE users SET client_id = (
       SELECT MIN(client_id) FROM brands WHERE brand_name = users.tenant_scope
       HAVING COUNT(DISTINCT client_id) = 1
@@ -132103,7 +132108,7 @@ function audit(actor, entity, entityId, action, details = null) {
 
 // server/src/routes/enterpriseRoutes.ts
 var import_express4 = __toESM(require_express2(), 1);
-import crypto9 from "node:crypto";
+import crypto12 from "node:crypto";
 
 // server/src/services/social/platform_metrics.config.ts
 var PLATFORM_METRICS_CONFIG = {
@@ -132327,6 +132332,397 @@ function buildAnalyticsReport(database, scope, input2, now2 = /* @__PURE__ */ ne
   };
 }
 
+// server/src/services/videoReviews.ts
+import crypto10 from "node:crypto";
+
+// server/src/services/antigravityVideos.ts
+import crypto9 from "node:crypto";
+
+// server/src/services/publishingCapabilities.ts
+var PUBLISHING_CAPABILITIES = {
+  facebook: { available: true, placements: { feed: ["image"] }, maxMediaItems: 1, maxPlacements: 1, altText: false },
+  instagram: { available: true, placements: { feed: ["image", "video"], story: ["image", "video"], reels_shorts: ["video"] }, maxMediaItems: 1, maxPlacements: 1, altText: false },
+  linkedin: { available: false, reason: "LinkedIn publishing adapter is not configured." },
+  x: { available: false, reason: "X publishing adapter is not configured." },
+  youtube: { available: false, reason: "YouTube publishing adapter is not configured." },
+  whatsapp: { available: false, reason: "WhatsApp publishing adapter is not configured." }
+};
+
+// server/src/services/antigravityVideos.ts
+var videoError = (message, status = 400) => {
+  throw Object.assign(new Error(message), { status });
+};
+var videoTx = (fn) => {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const result = fn();
+    db.exec("COMMIT");
+    return result;
+  } catch (error62) {
+    db.exec("ROLLBACK");
+    throw error62;
+  }
+};
+var videoSetting = (key) => {
+  const row = db.prepare("SELECT value_json FROM antigravity_video_settings WHERE key = ?").get(key);
+  return row ? JSON.parse(row.value_json) : null;
+};
+function setVideoSetting(key, value) {
+  db.prepare("INSERT INTO antigravity_video_settings (key,value_json) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json").run(key, JSON.stringify(value));
+}
+function videoPrincipal(userId) {
+  const user = db.prepare("SELECT * FROM users WHERE user_id = ? AND is_active = 1").get(userId);
+  if (!user || !user.client_id && user.role !== "Super Admin") return videoError("The video author no longer has workspace access.", 403);
+  return { id: user.user_id, email: user.email, fullName: user.full_name, role: user.role, clientId: user.client_id || "CL-001", global: user.role === "Super Admin" };
+}
+var canAutoPublishVideo = (_principal) => false;
+function videoAccounts(principal, brandId, accountIds, kind = "video") {
+  const brand = resolveBrand(brandId);
+  if (!canAccessBrand(principal, brand)) return videoError("Brand not found or access denied.", 404);
+  if (!Array.isArray(accountIds) || !accountIds.length || accountIds.length > 10 || accountIds.some((id) => typeof id !== "string")) return videoError("Select connected video destinations.");
+  const accounts2 = [...new Set(accountIds)].map((id) => {
+    const account = db.prepare("SELECT * FROM social_accounts WHERE account_id = ? AND brand_id = ? AND client_id = ? AND status = 'active'").get(String(id), brand.brand_id, brand.client_id);
+    const capabilities = account && PUBLISHING_CAPABILITIES[account.platform];
+    if (!account || !capabilities?.available || !capabilities?.placements?.[kind === "post" ? "feed" : "reels_shorts"]?.includes(kind === "post" ? "image" : "video")) return videoError("A selected account does not support this content format.");
+    if (account.token_expires_at && Date.parse(account.token_expires_at) <= Date.now()) return videoError("Reconnect the selected social account before generating.");
+    return account;
+  });
+  return { brand, accounts: accounts2 };
+}
+function formatVideoJob(row) {
+  if (!row) return null;
+  const input2 = JSON.parse(row.input_json);
+  const review = db.prepare("SELECT action,notes,reviewer_name AS reviewerName,created_at AS createdAt,replacement_job_id AS replacementJobId FROM antigravity_video_reviews WHERE job_id=?").get(row.id);
+  const post = row.post_id && db.prepare("SELECT version,approval_status,deleted_at,title,caption,hashtags,timezone,scheduled_utc,revision_data FROM posts WHERE post_id=?").get(row.post_id);
+  const unscheduled = post && JSON.parse(post.revision_data || "{}").unscheduled;
+  const brand = resolveBrand(row.brand_id);
+  return {
+    id: row.id,
+    topic: input2.topic,
+    title: post?.title || input2.generatedResult?.title || input2.title,
+    caption: post?.caption || input2.generatedResult?.caption || input2.caption,
+    language: input2.language,
+    kind: input2.kind || "video",
+    workflow: input2.workflow || "legacy",
+    brandName: brand?.brand_name,
+    uiBrandId: brand?.ui_id,
+    accountIds: input2.accountIds,
+    hashtags: post?.hashtags || input2.generatedResult?.hashtags || "",
+    timezone: post?.timezone || brand?.default_timezone,
+    scheduledAt: post && !unscheduled ? post.scheduled_utc : null,
+    unscheduled: !!unscheduled,
+    parentJobId: input2.parentJobId || null,
+    revisionNumber: input2.revisionNumber || 1,
+    revisionNotes: input2.revisionNotes || "",
+    revisionHistory: input2.revisionHistory || [],
+    review: ["SCHEDULED", "REJECTED", "CHANGES_REQUESTED"].includes(row.status) ? review || null : null,
+    postVersion: post?.version,
+    approvalStatus: post?.approval_status,
+    authorId: row.user_id,
+    aspectRatio: input2.aspectRatio,
+    platforms: input2.platforms,
+    brandId: row.brand_id,
+    status: row.status,
+    dispatched: !!row.dispatched,
+    autoPublish: input2.autoPublish,
+    fileUrl: row.file_url,
+    readyAt: row.ready_at,
+    publishAt: row.publish_at,
+    postId: row.post_id,
+    error: row.error,
+    createdAt: row.created_at
+  };
+}
+function createVideoJob(principal, raw, manual = false) {
+  if (!canEdit(principal)) return videoError("Content editing permission is required.", 403);
+  const creator = raw.workflow === "creator";
+  const kind = raw.kind || "video";
+  if (!["video", "post"].includes(kind) || kind === "post" && !creator) return videoError("Choose a supported creator format.");
+  const { brand, accounts: accounts2 } = videoAccounts(principal, raw.brandId, raw.accountIds, kind);
+  const topic = String(raw.topic || "").trim();
+  const requestId = String(raw.requestId || "");
+  const title = String(raw.title || topic).trim().slice(0, 255);
+  const caption = String(raw.caption || topic.slice(0, 5e3)).trim();
+  if (topic.length < 10 || topic.length > 12e3 || !title || !caption || caption.length > 5e3 || requestId.length < 8 || requestId.length > 200) return videoError("Enter a topic (10\u201312,000 characters), a caption up to 5,000 characters, and a request ID.");
+  if (!(kind === "post" ? ["1:1", "4:5", "9:16", "16:9"] : ["9:16", "16:9", "1:1"]).includes(raw.aspectRatio || "9:16")) return videoError("Choose a supported aspect ratio.");
+  const duration3 = Number(raw.durationSeconds || 30);
+  if (creator && kind === "video" && (!Number.isInteger(duration3) || duration3 < 5 || duration3 > 180)) return videoError("Choose a video length of 5\u2013180 seconds.");
+  const autoPublish = raw.autoPublish === true;
+  if (autoPublish) return videoError("Every Antigravity video requires approval from the manager.", 403);
+  const input2 = {
+    topic,
+    title,
+    caption,
+    language: String(raw.language || "English").slice(0, 50),
+    aspectRatio: raw.aspectRatio || "9:16",
+    accountIds: accounts2.map((a) => a.account_id).sort(),
+    platforms: [...new Set(accounts2.map((a) => a.platform))],
+    autoPublish,
+    manual,
+    ...creator ? { workflow: "creator", kind, durationSeconds: duration3 } : {}
+  };
+  const inputJson = JSON.stringify(input2);
+  return videoTx(() => {
+    const previous = db.prepare("SELECT * FROM antigravity_video_jobs WHERE request_id = ?").get(requestId);
+    if (previous) {
+      if (previous.user_id !== principal.id || previous.input_json !== inputJson) return videoError("This request ID was already used for a different video.", 409);
+      return previous;
+    }
+    const since = new Date(Date.now() - 864e5).toISOString();
+    const count = db.prepare("SELECT count(*) AS n FROM antigravity_video_jobs WHERE client_id = ? AND created_at > ?").get(brand.client_id, since);
+    if (count.n >= 100) return videoError("The workspace daily video limit has been reached.", 429);
+    const id = crypto9.randomUUID();
+    const now2 = (/* @__PURE__ */ new Date()).toISOString();
+    db.prepare("INSERT INTO antigravity_video_jobs (id,request_id,input_json,client_id,brand_id,user_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)").run(id, requestId, inputJson, brand.client_id, brand.brand_id, principal.id, now2, now2);
+    audit(principal, "antigravity_video", id, manual ? "discover" : "queue", { brandId: brand.brand_id, autoPublish });
+    return db.prepare("SELECT * FROM antigravity_video_jobs WHERE id = ?").get(id);
+  });
+}
+function claimVideoJob(workerId) {
+  const now2 = (/* @__PURE__ */ new Date()).toISOString();
+  setVideoSetting("worker", { workerId: workerId.slice(0, 100), lastSeenAt: now2 });
+  return videoTx(() => {
+    db.prepare("UPDATE antigravity_video_jobs SET status='NEEDS_ATTENTION',error='Worker lease expired. Inspect the local output before retrying.',updated_at=? WHERE status='GENERATING' AND lease_until < ?").run(now2, now2);
+    const row = db.prepare("SELECT * FROM antigravity_video_jobs WHERE status='QUEUED' AND dispatched=1 ORDER BY created_at LIMIT 1").get();
+    if (!row) return { job: null };
+    const leaseToken = crypto9.randomBytes(32).toString("hex");
+    db.prepare("UPDATE antigravity_video_jobs SET status='GENERATING',lease_token=?,lease_until=?,updated_at=? WHERE id=? AND status='QUEUED'").run(leaseToken, new Date(Date.now() + 12e4).toISOString(), now2, row.id);
+    return { job: formatVideoJob({ ...row, status: "GENERATING" }), leaseToken };
+  });
+}
+function leasedVideoJob(jobId, leaseToken) {
+  if (!/^[a-f0-9-]{36}$/.test(String(jobId))) return videoError("Invalid job ID.");
+  const row = db.prepare("SELECT * FROM antigravity_video_jobs WHERE id = ?").get(jobId);
+  if (!row?.lease_token || !/^[a-f0-9]{64}$/.test(String(leaseToken)) || !crypto9.timingSafeEqual(Buffer.from(row.lease_token), Buffer.from(leaseToken))) return videoError("The video upload lease is invalid.", 403);
+  return row;
+}
+function scheduleNextVideo() {
+  let tenant;
+  const result = videoTx(() => {
+    const row = db.prepare("SELECT * FROM antigravity_video_jobs WHERE status='READY' ORDER BY ready_at LIMIT 1").get();
+    if (!row) return { job: null };
+    try {
+      const principal = videoPrincipal(row.user_id);
+      const input2 = JSON.parse(row.input_json);
+      if (!canEdit(principal)) return videoError("The author no longer has editing permission.", 403);
+      const { brand, accounts: accounts2 } = videoAccounts(principal, row.brand_id, input2.accountIds, input2.kind);
+      const creator = input2.workflow === "creator";
+      const image = input2.kind === "post";
+      const auto = false;
+      if (!row.file_url || !row.publish_at) return videoError("Completed video metadata is missing.");
+      if (auto && Date.parse(row.publish_at) <= Date.now()) return videoError("The publication target was missed. Review and reschedule this video.");
+      const at = DateTime.fromISO(row.publish_at, { setZone: true }).setZone(brand.default_timezone || "Asia/Kolkata");
+      if (!at.isValid) return videoError("Invalid publication target.");
+      const now2 = (/* @__PURE__ */ new Date()).toISOString();
+      const postId = generatePostId();
+      const media = [{ mediaType: image ? "image" : "video", fileUrl: row.file_url, originalFileName: `${row.id}.${image ? "png" : "mp4"}`, mimeType: image ? "image/png" : "video/mp4" }];
+      const text = input2.generatedResult || input2;
+      const platforms = accounts2.map((a) => ({ platform: a.platform, accountId: a.account_id }));
+      db.prepare(`INSERT INTO posts (post_id,client_id,brand_id,title,caption,hashtags,media_type,media_urls,link_url,
+        schedule_local_date,schedule_local_time,timezone,scheduled_utc,approval_status,approved_by,approved_at,approved_version,
+        source,placement,created_by_user_id,revision_data,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,'',?,?,?,?,?,?,?,?,'antigravity',?,?,?,?,?)`).run(
+        postId,
+        brand.client_id,
+        brand.brand_id,
+        text.title,
+        text.caption,
+        text.hashtags || "",
+        image ? "image" : "video",
+        JSON.stringify([row.file_url]),
+        at.toISODate(),
+        at.toFormat("HH:mm:ss"),
+        brand.default_timezone || "Asia/Kolkata",
+        row.publish_at,
+        creator ? "Draft" : "PendingApproval",
+        null,
+        null,
+        null,
+        JSON.stringify([image ? "feed" : "reels_shorts"]),
+        principal.id,
+        JSON.stringify({ platforms, media, antigravityJobId: row.id, unscheduled: creator, creatorWorkflow: creator }),
+        now2,
+        now2
+      );
+      for (const account of accounts2) {
+        const targetId = generateTargetId();
+        db.prepare("INSERT INTO post_targets (target_id,post_id,account_id,platform,status,idempotency_key,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)").run(targetId, postId, account.account_id, account.platform, auto ? "Scheduled" : "Draft", computeIdempotencyKey(targetId, row.publish_at, 1), now2, now2);
+      }
+      db.prepare("INSERT INTO post_revision_snapshots (post_id,version,snapshot,actor,created_at) VALUES (?,1,?,?,?)").run(postId, JSON.stringify(db.prepare("SELECT * FROM posts WHERE post_id=?").get(postId)), principal.email, now2);
+      db.prepare("UPDATE antigravity_video_jobs SET status=?,post_id=?,error=NULL,updated_at=? WHERE id=?").run(creator ? "READY_FOR_SCHEDULING" : "AWAITING_APPROVAL", postId, now2, row.id);
+      audit(principal, "antigravity_video", row.id, auto ? "schedule" : "submit_for_approval", { postId, publishAt: row.publish_at });
+      tenant = brand.client_id;
+      return { job: formatVideoJob(db.prepare("SELECT * FROM antigravity_video_jobs WHERE id=?").get(row.id)) };
+    } catch (error62) {
+      throw Object.assign(error62, { videoJobId: row.id });
+    }
+  });
+  if (tenant && result.job?.postId) sseManager.emit("post.created", tenant, { postId: result.job.postId });
+  return result;
+}
+
+// server/src/services/videoReviews.ts
+function reviewVideoJob(principal, jobId, raw) {
+  if (!canApprove(principal)) return videoError("Approval permission is required.", 403);
+  const action = String(raw.action || "");
+  const notes = String(raw.notes || "").trim();
+  if (!["approve", "reject", "request-changes"].includes(action)) return videoError("Choose approve, reject, or request changes.");
+  if (notes.length > 6e3 || action !== "approve" && notes.length < (action === "request-changes" ? 10 : 1)) return videoError("Provide a reason, or at least 10 characters describing the required changes (maximum 6,000).");
+  let tenant = "";
+  const result = videoTx(() => {
+    const row = db.prepare("SELECT * FROM antigravity_video_jobs WHERE id=?").get(jobId);
+    if (!row || !canAccessBrand(principal, resolveBrand(row.brand_id))) return videoError("Video not found.", 404);
+    const post = row.post_id && db.prepare("SELECT * FROM posts WHERE post_id=? AND deleted_at IS NULL").get(row.post_id);
+    if (row.status !== "AWAITING_APPROVAL" || !post || post.approval_status !== "PendingApproval") return videoError("This version is no longer waiting for approval. Refresh the queue.", 409);
+    if (!Number.isInteger(raw.versionNumber) || raw.versionNumber !== post.version) return videoError("The post changed. Refresh and review its current version.", 409);
+    const targets = db.prepare("SELECT * FROM post_targets WHERE post_id=? AND status!='Cancelled'").all(post.post_id);
+    if (!targets.length || targets.some((t2) => t2.status !== "Draft")) return videoError("The publication state changed. Review it in the content queue.", 409);
+    const input2 = JSON.parse(row.input_json);
+    const now2 = (/* @__PURE__ */ new Date()).toISOString();
+    let replacement = null;
+    if (action === "approve") {
+      if (row.user_id === principal.id && process.env.ALLOW_SELF_APPROVAL !== "true") return videoError("A different approval manager must review this video.", 403);
+      if (post.media_urls !== JSON.stringify([row.file_url]) || post.title !== input2.title || post.caption !== input2.caption) return videoError("The post was edited after generation. Request a new video version before approving.", 409);
+      if (input2.workflow === "creator" && (JSON.parse(post.revision_data || "{}").unscheduled || Date.parse(post.scheduled_utc) <= Date.now())) return videoError("The selected publication time has passed. Return this content to the scheduling desk.", 409);
+      const { brand, accounts: accounts2 } = videoAccounts(principal, row.brand_id, input2.accountIds, input2.kind);
+      if (targets.length !== accounts2.length || targets.some((t2) => !accounts2.some((a) => a.account_id === t2.account_id && a.platform === t2.platform))) return videoError("The destinations changed. Request a new version.", 409);
+      const publishAt = input2.workflow === "creator" ? post.scheduled_utc : new Date(Date.now() + 6e5).toISOString();
+      const local = DateTime.fromISO(publishAt).setZone(brand.default_timezone || "Asia/Kolkata");
+      const version2 = post.version + 1;
+      db.prepare(`UPDATE posts SET approval_status='Approved',version=?,approved_version=?,approved_by=?,approved_at=?,
+        scheduled_utc=?,schedule_local_date=?,schedule_local_time=?,updated_at=? WHERE post_id=?`).run(version2, version2, principal.email, now2, publishAt, local.toISODate(), local.toFormat("HH:mm:ss"), now2, post.post_id);
+      for (const target of targets) db.prepare("UPDATE post_targets SET status='Scheduled',idempotency_key=?,version=version+1,updated_at=? WHERE target_id=?").run(computeIdempotencyKey(target.target_id, publishAt, version2), now2, target.target_id);
+      db.prepare("UPDATE antigravity_video_jobs SET status='SCHEDULED',publish_at=?,updated_at=? WHERE id=?").run(publishAt, now2, row.id);
+      db.prepare("INSERT INTO post_revision_snapshots (post_id,version,snapshot,actor,created_at) VALUES (?,?,?,?,?)").run(post.post_id, version2, JSON.stringify(db.prepare("SELECT * FROM posts WHERE post_id=?").get(post.post_id)), principal.email, now2);
+    } else {
+      if (action === "request-changes") {
+        const author = videoPrincipal(row.user_id);
+        if (!canEdit(author)) return videoError("The author no longer has editing access. An administrator must reassign this video.", 403);
+        videoAccounts(author, row.brand_id, input2.accountIds, input2.kind);
+        const count = db.prepare("SELECT count(*) AS n FROM antigravity_video_jobs WHERE client_id=? AND created_at>?").get(row.client_id, new Date(Date.now() - 864e5).toISOString());
+        if (count.n >= 100) return videoError("The workspace daily video limit has been reached.", 429);
+        const revisionNumber = (input2.revisionNumber || 1) + 1;
+        if (revisionNumber > 20) return videoError("This video has reached its revision limit. Create a new topic.");
+        const id = crypto10.randomUUID();
+        const next = {
+          ...input2,
+          autoPublish: false,
+          manual: false,
+          parentJobId: row.id,
+          revisionNumber,
+          revisionNotes: notes,
+          revisionHistory: [...input2.revisionHistory || [], notes]
+        };
+        delete next.generatedResult;
+        db.prepare("INSERT INTO antigravity_video_jobs (id,request_id,input_json,client_id,brand_id,user_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)").run(id, "revision:" + row.id, JSON.stringify(next), row.client_id, row.brand_id, row.user_id, now2, now2);
+        replacement = formatVideoJob(db.prepare("SELECT * FROM antigravity_video_jobs WHERE id=?").get(id));
+      }
+      db.prepare("UPDATE posts SET approval_status=?,approved_version=NULL,approved_by=NULL,approved_at=NULL,updated_at=? WHERE post_id=?").run(action === "reject" ? "Rejected" : "ChangesRequested", now2, post.post_id);
+      db.prepare("UPDATE post_targets SET status='Cancelled',version=version+1,updated_at=? WHERE post_id=?").run(now2, post.post_id);
+      db.prepare("UPDATE antigravity_video_jobs SET status=?,updated_at=? WHERE id=?").run(action === "reject" ? "REJECTED" : "CHANGES_REQUESTED", now2, row.id);
+    }
+    db.prepare(`INSERT INTO antigravity_video_reviews (job_id,action,notes,reviewer_id,reviewer_name,created_at,replacement_job_id) VALUES (?,?,?,?,?,?,?)
+      ON CONFLICT(job_id) DO UPDATE SET action=excluded.action,notes=excluded.notes,reviewer_id=excluded.reviewer_id,reviewer_name=excluded.reviewer_name,created_at=excluded.created_at,replacement_job_id=excluded.replacement_job_id`).run(row.id, action, notes, principal.id, principal.fullName, now2, replacement?.id || null);
+    audit(principal, "antigravity_video", row.id, action, { notes, postId: post.post_id, reviewedVersion: post.version, replacementJobId: replacement?.id || null });
+    tenant = row.client_id;
+    return { job: formatVideoJob(db.prepare("SELECT * FROM antigravity_video_jobs WHERE id=?").get(row.id)), replacementJob: replacement };
+  });
+  sseManager.emit("post.updated", tenant, { postId: result.job?.postId });
+  return result;
+}
+
+// server/src/services/creatorSchedule.ts
+import crypto11 from "node:crypto";
+function editable(principal, id, version2) {
+  if (!canEdit(principal)) return videoError("Content editing permission is required.", 403);
+  const job = db.prepare("SELECT * FROM antigravity_video_jobs WHERE id=?").get(id);
+  if (!job || !canAccessBrand(principal, resolveBrand(job.brand_id))) return videoError("Creator content not found.", 404);
+  const input2 = JSON.parse(job.input_json);
+  if (input2.workflow !== "creator") return videoError("Use the existing post queue for this content.", 409);
+  const post = job.post_id && db.prepare("SELECT * FROM posts WHERE post_id=? AND deleted_at IS NULL").get(job.post_id);
+  if (!post || !["READY_FOR_SCHEDULING", "AWAITING_APPROVAL", "SCHEDULED"].includes(job.status)) return videoError("This version cannot be edited in the scheduling desk.", 409);
+  if (!Number.isInteger(version2) || version2 !== post.version) return videoError("The content changed. Refresh before saving.", 409);
+  if (db.prepare("SELECT 1 FROM post_targets WHERE post_id=? AND status IN ('Processing','NeedsVerification','Posted')").get(post.post_id)) return videoError("Publishing has started. Create a new content version instead.", 409);
+  return { job, input: input2, post };
+}
+function saveCreatorSchedule(principal, id, raw) {
+  let tenant = "";
+  const result = videoTx(() => {
+    const { job, input: input2, post } = editable(principal, id, raw.versionNumber);
+    const title = String(raw.title ?? post.title).trim(), caption = String(raw.caption ?? raw.masterCaption ?? post.caption).trim();
+    const hashtags = String(raw.hashtags ?? post.hashtags ?? "").trim();
+    if (!title || title.length > 255 || !caption || caption.length > 5e3 || hashtags.length > 2e3) return videoError("Enter a title, a caption up to 5,000 characters, and hashtags up to 2,000 characters.");
+    const { brand, accounts: accounts2 } = videoAccounts(principal, job.brand_id, raw.accountIds ?? input2.accountIds, input2.kind);
+    const timezone = String(raw.timezone || post.timezone || brand.default_timezone || "Asia/Kolkata");
+    if (!DateTime.now().setZone(timezone).isValid) return videoError("Choose a valid timezone.");
+    const revision = JSON.parse(post.revision_data || "{}");
+    let scheduledAt = revision.unscheduled ? null : post.scheduled_utc;
+    if (Object.hasOwn(raw, "localDateTime")) {
+      if (!raw.localDateTime) scheduledAt = null;
+      else {
+        const rawStr = String(raw.localDateTime).trim();
+        const norm = rawStr.length >= 16 ? rawStr.slice(0, 16) : rawStr;
+        const at = DateTime.fromISO(norm, { zone: timezone });
+        if (!at.isValid || at.toFormat("yyyy-MM-dd'T'HH:mm") !== norm || at.getPossibleOffsets().length > 1) return videoError("Choose an unambiguous, valid local publication time.");
+        scheduledAt = at.toUTC().toISO();
+      }
+    } else if (Object.hasOwn(raw, "scheduledAt")) {
+      if (!raw.scheduledAt) scheduledAt = null;
+      else {
+        if (!/([zZ]|[+-]\d{2}:\d{2})$/.test(String(raw.scheduledAt))) return videoError("Publication time must include a timezone offset.");
+        const at = DateTime.fromISO(String(raw.scheduledAt), { setZone: true });
+        if (!at.isValid) return videoError("Choose a valid publication time.");
+        scheduledAt = at.toUTC().toISO();
+      }
+    }
+    if (scheduledAt && Date.parse(scheduledAt) <= Date.now()) return videoError("Choose a future publication time.");
+    const now2 = (/* @__PURE__ */ new Date()).toISOString();
+    const date5 = DateTime.fromISO(scheduledAt || now2).setZone(timezone);
+    const version2 = post.version + 1;
+    const platforms = accounts2.map((a) => ({ platform: a.platform, accountId: a.account_id }));
+    const updatedRevision = { ...revision, unscheduled: !scheduledAt, platforms, creatorWorkflow: true };
+    db.prepare(`UPDATE posts SET title=?,caption=?,hashtags=?,timezone=?,scheduled_utc=?,schedule_local_date=?,schedule_local_time=?,
+      revision_data=?,approval_status='Draft',approved_by=NULL,approved_at=NULL,approved_version=NULL,version=?,updated_at=? WHERE post_id=?`).run(title, caption, hashtags, timezone, scheduledAt || now2, date5.toISODate(), date5.toFormat("HH:mm:ss"), JSON.stringify(updatedRevision), version2, now2, post.post_id);
+    const existing = db.prepare("SELECT * FROM post_targets WHERE post_id=? ORDER BY created_at DESC").all(post.post_id);
+    db.prepare("UPDATE post_targets SET status='Cancelled',version=version+1,updated_at=? WHERE post_id=?").run(now2, post.post_id);
+    for (const account of accounts2) {
+      const reusable = existing.find((t2) => t2.account_id === account.account_id && ["Draft", "Scheduled"].includes(t2.status) && t2.attempt_count === 0);
+      if (reusable) {
+        db.prepare("UPDATE post_targets SET status='Draft',idempotency_key=?,updated_at=? WHERE target_id=?").run(computeIdempotencyKey(reusable.target_id, scheduledAt || now2, version2), now2, reusable.target_id);
+        continue;
+      }
+      const targetId = "TGT-" + crypto11.randomUUID();
+      db.prepare("INSERT INTO post_targets (target_id,post_id,account_id,platform,status,idempotency_key,created_at,updated_at) VALUES (?,?,?,?,'Draft',?,?,?)").run(targetId, post.post_id, account.account_id, account.platform, computeIdempotencyKey(targetId, scheduledAt || now2, version2), now2, now2);
+    }
+    const updatedInput = { ...input2, title, caption, hashtags, accountIds: accounts2.map((a) => a.account_id).sort(), platforms: accounts2.map((a) => a.platform) };
+    db.prepare("UPDATE antigravity_video_jobs SET input_json=?,status='READY_FOR_SCHEDULING',publish_at=?,updated_at=? WHERE id=?").run(JSON.stringify(updatedInput), scheduledAt, now2, job.id);
+    db.prepare("INSERT INTO post_revision_snapshots (post_id,version,snapshot,actor,created_at) VALUES (?,?,?,?,?)").run(post.post_id, version2, JSON.stringify(db.prepare("SELECT * FROM posts WHERE post_id=?").get(post.post_id)), principal.email, now2);
+    audit(principal, "antigravity_video", job.id, "edit_schedule", { postId: post.post_id, version: version2, scheduledAt, approvalInvalidated: true });
+    tenant = job.client_id;
+    return { job: formatVideoJob(db.prepare("SELECT * FROM antigravity_video_jobs WHERE id=?").get(job.id)) };
+  });
+  sseManager.emit("post.updated", tenant, { postId: result.job?.postId });
+  return result;
+}
+function submitCreatorForApproval(principal, id, version2) {
+  let tenant = "";
+  const result = videoTx(() => {
+    const { job, input: input2, post } = editable(principal, id, version2);
+    if (job.status !== "READY_FOR_SCHEDULING" || post.approval_status !== "Draft") return videoError("Save a draft before sending it for approval.", 409);
+    const revision = JSON.parse(post.revision_data || "{}");
+    if (revision.unscheduled || Date.parse(post.scheduled_utc) <= Date.now()) return videoError("Set a future publication time before sending for approval.");
+    videoAccounts(principal, job.brand_id, input2.accountIds, input2.kind);
+    const now2 = (/* @__PURE__ */ new Date()).toISOString();
+    db.prepare("UPDATE posts SET approval_status='PendingApproval',updated_at=? WHERE post_id=?").run(now2, post.post_id);
+    db.prepare("UPDATE antigravity_video_jobs SET status='AWAITING_APPROVAL',updated_at=? WHERE id=?").run(now2, job.id);
+    audit(principal, "antigravity_video", job.id, "submit_for_approval", { postId: post.post_id, version: version2, scheduledAt: post.scheduled_utc });
+    tenant = job.client_id;
+    return { job: formatVideoJob(db.prepare("SELECT * FROM antigravity_video_jobs WHERE id=?").get(job.id)) };
+  });
+  sseManager.emit("post.updated", tenant, { postId: result.job?.postId });
+  return result;
+}
+
 // server/src/routes/enterpriseRoutes.ts
 var enterpriseRouter = (0, import_express4.Router)();
 var wrap = (fn) => (req, res) => Promise.resolve().then(() => fn(req, res)).catch((error62) => res.status(error62.status || 400).json({ error: error62.status === 500 ? "The operation could not be completed." : error62.message }));
@@ -132436,7 +132832,7 @@ enterpriseRouter.post("/brands", wrap((req, res) => {
   const zone = req.body.timezone || "Asia/Kolkata";
   if (!DateTime.now().setZone(zone).isValid) fail2("Invalid timezone.");
   const now2 = (/* @__PURE__ */ new Date()).toISOString();
-  const id = `BR-${crypto9.randomUUID()}`;
+  const id = `BR-${crypto12.randomUUID()}`;
   db.prepare("INSERT INTO brands (brand_id, client_id, brand_name, default_timezone, country, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(id, clientId, name, zone, req.body.country || "", now2, now2);
   audit(req.principal, "brand", id, "create");
   res.status(201).json({ id: resolveBrand(id).ui_id, brandId: id, name });
@@ -132544,6 +132940,11 @@ enterpriseRouter.post("/posts", wrap((req, res) => {
 enterpriseRouter.patch("/posts/:id", wrap((req, res) => {
   const post = postById(req);
   const input2 = req.body;
+  const creator = db.prepare("SELECT id FROM antigravity_video_jobs WHERE post_id=? AND json_extract(input_json,'$.workflow')='creator'").get(post.post_id);
+  if (creator) {
+    saveCreatorSchedule(req.principal, creator.id, { ...input2, versionNumber: Number(req.headers["if-match"] || input2.versionNumber || input2.version) });
+    return res.json(formatPost(post.post_id));
+  }
   const expected = Number(req.headers["if-match"] || input2.versionNumber || input2.version);
   if (!Number.isInteger(expected)) fail2("Refresh the post before editing; its version is required.", 428);
   if (expected !== post.version) fail2("Another user changed this post. Refresh before editing.", 409);
@@ -132581,6 +132982,21 @@ enterpriseRouter.delete("/posts/:id", wrap((req, res) => {
 for (const action of ["submit", "approve", "reject", "request-revision"]) enterpriseRouter.post(`/posts/:id/${action}`, wrap((req, res) => {
   const post = postById(req);
   const now2 = (/* @__PURE__ */ new Date()).toISOString();
+  const video = db.prepare("SELECT id FROM antigravity_video_jobs WHERE post_id=?").get(post.post_id);
+  if (video) {
+    if (action === "submit") {
+      const row = db.prepare("SELECT input_json FROM antigravity_video_jobs WHERE id=?").get(video.id);
+      if (JSON.parse(row.input_json).workflow !== "creator") return fail2("Use the Video approvals dashboard to review or recreate this video.", 409);
+      submitCreatorForApproval(req.principal, video.id, Number(req.headers["if-match"] || req.body?.versionNumber));
+      return res.json(formatPost(post.post_id));
+    }
+    reviewVideoJob(req.principal, video.id, {
+      action: action === "request-revision" ? "request-changes" : action,
+      notes: req.body.reason || req.body.comments || "",
+      versionNumber: Number(req.headers["if-match"] || req.body?.versionNumber)
+    });
+    return res.json(formatPost(post.post_id));
+  }
   if (db.prepare("SELECT 1 FROM post_targets WHERE post_id = ? AND status IN ('Processing', 'NeedsVerification', 'Posted')").get(post.post_id)) fail2("This post has publishing activity and cannot change approval state.", 409);
   const expected = Number(req.headers["if-match"] || req.body?.versionNumber);
   if (!Number.isInteger(expected)) fail2("Refresh the post before reviewing; its version is required.", 428);
@@ -132607,7 +133023,7 @@ var publishNow = wrap(async (req, res) => {
   if (post.approval_status !== "Approved" || post.approved_version !== post.version) fail2("The current revision must be approved before publishing.", 409);
   const targets = db.prepare("SELECT * FROM post_targets WHERE post_id = ? AND status IN ('Scheduled','Retrying','Failed','Missed')").all(post.post_id);
   if (!targets.length) fail2("No destinations are eligible. Published or uncertain destinations will not be submitted again.", 409);
-  const executionId = `EXEC-${crypto9.randomUUID()}`;
+  const executionId = `EXEC-${crypto12.randomUUID()}`;
   const now2 = (/* @__PURE__ */ new Date()).toISOString();
   tx(() => {
     db.prepare("UPDATE posts SET scheduled_utc = ?, updated_at = ? WHERE post_id = ?").run(now2, now2, post.post_id);
@@ -132639,14 +133055,33 @@ enterpriseRouter.post("/notifications/:id/read", wrap((req, res) => {
   res.json({ success: true });
 }));
 enterpriseRouter.get("/users", wrap((req, res) => res.json({ data: (req.principal.global ? db.prepare("SELECT * FROM users").all() : db.prepare("SELECT * FROM users WHERE client_id = ?").all(req.principal.clientId)).map(safeUser) })));
+enterpriseRouter.get("/users/workspaces", wrap((req, res) => {
+  if (!isAdmin(req.principal)) fail2("Team management permission is required.", 403);
+  const rows = req.principal.global ? db.prepare("SELECT client_id AS clientId,name FROM clients WHERE status='active' ORDER BY name").all() : db.prepare("SELECT client_id AS clientId,name FROM clients WHERE client_id=? AND status='active'").all(req.principal.clientId);
+  res.json({ data: rows.map((row) => ({ ...row, brands: db.prepare("SELECT brand_name FROM brands WHERE client_id=? ORDER BY brand_name").all(row.clientId).map((b) => b.brand_name) })) });
+}));
 enterpriseRouter.post("/users", wrap((req, res) => {
-  const input2 = req.body;
-  const clientId = req.principal.global ? input2.clientId || req.principal.clientId : req.principal.clientId;
-  if (!roles.has(input2.role) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input2.email || "") || !input2.fullName?.trim() || typeof input2.password !== "string" || input2.password.length < 12 || input2.password.length > 128) fail2("Provide a valid role, email, name, and password of 12\u2013128 characters.");
-  if (!db.prepare("SELECT 1 FROM clients WHERE client_id = ?").get(clientId)) fail2("Workspace not found.");
-  const result = db.prepare("INSERT INTO users (email, full_name, role, tenant_scope, client_id, password, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(input2.email.toLowerCase().trim(), input2.fullName.trim(), input2.role, input2.tenantScope || clientId, clientId, hashSync(input2.password, 12), (/* @__PURE__ */ new Date()).toISOString());
-  audit(req.principal, "user", String(result.lastInsertRowid), "create");
-  res.status(201).json(safeUser(db.prepare("SELECT * FROM users WHERE user_id = ?").get(Number(result.lastInsertRowid))));
+  if (!isAdmin(req.principal)) fail2("Team management permission is required.", 403);
+  const input2 = req.body || {};
+  const email3 = typeof input2.email === "string" ? input2.email.trim().toLowerCase() : "";
+  const fullName = typeof input2.fullName === "string" ? input2.fullName.trim() : "";
+  if (!roles.has(input2.role)) fail2("Choose Admin, Content Manager, Approver, Analyst, or Client.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email3) || email3.length > 254 || !fullName || fullName.length > 200) fail2("Enter a valid email and a name of up to 200 characters.");
+  if (typeof input2.password !== "string" || input2.password.length < 12 || input2.password.length > 128) fail2("Use a login password of 12\u2013128 characters.");
+  if (input2.isActive !== void 0 && typeof input2.isActive !== "boolean") fail2("Account activation must be true or false.");
+  if (input2.avatarUrl !== void 0 && (typeof input2.avatarUrl !== "string" || input2.avatarUrl.length > 262144)) fail2("Choose a smaller profile image.");
+  const requestedClient = typeof input2.clientId === "string" ? input2.clientId.trim() : "";
+  if (!req.principal.global && requestedClient && requestedClient !== req.principal.clientId) fail2("You can add members only to your own workspace.", 403);
+  const clientId = req.principal.global ? requestedClient : req.principal.clientId;
+  const workspace = db.prepare("SELECT client_id,name FROM clients WHERE client_id=? AND status='active'").get(clientId);
+  if (!workspace) fail2("Select an active workspace for this member.");
+  if (db.prepare("SELECT 1 FROM users WHERE LOWER(email)=?").get(email3)) fail2("A member with this email already exists. Edit or reactivate that member.", 409);
+  const created = tx(() => {
+    const result = db.prepare("INSERT INTO users (email,full_name,role,tenant_scope,client_id,password,is_active,avatar_url,created_at) VALUES (?,?,?,?,?,?,?,?,?)").run(email3, fullName, input2.role, workspace.name, clientId, hashSync(input2.password, 12), input2.isActive === false ? 0 : 1, input2.avatarUrl || null, (/* @__PURE__ */ new Date()).toISOString());
+    audit(req.principal, "user", String(result.lastInsertRowid), "create", { clientId, role: input2.role, active: input2.isActive !== false });
+    return safeUser(db.prepare("SELECT * FROM users WHERE user_id=?").get(Number(result.lastInsertRowid)));
+  });
+  res.status(201).json(created);
 }));
 enterpriseRouter.patch("/users/:id", wrap((req, res) => {
   const user = db.prepare("SELECT * FROM users WHERE user_id = ?").get(req.params.id);
@@ -132877,205 +133312,9 @@ aiStudioRouter.post("/generate", async (req, res) => {
 
 // server/src/routes/antigravityVideoRoutes.ts
 var import_express6 = __toESM(require_express2(), 1);
-import crypto11 from "node:crypto";
+import crypto13 from "node:crypto";
 import path7 from "node:path";
 import { promises as fs8 } from "node:fs";
-
-// server/src/services/antigravityVideos.ts
-import crypto10 from "node:crypto";
-
-// server/src/services/publishingCapabilities.ts
-var PUBLISHING_CAPABILITIES = {
-  facebook: { available: true, placements: { feed: ["image"] }, maxMediaItems: 1, maxPlacements: 1, altText: false },
-  instagram: { available: true, placements: { feed: ["image", "video"], story: ["image", "video"], reels_shorts: ["video"] }, maxMediaItems: 1, maxPlacements: 1, altText: false },
-  linkedin: { available: false, reason: "LinkedIn publishing adapter is not configured." },
-  x: { available: false, reason: "X publishing adapter is not configured." },
-  youtube: { available: false, reason: "YouTube publishing adapter is not configured." },
-  whatsapp: { available: false, reason: "WhatsApp publishing adapter is not configured." }
-};
-
-// server/src/services/antigravityVideos.ts
-var videoError = (message, status = 400) => {
-  throw Object.assign(new Error(message), { status });
-};
-var videoTx = (fn) => {
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    const result = fn();
-    db.exec("COMMIT");
-    return result;
-  } catch (error62) {
-    db.exec("ROLLBACK");
-    throw error62;
-  }
-};
-var videoSetting = (key) => {
-  const row = db.prepare("SELECT value_json FROM antigravity_video_settings WHERE key = ?").get(key);
-  return row ? JSON.parse(row.value_json) : null;
-};
-function setVideoSetting(key, value) {
-  db.prepare("INSERT INTO antigravity_video_settings (key,value_json) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json").run(key, JSON.stringify(value));
-}
-function videoPrincipal(userId) {
-  const user = db.prepare("SELECT * FROM users WHERE user_id = ? AND is_active = 1").get(userId);
-  if (!user || !user.client_id && user.role !== "Super Admin") return videoError("The video author no longer has workspace access.", 403);
-  return { id: user.user_id, email: user.email, fullName: user.full_name, role: user.role, clientId: user.client_id || "CL-001", global: user.role === "Super Admin" };
-}
-var canAutoPublishVideo = (principal) => canEdit(principal) && canApprove(principal) && process.env.ALLOW_SELF_APPROVAL === "true";
-function videoAccounts(principal, brandId, accountIds) {
-  const brand = resolveBrand(brandId);
-  if (!canAccessBrand(principal, brand)) return videoError("Brand not found or access denied.", 404);
-  if (!Array.isArray(accountIds) || !accountIds.length || accountIds.length > 10 || accountIds.some((id) => typeof id !== "string")) return videoError("Select connected video destinations.");
-  const accounts2 = [...new Set(accountIds)].map((id) => {
-    const account = db.prepare("SELECT * FROM social_accounts WHERE account_id = ? AND brand_id = ? AND client_id = ? AND status = 'active'").get(String(id), brand.brand_id, brand.client_id);
-    const capabilities = account && PUBLISHING_CAPABILITIES[account.platform];
-    if (!account || !capabilities?.available || !capabilities?.placements?.reels_shorts?.includes("video")) return videoError("A selected account does not have an implemented video publishing adapter.");
-    if (account.token_expires_at && Date.parse(account.token_expires_at) <= Date.now()) return videoError("Reconnect the selected social account before generating.");
-    return account;
-  });
-  return { brand, accounts: accounts2 };
-}
-function formatVideoJob(row) {
-  if (!row) return null;
-  const input2 = JSON.parse(row.input_json);
-  return {
-    id: row.id,
-    topic: input2.topic,
-    title: input2.title,
-    caption: input2.caption,
-    language: input2.language,
-    aspectRatio: input2.aspectRatio,
-    platforms: input2.platforms,
-    brandId: row.brand_id,
-    status: row.status,
-    dispatched: !!row.dispatched,
-    autoPublish: input2.autoPublish,
-    fileUrl: row.file_url,
-    readyAt: row.ready_at,
-    publishAt: row.publish_at,
-    postId: row.post_id,
-    error: row.error,
-    createdAt: row.created_at
-  };
-}
-function createVideoJob(principal, raw, manual = false) {
-  if (!canEdit(principal)) return videoError("Content editing permission is required.", 403);
-  const { brand, accounts: accounts2 } = videoAccounts(principal, raw.brandId, raw.accountIds);
-  const topic = String(raw.topic || "").trim();
-  const requestId = String(raw.requestId || "");
-  const title = String(raw.title || topic).trim().slice(0, 255);
-  const caption = String(raw.caption || topic.slice(0, 5e3)).trim();
-  if (topic.length < 10 || topic.length > 12e3 || !title || !caption || caption.length > 5e3 || requestId.length < 8 || requestId.length > 200) return videoError("Enter a topic (10\u201312,000 characters), a caption up to 5,000 characters, and a request ID.");
-  if (!["9:16", "16:9", "1:1"].includes(raw.aspectRatio || "9:16")) return videoError("Choose a supported aspect ratio.");
-  const autoPublish = raw.autoPublish === true;
-  if (autoPublish && !canAutoPublishVideo(principal)) return videoError("Automatic publishing requires approval permission and the workspace self-approval setting.", 403);
-  const input2 = {
-    topic,
-    title,
-    caption,
-    language: String(raw.language || "English").slice(0, 50),
-    aspectRatio: raw.aspectRatio || "9:16",
-    accountIds: accounts2.map((a) => a.account_id).sort(),
-    platforms: [...new Set(accounts2.map((a) => a.platform))],
-    autoPublish,
-    manual
-  };
-  const inputJson = JSON.stringify(input2);
-  return videoTx(() => {
-    const previous = db.prepare("SELECT * FROM antigravity_video_jobs WHERE request_id = ?").get(requestId);
-    if (previous) {
-      if (previous.user_id !== principal.id || previous.input_json !== inputJson) return videoError("This request ID was already used for a different video.", 409);
-      return previous;
-    }
-    const since = new Date(Date.now() - 864e5).toISOString();
-    const count = db.prepare("SELECT count(*) AS n FROM antigravity_video_jobs WHERE client_id = ? AND created_at > ?").get(brand.client_id, since);
-    if (count.n >= 100) return videoError("The workspace daily video limit has been reached.", 429);
-    const id = crypto10.randomUUID();
-    const now2 = (/* @__PURE__ */ new Date()).toISOString();
-    db.prepare("INSERT INTO antigravity_video_jobs (id,request_id,input_json,client_id,brand_id,user_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)").run(id, requestId, inputJson, brand.client_id, brand.brand_id, principal.id, now2, now2);
-    audit(principal, "antigravity_video", id, manual ? "discover" : "queue", { brandId: brand.brand_id, autoPublish });
-    return db.prepare("SELECT * FROM antigravity_video_jobs WHERE id = ?").get(id);
-  });
-}
-function claimVideoJob(workerId) {
-  const now2 = (/* @__PURE__ */ new Date()).toISOString();
-  setVideoSetting("worker", { workerId: workerId.slice(0, 100), lastSeenAt: now2 });
-  return videoTx(() => {
-    db.prepare("UPDATE antigravity_video_jobs SET status='NEEDS_ATTENTION',error='Worker lease expired. Inspect the local output before retrying.',updated_at=? WHERE status='GENERATING' AND lease_until < ?").run(now2, now2);
-    const row = db.prepare("SELECT * FROM antigravity_video_jobs WHERE status='QUEUED' AND dispatched=1 ORDER BY created_at LIMIT 1").get();
-    if (!row) return { job: null };
-    const leaseToken = crypto10.randomBytes(32).toString("hex");
-    db.prepare("UPDATE antigravity_video_jobs SET status='GENERATING',lease_token=?,lease_until=?,updated_at=? WHERE id=? AND status='QUEUED'").run(leaseToken, new Date(Date.now() + 12e4).toISOString(), now2, row.id);
-    return { job: formatVideoJob({ ...row, status: "GENERATING" }), leaseToken };
-  });
-}
-function leasedVideoJob(jobId, leaseToken) {
-  if (!/^[a-f0-9-]{36}$/.test(String(jobId))) return videoError("Invalid job ID.");
-  const row = db.prepare("SELECT * FROM antigravity_video_jobs WHERE id = ?").get(jobId);
-  if (!row?.lease_token || !/^[a-f0-9]{64}$/.test(String(leaseToken)) || !crypto10.timingSafeEqual(Buffer.from(row.lease_token), Buffer.from(leaseToken))) return videoError("The video upload lease is invalid.", 403);
-  return row;
-}
-function scheduleNextVideo() {
-  let tenant;
-  const result = videoTx(() => {
-    const row = db.prepare("SELECT * FROM antigravity_video_jobs WHERE status='READY' ORDER BY ready_at LIMIT 1").get();
-    if (!row) return { job: null };
-    try {
-      const principal = videoPrincipal(row.user_id);
-      const input2 = JSON.parse(row.input_json);
-      if (!canEdit(principal)) return videoError("The author no longer has editing permission.", 403);
-      const { brand, accounts: accounts2 } = videoAccounts(principal, row.brand_id, input2.accountIds);
-      const auto = input2.autoPublish && canAutoPublishVideo(principal);
-      if (!row.file_url || !row.publish_at) return videoError("Completed video metadata is missing.");
-      if (auto && Date.parse(row.publish_at) <= Date.now()) return videoError("The publication target was missed. Review and reschedule this video.");
-      const at = DateTime.fromISO(row.publish_at, { setZone: true }).setZone(brand.default_timezone || "Asia/Kolkata");
-      if (!at.isValid) return videoError("Invalid publication target.");
-      const now2 = (/* @__PURE__ */ new Date()).toISOString();
-      const postId = generatePostId();
-      const media = [{ mediaType: "video", fileUrl: row.file_url, originalFileName: `${row.id}.mp4`, mimeType: "video/mp4" }];
-      const platforms = accounts2.map((a) => ({ platform: a.platform, accountId: a.account_id }));
-      db.prepare(`INSERT INTO posts (post_id,client_id,brand_id,title,caption,hashtags,media_type,media_urls,link_url,
-        schedule_local_date,schedule_local_time,timezone,scheduled_utc,approval_status,approved_by,approved_at,approved_version,
-        source,placement,created_by_user_id,revision_data,created_at,updated_at)
-        VALUES (?,?,?,?,?,'','video',?,'',?,?,?,?,?,?,?,?,'antigravity',?,?,?,?,?)`).run(
-        postId,
-        brand.client_id,
-        brand.brand_id,
-        input2.title,
-        input2.caption,
-        JSON.stringify([row.file_url]),
-        at.toISODate(),
-        at.toFormat("HH:mm:ss"),
-        brand.default_timezone || "Asia/Kolkata",
-        row.publish_at,
-        auto ? "Approved" : "PendingApproval",
-        auto ? principal.email : null,
-        auto ? now2 : null,
-        auto ? 1 : null,
-        JSON.stringify(["reels_shorts"]),
-        principal.id,
-        JSON.stringify({ platforms, media, antigravityJobId: row.id, unscheduled: false }),
-        now2,
-        now2
-      );
-      for (const account of accounts2) {
-        const targetId = generateTargetId();
-        db.prepare("INSERT INTO post_targets (target_id,post_id,account_id,platform,status,idempotency_key,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)").run(targetId, postId, account.account_id, account.platform, auto ? "Scheduled" : "Draft", computeIdempotencyKey(targetId, row.publish_at, 1), now2, now2);
-      }
-      db.prepare("INSERT INTO post_revision_snapshots (post_id,version,snapshot,actor,created_at) VALUES (?,1,?,?,?)").run(postId, JSON.stringify(db.prepare("SELECT * FROM posts WHERE post_id=?").get(postId)), principal.email, now2);
-      db.prepare("UPDATE antigravity_video_jobs SET status=?,post_id=?,error=NULL,updated_at=? WHERE id=?").run(auto ? "SCHEDULED" : "AWAITING_APPROVAL", postId, now2, row.id);
-      audit(principal, "antigravity_video", row.id, auto ? "schedule" : "submit_for_approval", { postId, publishAt: row.publish_at });
-      tenant = brand.client_id;
-      return { job: formatVideoJob(db.prepare("SELECT * FROM antigravity_video_jobs WHERE id=?").get(row.id)) };
-    } catch (error62) {
-      throw Object.assign(error62, { videoJobId: row.id });
-    }
-  });
-  if (tenant && result.job?.postId) sseManager.emit("post.created", tenant, { postId: result.job.postId });
-  return result;
-}
-
-// server/src/routes/antigravityVideoRoutes.ts
 var videoDashboardRouter = (0, import_express6.Router)();
 var videoMachineRouter = (0, import_express6.Router)();
 var wrap2 = (fn) => (req, res) => {
@@ -133089,7 +133328,7 @@ var keyAuth = (environment, header) => (req, res, next) => {
   const expected = process.env[environment] || "";
   const supplied = req.get(header) || "";
   if (expected.length < 32) return res.status(503).json({ error: "Video automation machine credentials are not configured." });
-  if (expected.length !== supplied.length || !crypto11.timingSafeEqual(Buffer.from(expected), Buffer.from(supplied))) return res.status(401).json({ error: "Invalid automation credential." });
+  if (expected.length !== supplied.length || !crypto13.timingSafeEqual(Buffer.from(expected), Buffer.from(supplied))) return res.status(401).json({ error: "Invalid automation credential." });
   next();
 };
 var automationAuth = keyAuth("ANTIGRAVITY_N8N_KEY", "X-Automation-Key");
@@ -133104,10 +133343,12 @@ videoDashboardRouter.get("/status", (req, res) => {
     dispatcherConfigured: !!process.env.ANTIGRAVITY_DISPATCH_URL,
     canGenerate: canEdit(req.principal),
     canAutoPublish: canAutoPublishVideo(req.principal),
+    canReview: canApprove(req.principal),
     workerOnline: !!worker && Date.now() - Date.parse(worker.lastSeenAt) < 9e4,
     worker,
     publishingEnabled: process.env.ENABLE_BACKGROUND_WORKERS === "true",
     supportedPlatforms: ["instagram"],
+    capabilities: PUBLISHING_CAPABILITIES,
     manualDefaults: videoSetting(`manual:${req.principal.id}`)
   });
 });
@@ -133116,6 +133357,31 @@ videoDashboardRouter.get("/jobs", (req, res) => {
   const rows = principal.global ? db.prepare("SELECT * FROM antigravity_video_jobs ORDER BY created_at DESC LIMIT 50").all() : db.prepare("SELECT * FROM antigravity_video_jobs WHERE client_id=? ORDER BY created_at DESC LIMIT 50").all(principal.clientId);
   res.json({ jobs: rows.map(formatVideoJob) });
 });
+videoDashboardRouter.get("/desk", wrap2((req, res) => {
+  if (!canEdit(req.principal) && !canApprove(req.principal)) return videoError("Content workspace access is required.", 403);
+  const query = "SELECT * FROM antigravity_video_jobs WHERE json_extract(input_json,'$.workflow')='creator' AND post_id IS NOT NULL";
+  const rows = req.principal.global ? db.prepare(query + " ORDER BY created_at DESC LIMIT 200").all() : db.prepare(query + " AND client_id=? ORDER BY created_at DESC LIMIT 200").all(req.principal.clientId);
+  res.json({ jobs: rows.map(formatVideoJob) });
+}));
+videoDashboardRouter.patch("/jobs/:id/schedule", wrap2((req, res) => res.json(saveCreatorSchedule(req.principal, String(req.params.id), req.body))));
+videoDashboardRouter.post("/jobs/:id/submit", wrap2((req, res) => res.json(submitCreatorForApproval(req.principal, String(req.params.id), req.body.versionNumber))));
+videoDashboardRouter.get("/reviews", wrap2((req, res) => {
+  if (!canApprove(req.principal)) return videoError("Approval permission is required.", 403);
+  const query = `SELECT j.*,b.brand_name,u.full_name AS author_name FROM antigravity_video_jobs j
+    JOIN brands b ON b.brand_id=j.brand_id JOIN users u ON u.user_id=j.user_id`;
+  const order = " ORDER BY CASE WHEN j.status='AWAITING_APPROVAL' THEN 0 ELSE 1 END,j.created_at DESC LIMIT 200";
+  const rows = req.principal.global ? db.prepare(query + order).all() : db.prepare(query + " WHERE j.client_id=?" + order).all(req.principal.clientId);
+  res.json({ jobs: rows.map((row) => ({
+    ...formatVideoJob(row),
+    brandName: row.brand_name,
+    authorName: row.author_name,
+    destinations: JSON.parse(row.input_json).accountIds.map((id) => {
+      const a = db.prepare("SELECT account_name,platform FROM social_accounts WHERE account_id=? AND brand_id=?").get(id, row.brand_id);
+      return a ? `${a.account_name || a.platform} \xB7 ${a.platform}` : "Disconnected account";
+    })
+  })) });
+}));
+videoDashboardRouter.post("/jobs/:id/review", wrap2((req, res) => res.json(reviewVideoJob(req.principal, String(req.params.id), req.body))));
 videoDashboardRouter.post("/jobs", wrap2(async (req, res) => {
   if (!configured()) return videoError("An administrator must configure the local video worker connection first.", 503);
   const row = createVideoJob(req.principal, req.body);
@@ -133148,7 +133414,7 @@ videoDashboardRouter.post("/manual-defaults", wrap2((req, res) => {
     return res.json({ enabled: false });
   }
   const { brand, accounts: accounts2 } = videoAccounts(req.principal, req.body.brandId, req.body.accountIds);
-  if (req.body.autoPublish === true && !canAutoPublishVideo(req.principal)) return videoError("Automatic publishing is not enabled for your role and workspace.", 403);
+  if (req.body.autoPublish === true) return videoError("Every Antigravity video requires approval from the manager.", 403);
   const previous = videoSetting("manual:active");
   if (previous && previous.userId !== req.principal.id) return videoError("Another user owns the local-folder routing. Ask that user to disable it before changing brands.", 409);
   const value = { userId: req.principal.id, brandId: brand.brand_id, accountIds: accounts2.map((a) => a.account_id), autoPublish: req.body.autoPublish === true, enabled: true };
@@ -133174,6 +133440,7 @@ videoMachineRouter.post("/worker/claim", workerAuth, wrap2((req, res) => res.jso
 videoMachineRouter.post("/worker/heartbeat", workerAuth, wrap2((req, res) => {
   const row = leasedVideoJob(String(req.body.jobId || ""), String(req.body.leaseToken || ""));
   if (!["GENERATING", "NEEDS_ATTENTION"].includes(row.status)) return videoError("This generation is no longer active.", 409);
+  setVideoSetting("worker", { ...videoSetting("worker") || {}, lastSeenAt: (/* @__PURE__ */ new Date()).toISOString() });
   db.prepare("UPDATE antigravity_video_jobs SET lease_until=?,updated_at=? WHERE id=?").run(new Date(Date.now() + 12e4).toISOString(), (/* @__PURE__ */ new Date()).toISOString(), row.id);
   res.json({ ok: true });
 }));
@@ -133194,16 +133461,18 @@ videoMachineRouter.post("/worker/discover", workerAuth, wrap2((req, res) => {
   if (row?.file_sha256) return res.json({ job: formatVideoJob(row), alreadyStored: true });
   if (!row) row = createVideoJob(principal, { ...defaults, requestId, topic: `Video generated in Antigravity: ${filename}`, title: filename.replace(/\.mp4$/i, "").replace(/[_-]+/g, " "), caption: filename.replace(/\.mp4$/i, "").replace(/[_-]+/g, " ") }, true);
   else videoAccounts(principal, row.brand_id, JSON.parse(row.input_json).accountIds);
-  const leaseToken = row.lease_token || crypto11.randomBytes(32).toString("hex");
+  const leaseToken = row.lease_token || crypto13.randomBytes(32).toString("hex");
   if (!["QUEUED", "GENERATING", "NEEDS_ATTENTION"].includes(row.status)) return videoError("This local video requires attention in AI Studio.", 409);
   db.prepare("UPDATE antigravity_video_jobs SET status='GENERATING',dispatched=1,lease_token=?,lease_until=?,updated_at=? WHERE id=?").run(leaseToken, new Date(Date.now() + 12e4).toISOString(), (/* @__PURE__ */ new Date()).toISOString(), row.id);
   res.json({ job: formatVideoJob({ ...row, status: "GENERATING" }), leaseToken });
 }));
 videoMachineRouter.put("/worker/upload/:id", workerAuth, wrap2(async (req, res) => {
   const row = leasedVideoJob(req.params.id, String(req.get("X-Job-Lease") || ""));
+  const image = JSON.parse(row.input_json).kind === "post";
+  const limit = image ? Math.min(uploadLimit(), 20 * 1024 * 1024) : uploadLimit();
   const digest = String(req.get("X-Content-SHA256") || "");
   const length = Number(req.get("Content-Length"));
-  if (req.get("Content-Type") !== "video/mp4" || !Number.isSafeInteger(length) || length < 24 || length > uploadLimit() || !/^[a-f0-9]{64}$/.test(digest)) return videoError("Send a complete MP4 with a valid length and SHA-256 digest.");
+  if (req.get("Content-Type") !== (image ? "image/png" : "video/mp4") || !Number.isSafeInteger(length) || length < (image ? 45 : 24) || length > limit || !/^[a-f0-9]{64}$/.test(digest)) return videoError("Send the complete generated media with a valid length and SHA-256 digest.");
   if (row.file_sha256) {
     req.resume();
     if (row.file_sha256 !== digest) return videoError("This job already has a different completed video.", 409);
@@ -133214,33 +133483,35 @@ videoMachineRouter.put("/worker/upload/:id", workerAuth, wrap2(async (req, res) 
   const base = new URL(process.env.PUBLIC_BASE_URL || process.env.APP_URL || "https://360.webtrionix.com");
   if (base.protocol !== "https:" && process.env.NODE_ENV !== "test") return videoError("Configure an HTTPS public dashboard URL.", 503);
   activeUploads.add(row.id);
-  const temporary = path7.join(uploadRoot(), `${row.id}.${crypto11.randomUUID()}.part`);
-  const target = path7.join(uploadRoot(), `${row.id}.mp4`);
+  const temporary = path7.join(uploadRoot(), `${row.id}.${crypto13.randomUUID()}.part`);
+  const extension2 = image ? "png" : "mp4";
+  const target = path7.join(uploadRoot(), `${row.id}.${extension2}`);
   let complete = false;
   try {
     await fs8.mkdir(uploadRoot(), { recursive: true });
     const handle = await fs8.open(temporary, "wx", 384);
-    const hash2 = crypto11.createHash("sha256");
+    const hash2 = crypto13.createHash("sha256");
     let received = 0;
     let prefix = Buffer.alloc(0);
     try {
       for await (const chunk of req) {
         const bytes = Buffer.from(chunk);
         received += bytes.length;
-        if (received > length || received > uploadLimit()) return videoError("Video upload is larger than declared.", 413);
+        if (received > length || received > limit) return videoError("Media upload is larger than declared.", 413);
         hash2.update(bytes);
-        if (prefix.length < 12) prefix = Buffer.concat([prefix, bytes.subarray(0, 12 - prefix.length)]);
+        if (prefix.length < 32) prefix = Buffer.concat([prefix, bytes.subarray(0, 32 - prefix.length)]);
         await handle.writeFile(bytes);
       }
     } finally {
       await handle.close();
     }
-    if (received !== length || hash2.digest("hex") !== digest || prefix.toString("ascii", 4, 8) !== "ftyp") return videoError("Video upload is incomplete or its checksum does not match.");
+    const validType = image ? prefix.length >= 24 && prefix.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) && prefix.toString("ascii", 12, 16) === "IHDR" && prefix.readUInt32BE(16) >= 128 && prefix.readUInt32BE(20) >= 128 && prefix.readUInt32BE(16) <= 4096 && prefix.readUInt32BE(20) <= 4096 : prefix.toString("ascii", 4, 8) === "ftyp";
+    if (received !== length || hash2.digest("hex") !== digest || !validType) return videoError("Media upload is incomplete or its checksum or file type does not match.");
     await fs8.rename(temporary, target);
     const now2 = (/* @__PURE__ */ new Date()).toISOString();
     const publishAt = new Date(Date.parse(now2) + 6e5).toISOString();
-    const fileUrl = new URL(`/uploads/${row.id}.mp4`, base).toString();
-    db.prepare("UPDATE antigravity_video_jobs SET status='READY',file_url=?,file_sha256=?,ready_at=?,publish_at=?,error=NULL,updated_at=? WHERE id=? AND file_sha256 IS NULL").run(fileUrl, digest, now2, publishAt, now2, row.id);
+    const fileUrl = new URL(`/uploads/${row.id}.${extension2}`, base).toString();
+    db.prepare("UPDATE antigravity_video_jobs SET status=?,file_url=?,file_sha256=?,ready_at=?,publish_at=?,error=NULL,updated_at=? WHERE id=? AND file_sha256 IS NULL").run(image ? "GENERATING" : "READY", fileUrl, digest, now2, publishAt, now2, row.id);
     complete = true;
     res.status(201).json({ job: formatVideoJob(db.prepare("SELECT * FROM antigravity_video_jobs WHERE id=?").get(row.id)) });
   } finally {
@@ -133248,6 +133519,24 @@ videoMachineRouter.put("/worker/upload/:id", workerAuth, wrap2(async (req, res) 
     if (!complete) await fs8.rm(temporary, { force: true }).catch(() => {
     });
   }
+}));
+videoMachineRouter.post("/worker/post-result/:id", workerAuth, wrap2((req, res) => {
+  const row = leasedVideoJob(String(req.params.id), String(req.get("X-Job-Lease") || ""));
+  const input2 = JSON.parse(row.input_json);
+  if (input2.kind !== "post" || !row.file_sha256 || !row.file_url) return videoError("Upload the generated post image before its copy.", 409);
+  const title = typeof req.body.title === "string" ? req.body.title.trim() : "";
+  const caption = typeof req.body.caption === "string" ? req.body.caption.trim() : "";
+  const hashtags = Array.isArray(req.body.hashtags) ? req.body.hashtags.map((h2) => String(h2).trim()).join(" ") : String(req.body.hashtags || "").trim();
+  if (!title || title.length > 255 || !caption || caption.length > 5e3 || hashtags.length > 2e3) return videoError("The generated post requires a title and valid caption.");
+  const generatedResult = { title, caption, hashtags };
+  if (input2.generatedResult) {
+    if (JSON.stringify(input2.generatedResult) !== JSON.stringify(generatedResult)) return videoError("This job already has different generated copy.", 409);
+    return res.json({ job: formatVideoJob(row) });
+  }
+  if (!["GENERATING", "NEEDS_ATTENTION"].includes(row.status)) return videoError("This post generation is no longer active.", 409);
+  const now2 = (/* @__PURE__ */ new Date()).toISOString();
+  db.prepare("UPDATE antigravity_video_jobs SET input_json=?,status='READY',ready_at=?,publish_at=?,updated_at=? WHERE id=?").run(JSON.stringify({ ...input2, generatedResult }), now2, new Date(Date.now() + 6e5).toISOString(), now2, row.id);
+  res.json({ job: formatVideoJob(db.prepare("SELECT * FROM antigravity_video_jobs WHERE id=?").get(row.id)) });
 }));
 
 // server/src/app.ts
