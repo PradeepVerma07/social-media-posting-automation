@@ -45,30 +45,9 @@ import { ChangePasswordModal } from './components/auth/ChangePasswordModal';
 import { isTabAllowed, getRolePermissions } from './utils/rbac';
 import { BrandRegistrationPage } from './features/onboarding/BrandRegistrationPage';
 import { AIStudioDashboard } from './features/ai-studio/AIStudioDashboard';
+import {resolveNavigation,navigationPath,navigationTitle} from './utils/navigation';
 
-const VALID_TABS: NavigationTab[] = [
-  'overview',
-  'ai-studio',
-  'creator',
-  'social-desk',
-  'content',
-  'calendar',
-  'create',
-  'approvals',
-  'video-approvals',
-  'published',
-  'brands',
-  'accounts',
-  'automations',
-  'n8n-login',
-  'executions',
-  'analytics',
-  'sheets',
-  'team',
-  'audit',
-  'settings',
-  'register',
-];
+
 
 class ViewErrorBoundary extends React.Component<
   { children: React.ReactNode; tabName: string },
@@ -127,75 +106,7 @@ class ViewErrorBoundary extends React.Component<
   }
 }
 
-const getInitialTab = (): NavigationTab => {
-  if (typeof window !== 'undefined') {
-    // 0. Check Query Parameter or Path for Registration Portal (?page=register or /register)
-    if (
-      window.location.search.includes('register') ||
-      window.location.search.includes('onboard') ||
-      window.location.pathname.includes('/register') ||
-      window.location.pathname.includes('/onboard')
-    ) {
-      return 'register';
-    }
-
-    // 1. Check URL Hash (e.g. #/brands, #/accounts, #register)
-    const rawHash = window.location.hash.replace(/^#\/?/, '').trim().toLowerCase();
-    if (rawHash) {
-      if (rawHash === 'register' || rawHash === 'onboarding' || rawHash === 'join') return 'register';
-      if (rawHash === 'ai' || rawHash === 'ai-studio' || rawHash === 'studio' || rawHash === 'neural') return 'ai-studio';
-      if (rawHash === 'social' || rawHash === 'social-accounts' || rawHash === 'accounts') return 'accounts';
-      if (rawHash === 'brand' || rawHash === 'brands') return 'brands';
-      if (rawHash === 'workflow' || rawHash === 'workflows' || rawHash === 'automations' || rawHash === 'canvas') return 'automations';
-      if (rawHash === 'execution' || rawHash === 'executions') return 'executions';
-      if (rawHash === 'login' || rawHash === 'n8n' || rawHash === 'n8n-login') return 'n8n-login';
-      if (rawHash === 'calendar') return 'calendar';
-      if (rawHash === 'post' || rawHash === 'posts' || rawHash === 'content') return 'content';
-      if (rawHash === 'create' || rawHash === 'compose') return 'create';
-      if (rawHash === 'approval' || rawHash === 'approvals' || rawHash === 'queue') return 'approvals';
-      if (rawHash === 'published') return 'published';
-      if (rawHash === 'analytics' || rawHash === 'report' || rawHash === 'reports') return 'analytics';
-      if (rawHash === 'sheet' || rawHash === 'sheets' || rawHash === 'google-sheets') return 'sheets';
-      if (rawHash === 'team' || rawHash === 'users' || rawHash === 'rbac') return 'team';
-      if (rawHash === 'audit' || rawHash === 'logs' || rawHash === 'audit-logs') return 'audit';
-      if (rawHash === 'setting' || rawHash === 'settings') return 'settings';
-      if (VALID_TABS.includes(rawHash as NavigationTab)) {
-        return rawHash as NavigationTab;
-      }
-    }
-
-    // 2. Check URL Pathname (e.g. /brands, /accounts)
-    const rawPath = window.location.pathname.replace(/^\//, '').trim().toLowerCase();
-    if (rawPath) {
-      if (rawPath.includes('login') || rawPath.includes('n8n')) return 'n8n-login';
-      if (rawPath.includes('automation') || rawPath.includes('workflow')) return 'automations';
-      if (rawPath.includes('execution')) return 'executions';
-      if (rawPath.includes('brand')) return 'brands';
-      if (rawPath.includes('account') || rawPath.includes('social')) return 'accounts';
-      if (rawPath.includes('calendar')) return 'calendar';
-      if (rawPath.includes('content') || rawPath.includes('post')) return 'content';
-      if (rawPath.includes('approval') || rawPath.includes('queue')) return 'approvals';
-      if (rawPath.includes('published')) return 'published';
-      if (rawPath.includes('analytic') || rawPath.includes('report')) return 'analytics';
-      if (rawPath.includes('sheet')) return 'sheets';
-      if (rawPath.includes('team') || rawPath.includes('user')) return 'team';
-      if (rawPath.includes('audit') || rawPath.includes('log')) return 'audit';
-      if (rawPath.includes('setting')) return 'settings';
-      if (VALID_TABS.includes(rawPath as NavigationTab)) {
-        return rawPath as NavigationTab;
-      }
-    }
-
-    // 3. Check persistent localStorage so refresh preserves current tab!
-    try {
-      const savedTab = localStorage.getItem('ci360_active_tab') as NavigationTab;
-      if (savedTab && VALID_TABS.includes(savedTab)) {
-        return savedTab;
-      }
-    } catch {}
-  }
-  return 'overview';
-};
+const getInitialTab = (): NavigationTab => typeof window === 'undefined' ? 'overview' : resolveNavigation(window.location) || 'overview';
 
 export default function App() {
   const [creatorDeskJobId,setCreatorDeskJobId]=useState('');
@@ -701,43 +612,28 @@ export default function App() {
         localStorage.setItem('ci360_active_tab', targetTab);
       } catch {}
       if (window.history) {
-        const url = targetTab === 'overview' ? '/' : `/#/${targetTab}`;
-        window.history.replaceState(null, '', url);
+        const url = navigationPath(targetTab);
+        if(window.location.pathname!==url||window.location.hash)window.history.pushState(null, '', url);
       }
     }
   };
 
-  // Synchronize with browser navigation (Back/Forward and URL Hash changes)
+  // Clean paths drive navigation; old hash bookmarks are canonicalized once.
   useEffect(() => {
-    const handleHashOrPopState = () => {
-      const current = getInitialTab();
-      setActiveTab(current);
-    };
-
-    window.addEventListener('hashchange', handleHashOrPopState);
-    window.addEventListener('popstate', handleHashOrPopState);
-
-    // Initial check: if current active tab is not overview and no hash in URL, push hash
-    if (activeTab !== 'overview' && !window.location.hash) {
-      window.history.replaceState(null, '', `/#/${activeTab}`);
-    }
-
+    const syncLocation = () => setActiveTab(getInitialTab());
+    window.addEventListener('hashchange', syncLocation);
+    window.addEventListener('popstate', syncLocation);
     return () => {
-      window.removeEventListener('hashchange', handleHashOrPopState);
-      window.removeEventListener('popstate', handleHashOrPopState);
+      window.removeEventListener('hashchange', syncLocation);
+      window.removeEventListener('popstate', syncLocation);
     };
   }, []);
-
-  // Persist current active tab to localStorage so any browser refresh stays on the exact same page
   useEffect(() => {
+    document.title=navigationTitle(activeTab);
     try {
       localStorage.setItem('ci360_active_tab', activeTab);
-      if (typeof window !== 'undefined' && window.history) {
-        const url = activeTab === 'overview' ? '/' : `/#/${activeTab}`;
-        if (window.location.hash !== `#/${activeTab}` && !(activeTab === 'overview' && !window.location.hash)) {
-          window.history.replaceState(null, '', url);
-        }
-      }
+      const url=navigationPath(activeTab);
+      if(window.location.pathname!==url||window.location.hash)window.history.replaceState(null,'',url+window.location.search);
     } catch {}
   }, [activeTab]);
 

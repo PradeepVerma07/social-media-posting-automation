@@ -11,9 +11,9 @@ try {
 }
 
 import './server/src/utils/dnsResolver';
-import express from 'express';
 import { createServer } from 'http';
 import { app } from './server/src/app';
+import {mountFrontend} from './server/src/web/frontend';
 import { mySQLSyncService } from './server/src/db/mysqlSync';
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -29,15 +29,6 @@ async function startServer() {
   const hasDist = fs.existsSync(path.join(distPath, 'index.html'));
   const isProd = process.env.NODE_ENV === 'production' || hasDist;
 
-  const staticOptions = {
-    setHeaders: (res: any, filePath: string) => {
-      if (filePath.endsWith('.js') || filePath.endsWith('.mjs')) {
-        res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
-      } else if (filePath.endsWith('.css')) {
-        res.setHeader('Content-Type', 'text/css; charset=UTF-8');
-      }
-    },
-  };
 
   if (!isProd) {
     try {
@@ -50,19 +41,11 @@ async function startServer() {
       app.use(vite.middlewares);
     } catch {
       // Fallback to static serving if vite middleware fails
-      if (hasDist) {
-        app.use(express.static(distPath, staticOptions));
-        app.get('*', (req, res) => {
-          res.sendFile(path.join(distPath, 'index.html'));
-        });
-      }
+      if (hasDist) mountFrontend(app,distPath);
     }
   } else {
-    // In production, serve built SPA with explicit MIME types
-    app.use(express.static(distPath, staticOptions));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    // Serve explicit dashboard paths and real static resources.
+    mountFrontend(app,distPath);
   }
 
   const server = createServer(app);
