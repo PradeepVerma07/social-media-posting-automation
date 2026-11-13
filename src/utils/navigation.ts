@@ -2,6 +2,7 @@ import type {NavigationTab} from '../components/layout/Sidebar';
 
 export const navigationRoutes:Record<NavigationTab,{path:string;title:string}>={
   overview:{path:'/',title:'Overview'},
+  'instant-post':{path:'/instant-post',title:'Instant Brand Post'},
   'ai-studio':{path:'/automation-studio',title:'Automation Studio'},
   creator:{path:'/creator-studio',title:'Creator Studio'},
   'social-desk':{path:'/social-media-desk',title:'Social Media Desk'},
@@ -24,6 +25,7 @@ export const navigationRoutes:Record<NavigationTab,{path:string;title:string}>={
   register:{path:'/register',title:'Register Brand'},
 };
 const aliases:Record<string,NavigationTab>={
+  instant:'instant-post','instant-post':'instant-post','direct-post':'instant-post',
   ai:'ai-studio',studio:'ai-studio',neural:'ai-studio',
   social:'accounts','social-accounts':'accounts',brand:'brands',
   workflow:'automations',workflows:'automations',canvas:'automations',

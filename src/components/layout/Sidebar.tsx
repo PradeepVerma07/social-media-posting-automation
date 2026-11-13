@@ -20,13 +20,15 @@ import {
   X,
   LogIn,
   Shield,
-  Sparkles
+  Sparkles,
+  Zap
 } from 'lucide-react';
 import { RoleName } from '../../../server/src/types';
 import { isTabAllowed, getRolePermissions } from '../../utils/rbac';
 
 export type NavigationTab =
   | 'overview'
+  | 'instant-post'
   | 'ai-studio'
   | 'creator'
   | 'social-desk'
@@ -76,6 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     badge?: number;
   }> = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'instant-post', label: 'Instant Brand Post', icon: Zap },
     { id: 'ai-studio', label: 'Automation Studio', icon: Sparkles },
     { id: 'creator', label: 'Creator Studio', icon: PlusCircle },
     { id: 'social-desk', label: 'Social Media Desk', icon: Calendar },

@@ -24,6 +24,7 @@ import { MobileBottomNav } from './components/layout/MobileBottomNav';
 import { OverviewDashboard } from './features/dashboard/OverviewDashboard';
 import { ContentTable } from './features/posts/ContentTable';
 import { CreatePostComposer } from './features/posts/CreatePostComposer';
+import { InstantBrandPublisher } from './features/posts/InstantBrandPublisher';
 import { ApprovalQueue } from './features/approvals/ApprovalQueue';
 import { VideoApprovalManager } from './features/approvals/VideoApprovalManager';
 import {CreatorStudio} from './features/creator/CreatorStudio';
@@ -754,6 +755,16 @@ export default function App() {
           )}
           {activeTab === 'creator' && <CreatorStudio brands={brands} onOpenDesk={id=>{setCreatorDeskJobId(id||'');handleTabChange('social-desk');}}/>}
           {activeTab === 'social-desk' && <SocialMediaDesk initialJobId={creatorDeskJobId} currentRole={currentRole} onCreate={()=>handleTabChange('creator')}/>}
+
+          {activeTab === 'instant-post' && (
+            <InstantBrandPublisher
+              brands={brands}
+              socialAccounts={socialAccounts}
+              currentRole={currentRole}
+              onPostPublished={loadInitialData}
+              onNavigateToTab={handleTabChange}
+            />
+          )}
 
           {activeTab === 'content' && (
                 <ContentTable

@@ -134141,6 +134141,7 @@ import fs10 from "node:fs";
 // src/utils/navigation.ts
 var navigationRoutes = {
   overview: { path: "/", title: "Overview" },
+  "instant-post": { path: "/instant-post", title: "Instant Brand Post" },
   "ai-studio": { path: "/automation-studio", title: "Automation Studio" },
   creator: { path: "/creator-studio", title: "Creator Studio" },
   "social-desk": { path: "/social-media-desk", title: "Social Media Desk" },
@@ -134163,6 +134164,9 @@ var navigationRoutes = {
   register: { path: "/register", title: "Register Brand" }
 };
 var aliases = {
+  instant: "instant-post",
+  "instant-post": "instant-post",
+  "direct-post": "instant-post",
   ai: "ai-studio",
   studio: "ai-studio",
   neural: "ai-studio",

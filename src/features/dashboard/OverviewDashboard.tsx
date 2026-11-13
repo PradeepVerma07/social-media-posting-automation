@@ -1,7 +1,7 @@
 import type { NavigationTab } from '../../components/layout/Sidebar';
 import React from 'react';
 import { DateTime } from 'luxon';
-import { Calendar, CheckSquare, AlertTriangle, Plus, ArrowRight, RefreshCw, Link2, Send } from 'lucide-react';
+import { Calendar, CheckSquare, AlertTriangle, Plus, ArrowRight, RefreshCw, Link2, Send, Zap } from 'lucide-react';
 import { AnalyticsOverview, Post, WorkflowExecution, SocialAccount, RoleName } from '../../../server/src/types';
 import { isTabAllowed, getRolePermissions } from '../../utils/rbac';
 
@@ -55,9 +55,9 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
     <header className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-sm font-semibold text-blue-700">Your workspace</p><h2 className="mt-1 text-2xl font-bold text-slate-900">Keep your publishing day on track</h2><p className="mt-2 text-sm text-slate-600">Review upcoming content, approve work, and resolve delivery issues.</p></div>
       {permissions.canCreatePost && (
         <div className="flex items-center gap-2.5">
-          <button type="button" onClick={() => onNavigateToTab('create')} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm cursor-pointer transition-colors">
-            <Send className="h-4 w-4" />
-            🚀 Direct Post Now
+          <button type="button" onClick={() => onNavigateToTab('instant-post')} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 px-4 py-2.5 text-sm font-extrabold text-white shadow-md cursor-pointer transition-all">
+            <Zap className="h-4 w-4 fill-yellow-300 text-yellow-300" />
+            ⚡ Instant Brand Post (No Approval)
           </button>
           <button type="button" onClick={() => onNavigateToTab('create')} className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 cursor-pointer">
             <Plus className="h-4 w-4" />
