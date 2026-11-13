@@ -138,10 +138,84 @@ export const ContentCalendar: React.FC<ContentCalendarProps> = ({
     </div>
     <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><button type="button" aria-label="Previous period" className="rounded-lg border border-slate-300 p-2" onClick={() => setCursor(prev => view === 'week' ? prev.minus({ weeks: 1 }) : prev.minus({ months: 1 }))}><ChevronLeft className="h-4 w-4" /></button><h3 className="text-lg font-semibold">{view === 'week' ? start.toFormat('d LLL') + ' – ' + end.toFormat('d LLL yyyy') : cursor.toFormat('LLLL yyyy')}</h3><button type="button" aria-label="Next period" className="rounded-lg border border-slate-300 p-2" onClick={() => setCursor(prev => view === 'week' ? prev.plus({ weeks: 1 }) : prev.plus({ months: 1 }))}><ChevronRight className="h-4 w-4" /></button><button type="button" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" onClick={() => setCursor(DateTime.now().setZone(zone))}>Today</button></div><p className="text-xs text-slate-600">{dated.length} posts in this period · Times shown in {zone}</p></div>
     {view === 'agenda' ? <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">{dated.length ? dated.map(post => <button key={post.id} type="button" onClick={() => showPost(post)} className="flex w-full flex-wrap items-center gap-3 border-b border-slate-100 p-4 text-left hover:bg-slate-50"><CalendarIcon className="h-5 w-5 text-blue-700" /><span className="min-w-40 text-sm font-medium">{instant(post.scheduledAt || post.publishedAt)?.setZone(zone).toFormat('dd LLL, HH:mm')}</span><span className="flex-1"><span className="block text-sm font-semibold">{post.title}</span><span className="text-xs text-slate-600">{post.brandName}</span></span><span className="rounded-full bg-slate-100 px-3 py-1 text-xs capitalize">{statusLabel(post.publishingStatus)} · {statusLabel(post.approvalStatus)}</span></button>) : <p className="p-12 text-center text-sm text-slate-600">No dated posts match these filters. Create a post or choose another period.</p>}</div> :
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white"><div className="min-w-[700px]"><div className="grid grid-cols-7 border-b border-slate-200">{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => <div key={day} className="p-3 text-center text-xs font-semibold text-slate-600">{day}</div>)}</div><div className="grid grid-cols-7">{Array.from({ length: cellCount }, (_, index) => {
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white"><div className="min-w-[750px]"><div className="grid grid-cols-7 border-b border-slate-200">{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => <div key={day} className="p-3 text-center text-xs font-semibold text-slate-600">{day}</div>)}</div><div className="grid grid-cols-7">{Array.from({ length: cellCount }, (_, index) => {
         const day = gridStart.plus({ days: index });
         const dayPosts = filtered.filter(p => instant(p.scheduledAt || p.publishedAt)?.setZone(zone).toISODate() === day.toISODate());
-        return <div key={day.toISODate()} className={'min-h-32 border-b border-r border-slate-100 p-2 ' + (day.month !== cursor.month && view === 'month' ? 'bg-slate-50' : '')}><div className="mb-2 flex items-center justify-between"><span className={'flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ' + (day.hasSame(DateTime.now().setZone(zone), 'day') ? 'bg-blue-700 text-white' : 'text-slate-600')}>{day.day}</span>{permissions.canCreatePost && <button type="button" aria-label={'Create post for ' + day.toFormat('d LLLL yyyy')} className="rounded-lg p-1 text-slate-500 hover:bg-blue-50 hover:text-blue-700" onClick={() => create(day.toISODate()!)}><Plus className="h-4 w-4" /></button>}</div>{dayPosts.map(post => <button key={post.id} type="button" onClick={() => showPost(post)} className={'mb-2 w-full rounded-lg border p-2 text-left text-xs ' + (['failed', 'partially_published'].includes(post.publishingStatus) ? 'border-amber-200 bg-amber-50' : 'border-blue-100 bg-blue-50')}><span className="block font-semibold">{instant(post.scheduledAt || post.publishedAt)?.setZone(zone).toFormat('HH:mm')} · {post.title}</span><span className="mt-1 block text-slate-600">{post.brandName}</span><span className="mt-1 block capitalize">{statusLabel(post.publishingStatus)}</span>{post.approvalStatus !== 'approved' && <span className="mt-1 block font-medium">{statusLabel(post.approvalStatus)}</span>}</button>)}</div>;
+        const isToday = day.hasSame(DateTime.now().setZone(zone), 'day');
+        const isCurrentMonth = day.month === cursor.month;
+        return (
+          <div
+            key={day.toISODate()}
+            className={'h-44 sm:h-48 md:h-52 flex flex-col justify-between border-b border-r border-slate-200 p-2 overflow-hidden transition-colors ' +
+              (!isCurrentMonth && view === 'month' ? 'bg-slate-50/70 text-slate-400' : 'bg-white hover:bg-slate-50/50')}
+          >
+            {/* Header: Date number + prominent Add post button */}
+            <div className="flex items-center justify-between pb-1 shrink-0">
+              <span className={'flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-all ' +
+                (isToday ? 'bg-blue-600 text-white shadow-xs' : isCurrentMonth ? 'text-slate-800' : 'text-slate-400')}>
+                {day.day}
+              </span>
+              {permissions.canCreatePost && (
+                <button
+                  type="button"
+                  aria-label={'Add post for ' + day.toFormat('d LLLL yyyy')}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500 hover:text-blue-700 hover:bg-blue-50 rounded-md border border-transparent hover:border-blue-200 transition-all cursor-pointer"
+                  onClick={() => create(day.toISODate()!)}
+                  title={`Add post on ${day.toFormat('d LLL')}`}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Add</span>
+                </button>
+              )}
+            </div>
+
+            {/* Scrollable posts container inside day cell, ensuring identical height across all grid cells */}
+            <div className="flex-1 overflow-y-auto space-y-1.5 my-1 pr-0.5">
+              {dayPosts.map(post => (
+                <button
+                  key={post.id}
+                  type="button"
+                  onClick={() => showPost(post)}
+                  className={'w-full text-left rounded-lg border p-1.5 text-xs transition-all shadow-2xs hover:shadow-xs block ' +
+                    (['failed', 'partially_published'].includes(post.publishingStatus)
+                      ? 'border-amber-200 bg-amber-50 hover:bg-amber-100/70 text-amber-900'
+                      : post.publishingStatus === 'published'
+                      ? 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100/70 text-emerald-900'
+                      : 'border-blue-100 bg-blue-50 hover:bg-blue-100/70 text-blue-900')}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="font-bold text-[11px] shrink-0 font-mono">
+                      {instant(post.scheduledAt || post.publishedAt)?.setZone(zone).toFormat('HH:mm')}
+                    </span>
+                    <span className="text-[10px] uppercase font-bold tracking-tight truncate opacity-80">
+                      {statusLabel(post.publishingStatus)}
+                    </span>
+                  </div>
+                  <span className="block font-semibold truncate text-[11px] mt-0.5">{post.title}</span>
+                  <span className="block text-[10px] text-slate-500 truncate">{post.brandName}</span>
+                </button>
+              ))}
+              {dayPosts.length === 0 && permissions.canCreatePost && (
+                <button
+                  type="button"
+                  onClick={() => create(day.toISODate()!)}
+                  className="w-full h-full min-h-[50px] border border-dashed border-transparent hover:border-slate-300 rounded-lg flex items-center justify-center text-slate-300 hover:text-slate-500 hover:bg-slate-50/50 transition-all group cursor-pointer"
+                  title={`Click to schedule post on ${day.toFormat('d LLL')}`}
+                >
+                  <span className="text-[11px] font-medium opacity-0 group-hover:opacity-100 flex items-center gap-1">
+                    <Plus className="h-3 w-3" /> Post
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {dayPosts.length > 0 && (
+              <div className="pt-1 text-[10px] text-slate-400 font-medium text-right shrink-0">
+                {dayPosts.length} post{dayPosts.length > 1 ? 's' : ''}
+              </div>
+            )}
+          </div>
+        );
       })}</div></div></div>}
     {undatedCount > 0 && <p className="text-sm text-slate-600">{undatedCount} posts have no publication date and are available in Posts. Changing the calendar timezone does not reschedule posts.</p>}
 

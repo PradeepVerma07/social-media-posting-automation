@@ -785,7 +785,9 @@ export default function App() {
 
               {activeTab === 'calendar' && (
                 <ContentCalendar
-                  socialAccounts={socialAccounts} currentUserId={currentUser?.id}
+                  socialAccounts={socialAccounts}
+                  currentUserId={currentUser?.id}
+                  currentRole={currentRole}
                   posts={posts}
                   brands={brands}
                   onSelectPost={() => handleTabChange('approvals')}

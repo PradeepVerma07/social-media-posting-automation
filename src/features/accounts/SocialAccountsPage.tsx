@@ -20,7 +20,8 @@ import {
   Building2,
   HelpCircle,
   Check,
-  Copy
+  Copy,
+  Trash2
 } from 'lucide-react';
 import { SocialAccount, Brand, RoleName } from '../../../server/src/types';
 import { formatISTDate, formatISTTime } from '../../utils/timezone';
@@ -58,6 +59,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [checkingId,setCheckingId]=useState(''),[checkNotice,setCheckNotice]=useState(''),[checkFailed,setCheckFailed]=useState(false);
   const [disconnectingId, setDisconnectingId] = useState('');
+  const [deletingId, setDeletingId] = useState('');
   const verifySaved=async(account:SocialAccount)=>{const id=String((account as any).accountId||account.id);if(checkingId)return;setCheckingId(id);setCheckNotice('');setCheckFailed(false);try{const result=await api.checkMetaAccount(id);setCheckNotice(result.message);}catch(error:any){setCheckNotice(error.message);setCheckFailed(true);}finally{await onRefreshAccounts?.();setCheckingId('');}};
 
   // Form states per platform
@@ -97,9 +99,16 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
   useEffect(() => {
     setErrorMsg(null);
     if (connectionBrandId) {
-      const selected = brands?.find(b => String(b.id) === connectionBrandId);
-      const brandIdVal = selected?.id ?? Number(connectionBrandId);
-      const brandAccounts = accounts.filter(a => a.brandId === brandIdVal);
+      const selected = brands?.find(b => 
+        String(b.id) === connectionBrandId || 
+        String((b as any).brandId) === connectionBrandId || 
+        String((b as any).brand_id) === connectionBrandId
+      );
+      const brandCode = (selected as any)?.brandId || (selected as any)?.brand_id;
+      const brandAccounts = accounts.filter(a => 
+        String(a.brandId) === String(connectionBrandId) || 
+        (selected && (String(a.brandId) === String(selected.id) || (brandCode && String(a.brandId) === String(brandCode))))
+      );
       const fbAcc = brandAccounts.find(a => a.platform === 'facebook');
       const igAcc = brandAccounts.find(a => a.platform === 'instagram');
       if (fbAcc?.externalId && fbAcc.externalId !== 'Not configured' && !fbAcc.externalId.startsWith('ACC-')) {
@@ -129,12 +138,31 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
       const selected=brands?.find(b=>String(b.id)===connectionBrandId);
       if(!selected)throw new Error('Select the brand for this connection.');
       let payload: any = { platform: selectedPlatform, brandId: (selected as any).brandId || selected.id, reassign: true };
-      if(metaPageId.trim())payload.pageId=metaPageId.trim();
 
       if (selectedPlatform === 'meta' || selectedPlatform === 'instagram') {
         if (!metaToken.trim()) throw new Error('Meta Graph API token is required.');
         payload.token = metaToken.trim();
-        if (metaIgId.trim()) payload.instagramId = metaIgId.trim();
+        let pageIdInput = metaPageId.trim();
+        let igIdInput = metaIgId.trim();
+
+        if (pageIdInput.startsWith('1784') || (pageIdInput.length >= 16 && !igIdInput)) {
+          if (!igIdInput) igIdInput = pageIdInput;
+          const brandCode = (selected as any)?.brandId || (selected as any)?.brand_id;
+          const brandAccounts = accounts.filter(a => 
+            String(a.brandId) === String(connectionBrandId) || 
+            String(a.brandId) === String(selected.id) || 
+            (brandCode && String(a.brandId) === String(brandCode))
+          );
+          const fbAccount = brandAccounts.find(a => a.platform === 'facebook');
+          if (fbAccount?.externalId && fbAccount.externalId !== 'Not configured' && !fbAccount.externalId.startsWith('ACC-')) {
+            pageIdInput = fbAccount.externalId;
+          } else {
+            pageIdInput = '';
+          }
+        }
+
+        if (pageIdInput) payload.pageId = pageIdInput;
+        if (igIdInput) payload.instagramId = igIdInput;
       } else if (selectedPlatform === 'youtube') {
         if (!ytToken.trim()) throw new Error('YouTube OAuth token or Google API Key is required.');
         payload.channelId = ytChannelId.trim();
@@ -470,6 +498,33 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
                             <span>AES-256</span>
                           </span>
                           <div className="flex items-center gap-1.5">
+                            {permissions.canManageAccounts && (
+                              <button
+                                type="button"
+                                title="Delete channel"
+                                disabled={deletingId === String((acc as any).accountId || acc.id)}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  const id = String((acc as any).accountId || acc.id);
+                                  if (!window.confirm(`Permanently remove this ${meta.name} channel for ${group.brandName}?`)) return;
+                                  setDeletingId(id);
+                                  try {
+                                    await api.deleteSocialAccount(id);
+                                    setCheckNotice(`${meta.name} channel removed successfully.`);
+                                    setCheckFailed(false);
+                                    await onRefreshAccounts?.();
+                                  } catch (err: any) {
+                                    setCheckNotice(err.message || 'Failed to delete account');
+                                    setCheckFailed(true);
+                                  } finally {
+                                    setDeletingId('');
+                                  }
+                                }}
+                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                             {isConnected && permissions.canManageAccounts && (
                               <button
                                 type="button"

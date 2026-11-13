@@ -70,7 +70,26 @@ export async function connectMetaAccount(principal:Principal,brand:any,input:{to
     }
   }
   if(!pages.length)return fail(discovered.data.error?.code===190?'Meta rejected this token. Generate a fresh token and reconnect the selected Page.':'No accessible Facebook Page was found. Check the Page assignment and token permissions.');
-  const cleanPageId=pageId.trim();
+  let explicitIg = String((input as any).instagramId || (input as any).instagramHandle || (input as any).igId || '').trim().replace(/^@/, '');
+  let cleanPageId=pageId.trim();
+
+  // Smart detection: if user pasted an Instagram ID (1784... or 17-digit ID) into pageId field
+  if (cleanPageId.startsWith('1784') || (cleanPageId.length >= 17 && !pages.some(p => String(p.id).trim() === cleanPageId))) {
+    if (!explicitIg) explicitIg = cleanPageId;
+    const brandFbRow: any = db.prepare("SELECT external_id FROM social_accounts WHERE brand_id=? AND platform='facebook' AND external_id NOT LIKE 'ACC-%' AND external_id != 'Not configured'").get(brand.brand_id);
+    if (brandFbRow?.external_id) {
+      cleanPageId = String(brandFbRow.external_id);
+    } else if (pages.length === 1) {
+      cleanPageId = String(pages[0].id);
+    } else {
+      const matchedPage = pages.find(p => 
+        String(p.instagram_business_account?.id) === explicitIg || 
+        String(p.connected_instagram_account?.id) === explicitIg
+      );
+      cleanPageId = matchedPage ? String(matchedPage.id) : '';
+    }
+  }
+
   if (cleanPageId && !pages.some(p => String(p.id).trim() === cleanPageId)) {
     try {
       const directPage = await graph(`${encodeURIComponent(cleanPageId)}?fields=id,name,category,access_token,instagram_business_account{id,username,name},connected_instagram_account{id,username,name}`, token);
@@ -104,7 +123,7 @@ export async function connectMetaAccount(principal:Principal,brand:any,input:{to
   }
   const page=candidates[0],pageToken=typeof page.access_token==='string'?page.access_token:token;
   if(!/^\d+$/.test(String(page.id)))return fail('Meta did not return a valid Page identity.',502);
-  const explicitIg = String((input as any).instagramId || (input as any).instagramHandle || (input as any).igId || '').trim().replace(/^@/, '');
+  if(!explicitIg) explicitIg = String((input as any).instagramId || (input as any).instagramHandle || (input as any).igId || '').trim().replace(/^@/, '');
   const brandIgRow: any = db.prepare("SELECT external_id, account_handle FROM social_accounts WHERE brand_id=? AND platform='instagram'").get(brand.brand_id);
   const brandHandle = brand.instagram_handle ? String(brand.instagram_handle).replace(/^@/, '') : '';
   const fallbackIg = explicitIg || (brandIgRow?.account_handle && brandIgRow.account_handle !== 'Not connected' ? String(brandIgRow.account_handle).replace(/^@/, '') : '') || brandHandle;
@@ -296,13 +315,16 @@ export async function connectMetaAccount(principal:Principal,brand:any,input:{to
         }
       }
       const existing:any=db.prepare('SELECT account_id FROM social_accounts WHERE client_id=? AND brand_id=? AND platform=? AND external_id=?').get(brand.client_id,brand.brand_id,target.platform,target.externalId)
-        || db.prepare("SELECT account_id FROM social_accounts WHERE client_id=? AND brand_id=? AND platform=? AND external_id IN ('Not configured', 'UC_flowerplant_yt', 'WA_flowerplant_91', '1454740611044963_x')").get(brand.client_id,brand.brand_id,target.platform);
+        || db.prepare("SELECT account_id FROM social_accounts WHERE client_id=? AND brand_id=? AND platform=? AND external_id IN ('Not configured', 'UC_flowerplant_yt', 'WA_flowerplant_91', '1454740611044963_x')").get(brand.client_id,brand.brand_id,target.platform)
+        || db.prepare("SELECT account_id FROM social_accounts WHERE client_id=? AND brand_id=? AND platform=? AND status IN ('disconnected', 'needs_reauth')").get(brand.client_id,brand.brand_id,target.platform);
       const channelToken=(target.platform==='whatsapp'?token:pageToken)||token;
       const enc=encryptToken(channelToken),id=existing?.account_id||(foreign?.client_id===brand.client_id&&(input as any).reassign?foreign.account_id:('ACC-'+crypto.randomUUID()));
       if(existing||(foreign&&foreign.client_id===brand.client_id&&(input as any).reassign))db.prepare(`UPDATE social_accounts SET token_ciphertext=?,token_iv=?,token_tag=?,token_version=?,token_expires_at=NULL,account_name=?,account_handle=?,external_id=?,status='active',last_checked_at=?,updated_at=?,version=version+1 WHERE account_id=?`)
         .run(enc.ciphertext,enc.iv,enc.tag,enc.version,target.name,target.handle,target.externalId,now,now,id);
       else db.prepare(`INSERT INTO social_accounts (account_id,client_id,brand_id,platform,account_name,account_handle,external_id,token_ciphertext,token_iv,token_tag,token_version,status,last_checked_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,'active',?,?,?)`)
         .run(id,brand.client_id,brand.brand_id,target.platform,target.name,target.handle,target.externalId,enc.ciphertext,enc.iv,enc.tag,enc.version,now,now,now);
+      db.prepare("DELETE FROM social_accounts WHERE client_id=? AND brand_id=? AND platform=? AND account_id!=? AND (external_id='Not configured' OR status='disconnected')")
+        .run(brand.client_id,brand.brand_id,target.platform,id);
       channels.push({accountId:id,platform:target.platform,name:target.name});
     }
     audit(principal,'social_account',brand.brand_id,'connect_meta',{accountIds:channels.map(channel=>channel.accountId)});

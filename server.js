@@ -132998,7 +132998,22 @@ async function connectMetaAccount(principal, brand, input2, fetcher = fetch) {
     }
   }
   if (!pages.length) return fail3(discovered.data.error?.code === 190 ? "Meta rejected this token. Generate a fresh token and reconnect the selected Page." : "No accessible Facebook Page was found. Check the Page assignment and token permissions.");
-  const cleanPageId = pageId.trim();
+  let explicitIg = String(input2.instagramId || input2.instagramHandle || input2.igId || "").trim().replace(/^@/, "");
+  let cleanPageId = pageId.trim();
+  if (cleanPageId.startsWith("1784") || cleanPageId.length >= 17 && !pages.some((p) => String(p.id).trim() === cleanPageId)) {
+    if (!explicitIg) explicitIg = cleanPageId;
+    const brandFbRow = db.prepare("SELECT external_id FROM social_accounts WHERE brand_id=? AND platform='facebook' AND external_id NOT LIKE 'ACC-%' AND external_id != 'Not configured'").get(brand.brand_id);
+    if (brandFbRow?.external_id) {
+      cleanPageId = String(brandFbRow.external_id);
+    } else if (pages.length === 1) {
+      cleanPageId = String(pages[0].id);
+    } else {
+      const matchedPage = pages.find(
+        (p) => String(p.instagram_business_account?.id) === explicitIg || String(p.connected_instagram_account?.id) === explicitIg
+      );
+      cleanPageId = matchedPage ? String(matchedPage.id) : "";
+    }
+  }
   if (cleanPageId && !pages.some((p) => String(p.id).trim() === cleanPageId)) {
     try {
       const directPage = await graph(`${encodeURIComponent(cleanPageId)}?fields=id,name,category,access_token,instagram_business_account{id,username,name},connected_instagram_account{id,username,name}`, token);
@@ -133029,7 +133044,7 @@ async function connectMetaAccount(principal, brand, input2, fetcher = fetch) {
   }
   const page = candidates[0], pageToken = typeof page.access_token === "string" ? page.access_token : token;
   if (!/^\d+$/.test(String(page.id))) return fail3("Meta did not return a valid Page identity.", 502);
-  const explicitIg = String(input2.instagramId || input2.instagramHandle || input2.igId || "").trim().replace(/^@/, "");
+  if (!explicitIg) explicitIg = String(input2.instagramId || input2.instagramHandle || input2.igId || "").trim().replace(/^@/, "");
   const brandIgRow = db.prepare("SELECT external_id, account_handle FROM social_accounts WHERE brand_id=? AND platform='instagram'").get(brand.brand_id);
   const brandHandle = brand.instagram_handle ? String(brand.instagram_handle).replace(/^@/, "") : "";
   const fallbackIg = explicitIg || (brandIgRow?.account_handle && brandIgRow.account_handle !== "Not connected" ? String(brandIgRow.account_handle).replace(/^@/, "") : "") || brandHandle;
@@ -133213,11 +133228,12 @@ async function connectMetaAccount(principal, brand, input2, fetcher = fetch) {
           return fail3("This Page or Instagram account is already assigned to another brand. Ask an administrator to review its assignment.", 409);
         }
       }
-      const existing = db.prepare("SELECT account_id FROM social_accounts WHERE client_id=? AND brand_id=? AND platform=? AND external_id=?").get(brand.client_id, brand.brand_id, target.platform, target.externalId) || db.prepare("SELECT account_id FROM social_accounts WHERE client_id=? AND brand_id=? AND platform=? AND external_id IN ('Not configured', 'UC_flowerplant_yt', 'WA_flowerplant_91', '1454740611044963_x')").get(brand.client_id, brand.brand_id, target.platform);
+      const existing = db.prepare("SELECT account_id FROM social_accounts WHERE client_id=? AND brand_id=? AND platform=? AND external_id=?").get(brand.client_id, brand.brand_id, target.platform, target.externalId) || db.prepare("SELECT account_id FROM social_accounts WHERE client_id=? AND brand_id=? AND platform=? AND external_id IN ('Not configured', 'UC_flowerplant_yt', 'WA_flowerplant_91', '1454740611044963_x')").get(brand.client_id, brand.brand_id, target.platform) || db.prepare("SELECT account_id FROM social_accounts WHERE client_id=? AND brand_id=? AND platform=? AND status IN ('disconnected', 'needs_reauth')").get(brand.client_id, brand.brand_id, target.platform);
       const channelToken = (target.platform === "whatsapp" ? token : pageToken) || token;
       const enc = encryptToken(channelToken), id = existing?.account_id || (foreign?.client_id === brand.client_id && input2.reassign ? foreign.account_id : "ACC-" + crypto13.randomUUID());
       if (existing || foreign && foreign.client_id === brand.client_id && input2.reassign) db.prepare(`UPDATE social_accounts SET token_ciphertext=?,token_iv=?,token_tag=?,token_version=?,token_expires_at=NULL,account_name=?,account_handle=?,external_id=?,status='active',last_checked_at=?,updated_at=?,version=version+1 WHERE account_id=?`).run(enc.ciphertext, enc.iv, enc.tag, enc.version, target.name, target.handle, target.externalId, now2, now2, id);
       else db.prepare(`INSERT INTO social_accounts (account_id,client_id,brand_id,platform,account_name,account_handle,external_id,token_ciphertext,token_iv,token_tag,token_version,status,last_checked_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,'active',?,?,?)`).run(id, brand.client_id, brand.brand_id, target.platform, target.name, target.handle, target.externalId, enc.ciphertext, enc.iv, enc.tag, enc.version, now2, now2, now2);
+      db.prepare("DELETE FROM social_accounts WHERE client_id=? AND brand_id=? AND platform=? AND account_id!=? AND (external_id='Not configured' OR status='disconnected')").run(brand.client_id, brand.brand_id, target.platform, id);
       channels.push({ accountId: id, platform: target.platform, name: target.name });
     }
     audit(principal, "social_account", brand.brand_id, "connect_meta", { accountIds: channels.map((channel) => channel.accountId) });
@@ -133274,6 +133290,25 @@ enterpriseRouter.post("/social-accounts/:id/disconnect", wrap(async (req, res) =
   audit(req.principal, "social_account", accountId, "disconnect");
   sseManager.emit("account.updated", account.client_id, { accountId, status: "disconnected" });
   return res.json({ success: true, message: `${account.platform.toUpperCase()} channel disconnected.` });
+}));
+enterpriseRouter.delete("/social-accounts/:id", wrap(async (req, res) => {
+  if (!isAdmin(req.principal)) return fail4("Only administrators can remove social accounts.", 403);
+  const accountId = String(req.params.id);
+  const account = db.prepare("SELECT * FROM social_accounts WHERE account_id=?").get(accountId);
+  if (!account || !req.principal.global && account.client_id !== req.principal.clientId) return fail4("Account not found.", 404);
+  const now2 = (/* @__PURE__ */ new Date()).toISOString();
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.prepare("UPDATE post_targets SET status='cancelled', updated_at=? WHERE account_id=? AND status IN ('pending', 'queued')").run(now2, accountId);
+    db.prepare("DELETE FROM social_accounts WHERE account_id=?").run(accountId);
+    audit(req.principal, "social_account", accountId, "delete", { platform: account.platform, brandId: account.brand_id });
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+  sseManager.emit("account.updated", account.client_id, { accountId, action: "deleted" });
+  return res.json({ success: true, message: `${account.platform.toUpperCase()} channel removed.` });
 }));
 var postById = (req) => {
   const post = db.prepare("SELECT * FROM posts WHERE post_id = ? AND deleted_at IS NULL").get(req.params.id);

@@ -37,6 +37,25 @@ enterpriseRouter.post('/social-accounts/:id/disconnect',wrap(async(req,res)=>{
   sseManager.emit('account.updated',account.client_id,{accountId,status:'disconnected'});
   return res.json({success:true,message:`${account.platform.toUpperCase()} channel disconnected.`});
 }));
+enterpriseRouter.delete('/social-accounts/:id',wrap(async(req,res)=>{
+  if(!isAdmin(req.principal))return fail('Only administrators can remove social accounts.',403);
+  const accountId=String(req.params.id);
+  const account:any=db.prepare('SELECT * FROM social_accounts WHERE account_id=?').get(accountId);
+  if(!account||(!req.principal.global&&account.client_id!==req.principal.clientId))return fail('Account not found.',404);
+  const now=new Date().toISOString();
+  db.exec('BEGIN IMMEDIATE');
+  try{
+    db.prepare("UPDATE post_targets SET status='cancelled', updated_at=? WHERE account_id=? AND status IN ('pending', 'queued')").run(now,accountId);
+    db.prepare('DELETE FROM social_accounts WHERE account_id=?').run(accountId);
+    audit(req.principal,'social_account',accountId,'delete',{platform:account.platform,brandId:account.brand_id});
+    db.exec('COMMIT');
+  }catch(err){
+    db.exec('ROLLBACK');
+    throw err;
+  }
+  sseManager.emit('account.updated',account.client_id,{accountId,action:'deleted'});
+  return res.json({success:true,message:`${account.platform.toUpperCase()} channel removed.`});
+}));
 const postById = (req: Request) => {
   const post: any = db.prepare('SELECT * FROM posts WHERE post_id = ? AND deleted_at IS NULL').get(req.params.id);
   if (!post || (!req.principal.global && post.client_id !== req.principal.clientId)) fail('Post not found.', 404);
