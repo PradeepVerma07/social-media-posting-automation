@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {Film,Image,Monitor,ArrowRight,RefreshCw,Loader2,Sparkles} from 'lucide-react';
 import {api} from '../../api/client';
 import {CreationPanel} from './CreationPanel';
+import {SocialDestinationSelect} from './SocialDestinationSelect';
 import type {Brand,SocialAccount} from '../../../server/src/types';
 
 const field='w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100';
@@ -59,7 +60,8 @@ export function CreatorStudio({brands,onOpenDesk}:{brands:Brand[];onOpenDesk:(id
           <label className="block space-y-2 text-sm font-medium">Caption guidance (optional)<textarea maxLength={5000} rows={2} className={field} value={caption} onChange={e=>setCaption(e.target.value)} placeholder="You can edit the final caption in Social Media Desk."/></label>
           <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-2 text-sm font-medium">Language<input required maxLength={50} className={field} value={language} onChange={e=>setLanguage(e.target.value)}/></label><label className="block space-y-2 text-sm font-medium">Format<select className={field} value={aspect} onChange={e=>setAspect(e.target.value)}>{(kind==='post'?['1:1','4:5','9:16','16:9']:['9:16','16:9','1:1']).map(a=><option key={a}>{a}</option>)}</select></label></div>
           {kind==='video'&&<label className="block space-y-2 text-sm font-medium">Video length (seconds)<input className={field} type="number" required min={5} max={180} value={duration} onChange={e=>setDuration(Number(e.target.value))}/></label>}
-          <fieldset className="space-y-2"><legend className="mb-2 text-sm font-semibold">Social destinations</legend>{eligible.map(account=>{const id=String((account as any).accountId);return <label key={id} className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-3 text-sm"><input type="checkbox" checked={accountIds.includes(id)} onChange={e=>setAccountIds(ids=>e.target.checked?[...ids,id]:ids.filter(v=>v!==id))}/>{account.accountName||account.accountHandle} · {account.platform}</label>;})}{!eligible.length&&<p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Connect a supported account for this brand. Video supports Instagram Reels; image posts support eligible Facebook and Instagram feeds.</p>}</fieldset>
+          <SocialDestinationSelect key={`${brandId}:${kind}`} options={eligible.map(account=>({id:String((account as any).accountId),name:account.accountName||account.accountHandle||account.platform,platform:account.platform}))} value={accountIds} onChange={setAccountIds} disabled={busy||!status?.canGenerate}/>
+          {!eligible.length&&<p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Connect a supported account for this brand and content format.</p>}
         </fieldset><p className="text-xs text-slate-500">Creation uses Antigravity on your PC. Finished content stays as a draft until its schedule is set and a manager approves it.</p>
         <button disabled={busy||!status?.configured||!status?.canGenerate||!accountIds.length} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy?<Loader2 className="animate-spin" size={18}/>:<Sparkles size={18}/>}Create {kind==='video'?'video':'image post'}</button>
       </form>
