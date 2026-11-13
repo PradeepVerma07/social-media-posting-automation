@@ -132757,18 +132757,24 @@ function saveCreatorSchedule(principal, id, raw) {
     const version2 = post.version + 1;
     const platforms = accounts2.map((a) => ({ platform: a.platform, accountId: a.account_id }));
     const updatedRevision = { ...revision, unscheduled: !scheduledAt, platforms, creatorWorkflow: true };
+    const isDirect = raw.directSchedule === true || raw.autoApprove === true || raw.skipApproval === true;
+    const initialApproval = isDirect ? "Approved" : "Draft";
+    const approvedBy = isDirect ? principal.email : null;
+    const approvedAt = isDirect ? now2 : null;
+    const approvedVersion = isDirect ? version2 : null;
+    const targetStatus = isDirect ? "Scheduled" : "Draft";
     db.prepare(`UPDATE posts SET title=?,caption=?,hashtags=?,timezone=?,scheduled_utc=?,schedule_local_date=?,schedule_local_time=?,
-      revision_data=?,approval_status='Draft',approved_by=NULL,approved_at=NULL,approved_version=NULL,version=?,updated_at=? WHERE post_id=?`).run(title, caption, hashtags, timezone, scheduledAt || now2, date5.toISODate(), date5.toFormat("HH:mm:ss"), JSON.stringify(updatedRevision), version2, now2, post.post_id);
+      revision_data=?,approval_status=?,approved_by=?,approved_at=?,approved_version=?,version=?,updated_at=? WHERE post_id=?`).run(title, caption, hashtags, timezone, scheduledAt || now2, date5.toISODate(), date5.toFormat("HH:mm:ss"), JSON.stringify(updatedRevision), initialApproval, approvedBy, approvedAt, approvedVersion, version2, now2, post.post_id);
     const existing = db.prepare("SELECT * FROM post_targets WHERE post_id=? ORDER BY created_at DESC").all(post.post_id);
     db.prepare("UPDATE post_targets SET status='Cancelled',version=version+1,updated_at=? WHERE post_id=?").run(now2, post.post_id);
     for (const account of accounts2) {
       const reusable = existing.find((t2) => t2.account_id === account.account_id && ["Draft", "Scheduled"].includes(t2.status) && t2.attempt_count === 0);
       if (reusable) {
-        db.prepare("UPDATE post_targets SET status='Draft',idempotency_key=?,updated_at=? WHERE target_id=?").run(computeIdempotencyKey(reusable.target_id, scheduledAt || now2, version2), now2, reusable.target_id);
+        db.prepare("UPDATE post_targets SET status=?,idempotency_key=?,updated_at=? WHERE target_id=?").run(targetStatus, computeIdempotencyKey(reusable.target_id, scheduledAt || now2, version2), now2, reusable.target_id);
         continue;
       }
       const targetId = "TGT-" + crypto11.randomUUID();
-      db.prepare("INSERT INTO post_targets (target_id,post_id,account_id,platform,status,idempotency_key,created_at,updated_at) VALUES (?,?,?,?,'Draft',?,?,?)").run(targetId, post.post_id, account.account_id, account.platform, computeIdempotencyKey(targetId, scheduledAt || now2, version2), now2, now2);
+      db.prepare("INSERT INTO post_targets (target_id,post_id,account_id,platform,status,idempotency_key,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)").run(targetId, post.post_id, account.account_id, account.platform, targetStatus, computeIdempotencyKey(targetId, scheduledAt || now2, version2), now2, now2);
     }
     const updatedInput = { ...input2, title, caption, hashtags, accountIds: accounts2.map((a) => a.account_id).sort(), platforms: accounts2.map((a) => a.platform) };
     db.prepare("UPDATE antigravity_video_jobs SET input_json=?,status='READY_FOR_SCHEDULING',publish_at=?,updated_at=? WHERE id=?").run(JSON.stringify(updatedInput), scheduledAt, now2, job.id);
@@ -133501,12 +133507,18 @@ enterpriseRouter.patch("/posts/:id", wrap((req, res) => {
   const caption = input2.masterCaption ?? input2.caption ?? post.caption;
   if (typeof title !== "string" || !title.trim() || title.length > 255 || typeof caption !== "string" || !caption.trim() || caption.length > 5e3) fail4("A valid title and caption are required.");
   const now2 = (/* @__PURE__ */ new Date()).toISOString();
+  const isDirect = input2.directSchedule === true || input2.autoApprove === true || input2.skipApproval === true;
+  const initialApproval = isDirect ? "Approved" : "Draft";
+  const approvedBy = isDirect ? req.principal.email : null;
+  const approvedAt = isDirect ? now2 : null;
+  const approvedVersion = isDirect ? expected + 1 : null;
+  const targetStatus = isDirect ? "Scheduled" : "Draft";
   tx(() => {
     remember(post, req.principal.email);
-    db.prepare("UPDATE posts SET title = ?, caption = ?, schedule_local_date = ?, schedule_local_time = ?, timezone = ?, scheduled_utc = ?, revision_data = ?, approval_status = 'Draft', approved_by = NULL, approved_at = NULL, approved_version = NULL, version = version + 1, updated_at = ? WHERE post_id = ? AND version = ?").run(title, caption, date5.date, date5.time, input2.timezone || post.timezone, date5.utc, JSON.stringify(revision), now2, post.post_id, expected);
-    for (const target of db.prepare("SELECT * FROM post_targets WHERE post_id = ?").all(post.post_id)) db.prepare("UPDATE post_targets SET status = 'Draft', idempotency_key = ?, claimed_post_version = NULL, lock_execution_id = NULL, lock_stage = NULL, locked_at = NULL, error_message = NULL, error_code = NULL, attempt_count = 0, next_retry_at = NULL, version = version + 1, updated_at = ? WHERE target_id = ?").run(computeIdempotencyKey(target.target_id, date5.utc, expected + 1), now2, target.target_id);
+    db.prepare("UPDATE posts SET title = ?, caption = ?, schedule_local_date = ?, schedule_local_time = ?, timezone = ?, scheduled_utc = ?, revision_data = ?, approval_status = ?, approved_by = ?, approved_at = ?, approved_version = ?, version = version + 1, updated_at = ? WHERE post_id = ? AND version = ?").run(title, caption, date5.date, date5.time, input2.timezone || post.timezone, date5.utc, JSON.stringify(revision), initialApproval, approvedBy, approvedAt, approvedVersion, now2, post.post_id, expected);
+    for (const target of db.prepare("SELECT * FROM post_targets WHERE post_id = ?").all(post.post_id)) db.prepare("UPDATE post_targets SET status = ?, idempotency_key = ?, claimed_post_version = NULL, lock_execution_id = NULL, lock_stage = NULL, locked_at = NULL, error_message = NULL, error_code = NULL, attempt_count = 0, next_retry_at = NULL, version = version + 1, updated_at = ? WHERE target_id = ?").run(targetStatus, computeIdempotencyKey(target.target_id, date5.utc, expected + 1), now2, target.target_id);
     remember(db.prepare("SELECT * FROM posts WHERE post_id = ?").get(post.post_id), req.principal.email);
-    audit(req.principal, "post", post.post_id, "revise", { version: expected + 1, approvalInvalidated: true });
+    audit(req.principal, "post", post.post_id, "revise", { version: expected + 1, approvalInvalidated: !isDirect, isDirectSchedule: isDirect });
   });
   sseManager.emit("post.updated", post.client_id, { postId: post.post_id });
   res.json(formatPost(post.post_id));

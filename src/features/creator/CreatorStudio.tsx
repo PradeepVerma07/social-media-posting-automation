@@ -448,6 +448,46 @@ export function CreatorStudio({
     );
   };
 
+  const handleRegenerate = async (job: any, data: { instructions: string; referenceImageUrl?: string }) => {
+    setActionBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const topicBase = job.topic || job.title;
+      const refPart = data.referenceImageUrl ? `\n\n[REFERENCE IMAGE ASSET]: ${data.referenceImageUrl}` : '';
+      const instrPart = `\n\n[REGENERATION CHANGE INSTRUCTIONS]: ${data.instructions}`;
+      const newTopic = `${topicBase}${refPart}${instrPart}`;
+
+      const res = await api.createVideoJob({
+        workflow: 'creator',
+        kind: job.kind || 'video',
+        requestId: crypto.randomUUID(),
+        brandId: job.brandId || brandId,
+        accountIds: job.accountIds && job.accountIds.length > 0 ? job.accountIds : accountIds,
+        title: job.title.includes('(Rev') ? `${job.title}` : `${job.title} (Revision)`,
+        topic: newTopic,
+        caption: job.caption || job.title,
+        language: job.language || language || 'English',
+        aspectRatio: job.aspectRatio || aspect || '9:16',
+        durationSeconds: job.durationSeconds || duration || 30,
+        referenceImageUrl: data.referenceImageUrl,
+        autoPublish: false,
+      });
+
+      setShowTrash(false);
+      trashRef.current = false;
+      setJobs(previous => [res.job, ...previous.filter(j => j.id !== res.job.id)]);
+      setSelectedId(res.job.id);
+      setNotice('🚀 Video regeneration queued with your reference image & instructions! Local worker will render the new version.');
+      await refresh().catch(e => setLoadError(e.message));
+    } catch (err: any) {
+      setError(err.message || 'Failed to start video regeneration.');
+      throw err;
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-[1600px] w-full space-y-6 p-4 sm:p-6 lg:p-8">
       {/* Header */}
@@ -934,6 +974,7 @@ export function CreatorStudio({
             onTrash={trash}
             onRestore={job => restore(job).catch(() => {})}
             onRetry={retry}
+            onRegenerate={handleRegenerate}
             showTrash={showTrash}
             onToggleTrash={() => setShowTrash(value => !value)}
             canManage={!!status?.canGenerate}

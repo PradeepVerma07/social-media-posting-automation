@@ -1,10 +1,26 @@
 import React, { useState } from 'react';
 import { DateTime } from 'luxon';
-import { Plus, Search, ChevronDown, AlertCircle } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  ChevronDown,
+  AlertCircle,
+  Send,
+  Calendar,
+  Clock,
+  ExternalLink,
+  Image as ImageIcon,
+  Video as VideoIcon,
+  Sparkles,
+  Zap,
+  CheckCircle2,
+  X
+} from 'lucide-react';
 import { Post, Brand, RoleName } from '../../../server/src/types';
 import { getRolePermissions } from '../../utils/rbac';
 import { MediaThumbnail } from '../../components/media/MediaThumbnail';
-import {FailureReportDialog} from './FailureReportDialog';
+import { FailureReportDialog } from './FailureReportDialog';
+import { api } from '../../api/client';
 
 interface ContentTableProps {
   posts: Post[];
@@ -36,8 +52,73 @@ export const ContentTable: React.FC<ContentTableProps> = ({
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [failurePost,setFailurePost]=useState<Post|null>(null);
+  const [failurePost, setFailurePost] = useState<Post | null>(null);
+
+  // Reschedule / Direct Schedule State
+  const [reschedulePostId, setReschedulePostId] = useState<number | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('10:00');
+  const [rescheduleZone, setRescheduleZone] = useState('Asia/Kolkata');
+  const [rescheduleDirect, setRescheduleDirect] = useState(true);
+
   const permissions = getRolePermissions(currentRole);
+
+  const applyReschedulePreset = (daysOffset: number, fixedHour?: number) => {
+    let target = DateTime.now().setZone(rescheduleZone);
+    if (fixedHour !== undefined) {
+      target = target.plus({ days: daysOffset }).set({ hour: fixedHour, minute: 0, second: 0 });
+    } else {
+      target = target.plus({ hours: daysOffset });
+    }
+    setRescheduleDate(target.toISODate() || '');
+    setRescheduleTime(target.toFormat('HH:mm'));
+  };
+
+  const handleSaveReschedule = async (post: Post) => {
+    if (!rescheduleDate || !rescheduleTime) {
+      setError('Please choose both a schedule date and time.');
+      return;
+    }
+    const local = `${rescheduleDate}T${rescheduleTime.length === 5 ? rescheduleTime + ':00' : rescheduleTime}`;
+    const due = DateTime.fromISO(local, { zone: rescheduleZone });
+    if (!due.isValid) {
+      setError('Invalid date, time, or timezone.');
+      return;
+    }
+    if (due.toMillis() <= Date.now() + 60000) {
+      setError('Scheduled time must be at least 2 minutes in the future.');
+      return;
+    }
+
+    setBusyId(post.id);
+    setError('');
+    setNotice('');
+    try {
+      const updated = await api.updatePost(post.id, {
+        versionNumber: post.versionNumber,
+        scheduledAt: due.toUTC().toISO()!,
+        scheduleDate: rescheduleDate,
+        scheduleTime: rescheduleTime,
+        timezone: rescheduleZone,
+        directSchedule: rescheduleDirect,
+        autoApprove: rescheduleDirect,
+        skipApproval: rescheduleDirect,
+      } as any);
+      setReschedulePostId(null);
+      setNotice(
+        rescheduleDirect
+          ? `📅 Post direct scheduled! Pre-approved to publish automatically on ${rescheduleDate} at ${rescheduleTime} (${rescheduleZone}) without requiring approval.`
+          : `Post rescheduled for ${rescheduleDate} at ${rescheduleTime} (${rescheduleZone}).`
+      );
+      if (onPostUpdated && updated) {
+        onPostUpdated(updated);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to reschedule post.');
+    } finally {
+      setBusyId(null);
+    }
+  };
   const filtered = posts.filter(post => {
     const query = search.trim().toLowerCase();
     return (!query || [post.title, post.masterCaption, post.brandName].some(text => (text || '').toLowerCase().includes(query))) &&
@@ -80,12 +161,254 @@ export const ContentTable: React.FC<ContentTableProps> = ({
           <ChevronDown className={'h-4 w-4 text-slate-500 transition-transform ' + (expanded ? 'rotate-180' : '')} />
         </button>
         {expanded && <div id={'post-details-' + post.id} className="space-y-4 border-t border-slate-100 p-4 sm:p-5">
-          <p className="whitespace-pre-wrap rounded-xl bg-slate-50 p-4 text-sm">{post.masterCaption}</p>
+          {/* Visual Media Preview */}
+          {post.media?.[0]?.fileUrl && (
+            <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-950 flex items-center justify-center max-h-96">
+              {post.media[0].mediaType === 'video' ? (
+                <video
+                  src={post.media[0].fileUrl}
+                  controls
+                  preload="metadata"
+                  className="max-h-96 w-full object-contain"
+                />
+              ) : (
+                <img
+                  src={post.media[0].fileUrl}
+                  alt={post.title}
+                  className="max-h-96 w-full object-contain"
+                />
+              )}
+            </div>
+          )}
+
+          {/* Details Overview Banner */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs bg-slate-50 p-4 rounded-2xl border border-slate-200">
+            <div>
+              <span className="font-bold text-slate-500 uppercase tracking-wider block text-[10px]">Brand &amp; Target</span>
+              <span className="font-semibold text-slate-900">{post.brandName}</span> · <span className="capitalize text-slate-600">{post.placement || 'Feed / Reel'}</span>
+            </div>
+            <div>
+              <span className="font-bold text-slate-500 uppercase tracking-wider block text-[10px]">Publication Time</span>
+              <span className="font-semibold text-slate-900">{scheduleLabel(post)}</span>
+            </div>
+            {post.hashtags && (
+              <div className="col-span-full">
+                <span className="font-bold text-slate-500 uppercase tracking-wider block text-[10px]">Hashtags</span>
+                <span className="text-blue-700 font-mono text-[11px]">{post.hashtags}</span>
+              </div>
+            )}
+            {post.targetUrl && (
+              <div className="col-span-full flex items-center gap-1.5">
+                <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Destination Link:</span>
+                <a href={post.targetUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-semibold flex items-center gap-1">
+                  {post.targetUrl} <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-1.5">
+            <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Post Caption</h4>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{post.masterCaption}</p>
+          </div>
+
           <p className="text-xs text-slate-600">Approver: {post.assignedApproverName || 'Not assigned'} · Version {post.versionNumber}</p>
-          <div className="grid gap-3 sm:grid-cols-2">{post.platforms?.map((target, index) => <section key={target.platform + index} className="rounded-xl border border-slate-200 p-3"><div className="flex justify-between gap-2 text-sm"><h3 className="font-semibold capitalize">{target.platform}</h3><span className="capitalize">{stateLabel(String(target.publishingStatus))}</span></div>{target.captionOverride && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{target.captionOverride}</p>}{target.errorMessage && <p className="mt-2 text-sm text-red-700">{target.errorMessage}</p>}{String(target.platformPostUrl || (target as any).publishedUrl || '').split(' | ').filter(u => /^https?:\/\//i.test(u)).map(url => <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="mt-2 block text-sm text-blue-700 underline">Open provider result</a>)}</section>)}</div>
-          {['failed', 'partially_published'].includes(post.publishingStatus) && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Review the affected destinations and connection health. Do not republish successful destinations; uncertain outcomes need reconciliation before retrying.</p>}
-          <div className="flex flex-wrap gap-2">
+          
+          {/* Destination Accounts */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {post.platforms?.map((target, index) => (
+              <section key={target.platform + index} className="rounded-xl border border-slate-200 p-3 bg-white">
+                <div className="flex justify-between gap-2 text-sm">
+                  <h3 className="font-semibold capitalize flex items-center gap-1.5 text-slate-900">
+                    {target.platform}
+                  </h3>
+                  <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold capitalize ${stateTone(String(target.publishingStatus))}`}>
+                    {stateLabel(String(target.publishingStatus))}
+                  </span>
+                </div>
+                {target.captionOverride && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{target.captionOverride}</p>}
+                {target.errorMessage && <p className="mt-2 text-sm text-red-700">{target.errorMessage}</p>}
+                {String(target.platformPostUrl || (target as any).publishedUrl || '').split(' | ').filter(u => /^https?:\/\//i.test(u)).map(url => (
+                  <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="mt-2 block text-sm text-blue-700 underline font-semibold">
+                    Open live post ↗
+                  </a>
+                ))}
+              </section>
+            ))}
+          </div>
+
+          {['failed', 'partially_published'].includes(post.publishingStatus) && (
+            <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Review the affected destinations and connection health. Do not republish successful destinations; uncertain outcomes need reconciliation before retrying.</p>
+          )}
+
+          {/* Inline Reschedule / Direct Schedule Panel */}
+          {reschedulePostId === post.id && (
+            <div className="rounded-2xl border-2 border-blue-400 bg-blue-50/50 p-4 sm:p-5 space-y-4 animate-in fade-in duration-150">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-blue-700" />
+                  <h3 className="text-sm font-bold text-slate-900">Reschedule &amp; Publication Settings</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReschedulePostId(null)}
+                  className="rounded-lg p-1 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Mode Toggle: Direct Schedule vs Standard Review */}
+              <div className="grid grid-cols-2 gap-2 bg-white p-1 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setRescheduleDirect(true)}
+                  className={`py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    rescheduleDirect ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  ⚡ Direct Schedule (No Approval Needed)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRescheduleDirect(false)}
+                  className={`py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    !rescheduleDirect ? 'bg-blue-700 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Submit Schedule for Review
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-slate-700">Release Date</label>
+                  <input
+                    type="date"
+                    value={rescheduleDate}
+                    min={DateTime.now().setZone(rescheduleZone).toISODate() || ''}
+                    onChange={e => setRescheduleDate(e.target.value)}
+                    className="w-full h-10 px-3 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-slate-700">Release Time</label>
+                  <input
+                    type="time"
+                    value={rescheduleTime}
+                    onChange={e => setRescheduleTime(e.target.value)}
+                    className="w-full h-10 px-3 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-slate-700">Timezone</label>
+                  <select
+                    value={rescheduleZone}
+                    onChange={e => setRescheduleZone(e.target.value)}
+                    className="w-full h-10 px-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {Array.from(new Set([rescheduleZone, post.timezone, 'Asia/Kolkata', 'UTC', 'America/New_York', 'America/Los_Angeles', 'Europe/London', 'Asia/Dubai', 'Asia/Singapore'].filter(Boolean))).map(tz => (
+                      <option key={tz} value={tz}>{tz}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Quick Preset Buttons */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Quick Presets:</span>
+                <button
+                  type="button"
+                  onClick={() => applyReschedulePreset(1)}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:text-blue-700 hover:border-blue-300 cursor-pointer"
+                >
+                  +1 Hour
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyReschedulePreset(1, 10)}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:text-blue-700 hover:border-blue-300 cursor-pointer"
+                >
+                  Tomorrow 10:00 AM
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyReschedulePreset(1, 18)}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:text-blue-700 hover:border-blue-300 cursor-pointer"
+                >
+                  Tomorrow 06:00 PM
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void handleSaveReschedule(post)}
+                  className="px-5 py-2.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold cursor-pointer transition-colors shadow-sm disabled:opacity-50"
+                >
+                  {busy ? 'Saving...' : rescheduleDirect ? 'Confirm & Direct Schedule (Pre-Approved)' : 'Confirm Schedule'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReschedulePostId(null)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Action Bar */}
+          <div className="flex flex-wrap items-center gap-2 pt-2">
             {post.platforms?.some(t=>['failed','needs_reconciliation'].includes(String(t.publishingStatus)))&&<><button type="button" className={fieldClass+' text-blue-700'} onClick={()=>setFailurePost(post)}>Failure details</button>{permissions.canPublishPost&&post.platforms.some(t=>t.publishingStatus==='failed')&&<button type="button" className={fieldClass+' text-blue-700'} onClick={()=>setFailurePost(post)}>Retry failed destinations</button>}</>}
+            
+            {/* Direct Publish Now (Zero approval delay) */}
+            {permissions.canPublishPost && !terminal && (
+              <button
+                type="button"
+                disabled={busy}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white shadow-sm cursor-pointer transition-colors disabled:opacity-50"
+                onClick={() => {
+                  if (window.confirm(`🚀 Publish "${post.title}" directly now to live channels? (This bypasses any pending approval)`)) {
+                    void run(post, () => onPublishNow(post.id), '🚀 Published directly to live channels! Check results in connected accounts.');
+                  }
+                }}
+              >
+                <Send className="h-3.5 w-3.5" />
+                🚀 Publish now directly
+              </button>
+            )}
+
+            {/* Direct Reschedule Button */}
+            {!terminal && (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3.5 py-2.5 text-xs font-bold cursor-pointer transition-colors"
+                onClick={() => {
+                  if (reschedulePostId === post.id) {
+                    setReschedulePostId(null);
+                  } else {
+                    const postTz = post.timezone || 'Asia/Kolkata';
+                    const parsed = post.scheduledAt
+                      ? DateTime.fromISO(post.scheduledAt.replace(' ', 'T'), { zone: 'utc' }).setZone(postTz)
+                      : DateTime.now().setZone(postTz).plus({ days: 1 });
+                    setRescheduleDate(parsed.toISODate() || '');
+                    setRescheduleTime(parsed.toFormat('HH:mm') || '10:00');
+                    setRescheduleZone(postTz);
+                    setRescheduleDirect(true);
+                    setReschedulePostId(post.id);
+                  }
+                }}
+              >
+                <Calendar className="h-3.5 w-3.5" />
+                {reschedulePostId === post.id ? 'Close reschedule' : '📅 Reschedule / Direct Schedule'}
+              </button>
+            )}
+
             <button type="button" className={fieldClass} onClick={() => onSelectPost(post)}>Open review queue</button>
             {permissions.canCreatePost && ['draft', 'revision_requested'].includes(post.approvalStatus) && !terminal && <button type="button" disabled={busy} className={fieldClass} onClick={() => void run(post, () => onSubmitPost(post.id), 'Submitted for approval.')}>Submit for approval</button>}
             {permissions.canApprovePost && ['in_review', 'overdue'].includes(post.approvalStatus) && !terminal && <>
@@ -93,9 +416,8 @@ export const ContentTable: React.FC<ContentTableProps> = ({
               <button type="button" disabled={busy} className={fieldClass} onClick={() => { const reason = window.prompt('What should change before this post can be approved?'); if (reason?.trim()) void run(post, () => onRequestRevision(post.id, reason.trim()), 'Changes requested.'); }}>Request changes</button>
               <button type="button" disabled={busy} className={fieldClass + ' text-red-700'} onClick={() => { const reason = window.prompt('Why should this post be rejected?'); if (reason?.trim()) void run(post, () => onRejectPost(post.id, reason.trim()), 'Rejection recorded.'); }}>Reject</button>
             </>}
-            {permissions.canPublishPost && post.approvalStatus === 'approved' && ['idle', 'scheduled'].includes(post.publishingStatus) && <button type="button" disabled={busy} className={fieldClass + ' text-blue-700'} onClick={() => { if (window.confirm('Publish "' + post.title + '" now instead of its scheduled time?')) void run(post, () => onPublishNow(post.id), 'Publication requested. Check destination results for confirmation.'); }}>Publish now</button>}
             {permissions.canDeletePost && !terminal && <button type="button" disabled={busy} className={fieldClass + ' text-red-700'} onClick={() => { if (window.confirm('Delete "' + post.title + '" and its schedule? This may be permanent.')) void run(post, () => onDeletePost(post.id), 'Post deleted.'); }}>Delete post</button>}
-            {busy && <span role="status" className="self-center text-sm text-slate-600">Saving…</span>}
+            {busy && <span role="status" className="self-center text-xs font-semibold text-slate-600">Saving…</span>}
           </div>
         </div>}
       </article>;

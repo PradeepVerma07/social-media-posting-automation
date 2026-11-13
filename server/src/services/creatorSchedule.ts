@@ -52,20 +52,26 @@ export function saveCreatorSchedule(principal:Principal,id:string,raw:any){
     const now=new Date().toISOString();const date=DateTime.fromISO(scheduledAt||now).setZone(timezone);const version=post.version+1;
     const platforms=accounts.map(a=>({platform:a.platform,accountId:a.account_id}));
     const updatedRevision={...revision,unscheduled:!scheduledAt,platforms,creatorWorkflow:true};
+    const isDirect=raw.directSchedule===true||raw.autoApprove===true||raw.skipApproval===true;
+    const initialApproval=isDirect?'Approved':'Draft';
+    const approvedBy=isDirect?principal.email:null;
+    const approvedAt=isDirect?now:null;
+    const approvedVersion=isDirect?version:null;
+    const targetStatus=isDirect?'Scheduled':'Draft';
     db.prepare(`UPDATE posts SET title=?,caption=?,hashtags=?,timezone=?,scheduled_utc=?,schedule_local_date=?,schedule_local_time=?,
-      revision_data=?,approval_status='Draft',approved_by=NULL,approved_at=NULL,approved_version=NULL,version=?,updated_at=? WHERE post_id=?`)
-      .run(title,caption,hashtags,timezone,scheduledAt||now,date.toISODate()!,date.toFormat('HH:mm:ss'),JSON.stringify(updatedRevision),version,now,post.post_id);
+      revision_data=?,approval_status=?,approved_by=?,approved_at=?,approved_version=?,version=?,updated_at=? WHERE post_id=?`)
+      .run(title,caption,hashtags,timezone,scheduledAt||now,date.toISODate()!,date.toFormat('HH:mm:ss'),JSON.stringify(updatedRevision),initialApproval,approvedBy,approvedAt,approvedVersion,version,now,post.post_id);
     const existing:any[]=db.prepare('SELECT * FROM post_targets WHERE post_id=? ORDER BY created_at DESC').all(post.post_id);
     db.prepare("UPDATE post_targets SET status='Cancelled',version=version+1,updated_at=? WHERE post_id=?").run(now,post.post_id);
     for(const account of accounts){
       const reusable=existing.find(t=>t.account_id===account.account_id&&['Draft','Scheduled'].includes(t.status)&&t.attempt_count===0);
       if(reusable){
-        db.prepare("UPDATE post_targets SET status='Draft',idempotency_key=?,updated_at=? WHERE target_id=?")
-          .run(computeIdempotencyKey(reusable.target_id,scheduledAt||now,version),now,reusable.target_id);continue;
+        db.prepare("UPDATE post_targets SET status=?,idempotency_key=?,updated_at=? WHERE target_id=?")
+          .run(targetStatus,computeIdempotencyKey(reusable.target_id,scheduledAt||now,version),now,reusable.target_id);continue;
       }
       const targetId='TGT-'+crypto.randomUUID();
-      db.prepare("INSERT INTO post_targets (target_id,post_id,account_id,platform,status,idempotency_key,created_at,updated_at) VALUES (?,?,?,?,'Draft',?,?,?)")
-        .run(targetId,post.post_id,account.account_id,account.platform,computeIdempotencyKey(targetId,scheduledAt||now,version),now,now);
+      db.prepare("INSERT INTO post_targets (target_id,post_id,account_id,platform,status,idempotency_key,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)")
+        .run(targetId,post.post_id,account.account_id,account.platform,targetStatus,computeIdempotencyKey(targetId,scheduledAt||now,version),now,now);
     }
     const updatedInput={...input,title,caption,hashtags,accountIds:accounts.map(a=>a.account_id).sort(),platforms:accounts.map(a=>a.platform)};
     db.prepare("UPDATE antigravity_video_jobs SET input_json=?,status='READY_FOR_SCHEDULING',publish_at=?,updated_at=? WHERE id=?")

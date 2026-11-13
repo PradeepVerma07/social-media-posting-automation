@@ -219,11 +219,17 @@ enterpriseRouter.patch('/posts/:id', wrap((req, res) => {
   const title = input.title ?? post.title; const caption = input.masterCaption ?? input.caption ?? post.caption;
   if (typeof title !== 'string' || !title.trim() || title.length > 255 || typeof caption !== 'string' || !caption.trim() || caption.length > 5000) fail('A valid title and caption are required.');
   const now = new Date().toISOString();
+  const isDirect = input.directSchedule === true || input.autoApprove === true || input.skipApproval === true;
+  const initialApproval = isDirect ? 'Approved' : 'Draft';
+  const approvedBy = isDirect ? req.principal.email : null;
+  const approvedAt = isDirect ? now : null;
+  const approvedVersion = isDirect ? expected + 1 : null;
+  const targetStatus = isDirect ? 'Scheduled' : 'Draft';
   tx(() => {
     remember(post, req.principal.email);
-    db.prepare("UPDATE posts SET title = ?, caption = ?, schedule_local_date = ?, schedule_local_time = ?, timezone = ?, scheduled_utc = ?, revision_data = ?, approval_status = 'Draft', approved_by = NULL, approved_at = NULL, approved_version = NULL, version = version + 1, updated_at = ? WHERE post_id = ? AND version = ?").run(title, caption, date.date, date.time, input.timezone || post.timezone, date.utc, JSON.stringify(revision), now, post.post_id, expected);
-    for (const target of db.prepare('SELECT * FROM post_targets WHERE post_id = ?').all(post.post_id) as any[]) db.prepare("UPDATE post_targets SET status = 'Draft', idempotency_key = ?, claimed_post_version = NULL, lock_execution_id = NULL, lock_stage = NULL, locked_at = NULL, error_message = NULL, error_code = NULL, attempt_count = 0, next_retry_at = NULL, version = version + 1, updated_at = ? WHERE target_id = ?").run(computeIdempotencyKey(target.target_id, date.utc, expected + 1), now, target.target_id);
-    remember(db.prepare('SELECT * FROM posts WHERE post_id = ?').get(post.post_id), req.principal.email); audit(req.principal, 'post', post.post_id, 'revise', { version: expected + 1, approvalInvalidated: true });
+    db.prepare("UPDATE posts SET title = ?, caption = ?, schedule_local_date = ?, schedule_local_time = ?, timezone = ?, scheduled_utc = ?, revision_data = ?, approval_status = ?, approved_by = ?, approved_at = ?, approved_version = ?, version = version + 1, updated_at = ? WHERE post_id = ? AND version = ?").run(title, caption, date.date, date.time, input.timezone || post.timezone, date.utc, JSON.stringify(revision), initialApproval, approvedBy, approvedAt, approvedVersion, now, post.post_id, expected);
+    for (const target of db.prepare('SELECT * FROM post_targets WHERE post_id = ?').all(post.post_id) as any[]) db.prepare("UPDATE post_targets SET status = ?, idempotency_key = ?, claimed_post_version = NULL, lock_execution_id = NULL, lock_stage = NULL, locked_at = NULL, error_message = NULL, error_code = NULL, attempt_count = 0, next_retry_at = NULL, version = version + 1, updated_at = ? WHERE target_id = ?").run(targetStatus, computeIdempotencyKey(target.target_id, date.utc, expected + 1), now, target.target_id);
+    remember(db.prepare('SELECT * FROM posts WHERE post_id = ?').get(post.post_id), req.principal.email); audit(req.principal, 'post', post.post_id, 'revise', { version: expected + 1, approvalInvalidated: !isDirect, isDirectSchedule: isDirect });
   });
   sseManager.emit('post.updated', post.client_id, { postId: post.post_id }); res.json(formatPost(post.post_id));
 }));
