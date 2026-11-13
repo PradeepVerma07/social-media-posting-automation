@@ -431,7 +431,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
                           </div>
                         </div>
 
-                        {permissions.canManageAccounts&&['facebook','instagram'].includes(acc.platform)&&<button type="button" disabled={!!checkingId} onClick={()=>void verifySaved(acc)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700 disabled:opacity-50">{checkingId===String((acc as any).accountId||acc.id)?'Checking with Meta…':'Check connection'}</button>}
+                        {permissions.canManageAccounts&&['facebook','instagram'].includes(acc.platform)&&<button type="button" disabled={!!checkingId} onClick={event=>{event.stopPropagation();void verifySaved(acc);}} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700 disabled:opacity-50">{checkingId===String((acc as any).accountId||acc.id)?'Checking with Meta…':'Check connection'}</button>}
                         {/* Action */}
                         <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-1">
                           <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
