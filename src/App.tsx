@@ -26,6 +26,8 @@ import { ContentTable } from './features/posts/ContentTable';
 import { CreatePostComposer } from './features/posts/CreatePostComposer';
 import { ApprovalQueue } from './features/approvals/ApprovalQueue';
 import { VideoApprovalManager } from './features/approvals/VideoApprovalManager';
+import {CreatorStudio} from './features/creator/CreatorStudio';
+import {SocialMediaDesk} from './features/creator/SocialMediaDesk';
 import { ContentCalendar } from './features/calendar/ContentCalendar';
 import { AutomationsPage } from './features/workflows/AutomationsPage';
 import { WorkflowExecutionsPage } from './features/executions/WorkflowExecutionsPage';
@@ -47,6 +49,8 @@ import { AIStudioDashboard } from './features/ai-studio/AIStudioDashboard';
 const VALID_TABS: NavigationTab[] = [
   'overview',
   'ai-studio',
+  'creator',
+  'social-desk',
   'content',
   'calendar',
   'create',
@@ -194,6 +198,7 @@ const getInitialTab = (): NavigationTab => {
 };
 
 export default function App() {
+  const [creatorDeskJobId,setCreatorDeskJobId]=useState('');
   const [activeTab, setActiveTab] = useState<NavigationTab>(getInitialTab);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -836,6 +841,8 @@ export default function App() {
               onNavigateToTab={tab => handleTabChange(tab as NavigationTab)}
             />
           )}
+          {activeTab === 'creator' && <CreatorStudio brands={brands} onOpenDesk={id=>{setCreatorDeskJobId(id||'');handleTabChange('social-desk');}}/>}
+          {activeTab === 'social-desk' && <SocialMediaDesk initialJobId={creatorDeskJobId} currentRole={currentRole} onCreate={()=>handleTabChange('creator')}/>}
 
           {activeTab === 'content' && (
                 <ContentTable

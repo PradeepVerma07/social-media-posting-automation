@@ -26,14 +26,14 @@ export function videoPrincipal(userId: number): Principal {
 }
 // Every generated version requires a human review before it can publish.
 export const canAutoPublishVideo = (_principal: Principal) => false;
-export function videoAccounts(principal: Principal, brandId: unknown, accountIds: unknown): { brand: any; accounts: any[] } {
+export function videoAccounts(principal: Principal, brandId: unknown, accountIds: unknown, kind = 'video'): { brand: any; accounts: any[] } {
   const brand = resolveBrand(brandId);
   if (!canAccessBrand(principal, brand)) return videoError('Brand not found or access denied.', 404);
   if (!Array.isArray(accountIds) || !accountIds.length || accountIds.length > 10 || accountIds.some(id => typeof id !== 'string')) return videoError('Select connected video destinations.');
   const accounts = [...new Set(accountIds)].map(id => {
     const account: any = db.prepare("SELECT * FROM social_accounts WHERE account_id = ? AND brand_id = ? AND client_id = ? AND status = 'active'").get(String(id), brand.brand_id, brand.client_id);
     const capabilities: any = account && PUBLISHING_CAPABILITIES[account.platform as keyof typeof PUBLISHING_CAPABILITIES];
-    if (!account || !capabilities?.available || !capabilities?.placements?.reels_shorts?.includes('video')) return videoError('A selected account does not have an implemented video publishing adapter.');
+    if (!account || !capabilities?.available || !capabilities?.placements?.[kind==='post'?'feed':'reels_shorts']?.includes(kind==='post'?'image':'video')) return videoError('A selected account does not support this content format.');
     if (account.token_expires_at && Date.parse(account.token_expires_at) <= Date.now()) return videoError('Reconnect the selected social account before generating.');
     return account;
   });
@@ -43,10 +43,15 @@ export function formatVideoJob(row: any) {
   if (!row) return null;
   const input = JSON.parse(row.input_json);
   const review: any = db.prepare('SELECT action,notes,reviewer_name AS reviewerName,created_at AS createdAt,replacement_job_id AS replacementJobId FROM antigravity_video_reviews WHERE job_id=?').get(row.id);
-  const post: any = row.post_id && db.prepare('SELECT version,approval_status,deleted_at FROM posts WHERE post_id=?').get(row.post_id);
-  return { id: row.id, topic: input.topic, title: input.title, caption: input.caption, language: input.language,
+  const post: any = row.post_id && db.prepare('SELECT version,approval_status,deleted_at,title,caption,hashtags,timezone,scheduled_utc,revision_data FROM posts WHERE post_id=?').get(row.post_id);
+  const unscheduled = post && JSON.parse(post.revision_data || '{}').unscheduled;
+  const brand:any = resolveBrand(row.brand_id);
+  return { id: row.id, topic: input.topic, title: post?.title || input.generatedResult?.title || input.title, caption: post?.caption || input.generatedResult?.caption || input.caption, language: input.language,
+    kind:input.kind || 'video',workflow:input.workflow || 'legacy',brandName:brand?.brand_name,uiBrandId:brand?.ui_id,
+    accountIds:input.accountIds,hashtags:post?.hashtags || input.generatedResult?.hashtags || '',timezone:post?.timezone || brand?.default_timezone,
+    scheduledAt:post && !unscheduled ? post.scheduled_utc : null,unscheduled:!!unscheduled,
     parentJobId: input.parentJobId || null, revisionNumber: input.revisionNumber || 1,
-    revisionNotes: input.revisionNotes || '', revisionHistory: input.revisionHistory || [], review: review || null,
+    revisionNotes: input.revisionNotes || '', revisionHistory: input.revisionHistory || [], review: ['SCHEDULED','REJECTED','CHANGES_REQUESTED'].includes(row.status)?review || null:null,
     postVersion: post?.version, approvalStatus: post?.approval_status, authorId: row.user_id,
     aspectRatio: input.aspectRatio, platforms: input.platforms, brandId: row.brand_id, status: row.status,
     dispatched: !!row.dispatched, autoPublish: input.autoPublish, fileUrl: row.file_url,
@@ -54,17 +59,22 @@ export function formatVideoJob(row: any) {
 }
 export function createVideoJob(principal: Principal, raw: any, manual = false) {
   if (!canEdit(principal)) return videoError('Content editing permission is required.', 403);
-  const { brand, accounts } = videoAccounts(principal, raw.brandId, raw.accountIds);
+  const creator=raw.workflow==='creator';const kind=raw.kind || 'video';
+  if (!['video','post'].includes(kind) || (kind==='post'&&!creator)) return videoError('Choose a supported creator format.');
+  const { brand, accounts } = videoAccounts(principal, raw.brandId, raw.accountIds,kind);
   const topic = String(raw.topic || '').trim();
   const requestId = String(raw.requestId || '');
   const title = String(raw.title || topic).trim().slice(0, 255);
   const caption = String(raw.caption || topic.slice(0, 5000)).trim();
   if (topic.length < 10 || topic.length > 12000 || !title || !caption || caption.length > 5000 || requestId.length < 8 || requestId.length > 200) return videoError('Enter a topic (10–12,000 characters), a caption up to 5,000 characters, and a request ID.');
-  if (!['9:16', '16:9', '1:1'].includes(raw.aspectRatio || '9:16')) return videoError('Choose a supported aspect ratio.');
+  if (!(kind==='post'?['1:1','4:5','9:16','16:9']:['9:16','16:9','1:1']).includes(raw.aspectRatio || '9:16')) return videoError('Choose a supported aspect ratio.');
+  const duration=Number(raw.durationSeconds || 30);
+  if (creator&&kind==='video'&&(!Number.isInteger(duration)||duration<5||duration>180)) return videoError('Choose a video length of 5–180 seconds.');
   const autoPublish = raw.autoPublish === true;
   if (autoPublish) return videoError('Every Antigravity video requires approval from the manager.', 403);
   const input = { topic, title, caption, language: String(raw.language || 'English').slice(0, 50), aspectRatio: raw.aspectRatio || '9:16',
-    accountIds: accounts.map(a => a.account_id).sort(), platforms: [...new Set(accounts.map(a => a.platform))], autoPublish, manual };
+    accountIds: accounts.map(a => a.account_id).sort(), platforms: [...new Set(accounts.map(a => a.platform))], autoPublish, manual,
+    ...(creator?{workflow:'creator',kind,durationSeconds:duration}: {}) };
   const inputJson = JSON.stringify(input);
   return videoTx(() => {
     const previous: any = db.prepare('SELECT * FROM antigravity_video_jobs WHERE request_id = ?').get(requestId);
@@ -109,22 +119,24 @@ export function scheduleNextVideo() {
     try {
       const principal = videoPrincipal(row.user_id); const input = JSON.parse(row.input_json);
       if (!canEdit(principal)) return videoError('The author no longer has editing permission.', 403);
-      const { brand, accounts } = videoAccounts(principal, row.brand_id, input.accountIds);
+      const { brand, accounts } = videoAccounts(principal, row.brand_id, input.accountIds,input.kind);
+      const creator=input.workflow==='creator';const image=input.kind==='post';
       const auto = false;
       if (!row.file_url || !row.publish_at) return videoError('Completed video metadata is missing.');
       if (auto && Date.parse(row.publish_at) <= Date.now()) return videoError('The publication target was missed. Review and reschedule this video.');
       const at = DateTime.fromISO(row.publish_at, { setZone: true }).setZone(brand.default_timezone || 'Asia/Kolkata');
       if (!at.isValid) return videoError('Invalid publication target.');
       const now = new Date().toISOString(); const postId = generatePostId();
-      const media = [{ mediaType: 'video', fileUrl: row.file_url, originalFileName: `${row.id}.mp4`, mimeType: 'video/mp4' }];
+      const media = [{ mediaType: image?'image':'video', fileUrl: row.file_url, originalFileName: `${row.id}.${image?'png':'mp4'}`, mimeType:image?'image/png':'video/mp4' }];
+      const text=input.generatedResult || input;
       const platforms = accounts.map(a => ({ platform: a.platform, accountId: a.account_id }));
       db.prepare(`INSERT INTO posts (post_id,client_id,brand_id,title,caption,hashtags,media_type,media_urls,link_url,
         schedule_local_date,schedule_local_time,timezone,scheduled_utc,approval_status,approved_by,approved_at,approved_version,
         source,placement,created_by_user_id,revision_data,created_at,updated_at)
-        VALUES (?,?,?,?,?,'','video',?,'',?,?,?,?,?,?,?,?,'antigravity',?,?,?,?,?)`)
-        .run(postId,brand.client_id,brand.brand_id,input.title,input.caption,JSON.stringify([row.file_url]),at.toISODate()!,at.toFormat('HH:mm:ss'),brand.default_timezone || 'Asia/Kolkata',row.publish_at,
-          auto ? 'Approved' : 'PendingApproval',auto ? principal.email : null,auto ? now : null,auto ? 1 : null,JSON.stringify(['reels_shorts']),principal.id,
-          JSON.stringify({ platforms, media, antigravityJobId: row.id, unscheduled: false }),now,now);
+        VALUES (?,?,?,?,?,?,?,?,'',?,?,?,?,?,?,?,?,'antigravity',?,?,?,?,?)`)
+        .run(postId,brand.client_id,brand.brand_id,text.title,text.caption,text.hashtags || '',image?'image':'video',JSON.stringify([row.file_url]),at.toISODate()!,at.toFormat('HH:mm:ss'),brand.default_timezone || 'Asia/Kolkata',row.publish_at,
+          creator?'Draft':'PendingApproval',null,null,null,JSON.stringify([image?'feed':'reels_shorts']),principal.id,
+          JSON.stringify({ platforms, media, antigravityJobId: row.id, unscheduled: creator,creatorWorkflow:creator }),now,now);
       for (const account of accounts) {
         const targetId = generateTargetId();
         db.prepare('INSERT INTO post_targets (target_id,post_id,account_id,platform,status,idempotency_key,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)')
@@ -132,7 +144,7 @@ export function scheduleNextVideo() {
       }
       db.prepare('INSERT INTO post_revision_snapshots (post_id,version,snapshot,actor,created_at) VALUES (?,1,?,?,?)')
         .run(postId,JSON.stringify(db.prepare('SELECT * FROM posts WHERE post_id=?').get(postId)),principal.email,now);
-      db.prepare('UPDATE antigravity_video_jobs SET status=?,post_id=?,error=NULL,updated_at=? WHERE id=?').run(auto ? 'SCHEDULED' : 'AWAITING_APPROVAL',postId,now,row.id);
+      db.prepare('UPDATE antigravity_video_jobs SET status=?,post_id=?,error=NULL,updated_at=? WHERE id=?').run(creator?'READY_FOR_SCHEDULING':'AWAITING_APPROVAL',postId,now,row.id);
       audit(principal,'antigravity_video',row.id,auto ? 'schedule' : 'submit_for_approval',{ postId, publishAt: row.publish_at });
       tenant = brand.client_id;
       return { job: formatVideoJob(db.prepare('SELECT * FROM antigravity_video_jobs WHERE id=?').get(row.id)) };

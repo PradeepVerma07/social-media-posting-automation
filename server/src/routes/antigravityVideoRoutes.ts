@@ -5,6 +5,8 @@ import { promises as fs } from 'node:fs';
 import { db } from '../db/sqlite';
 import { canEdit, canApprove, audit } from '../services/access';
 import { reviewVideoJob } from '../services/videoReviews';
+import {saveCreatorSchedule,submitCreatorForApproval} from '../services/creatorSchedule';
+import {PUBLISHING_CAPABILITIES} from '../services/publishingCapabilities';
 import { canAutoPublishVideo, createVideoJob, claimVideoJob, formatVideoJob, leasedVideoJob,
   scheduleNextVideo, setVideoSetting, videoAccounts, videoError, videoPrincipal, videoSetting } from '../services/antigravityVideos';
 
@@ -35,7 +37,7 @@ videoDashboardRouter.get('/status', (req,res) => {
   res.json({configured:configured(),dispatcherConfigured:!!process.env.ANTIGRAVITY_DISPATCH_URL,
     canGenerate:canEdit(req.principal),canAutoPublish:canAutoPublishVideo(req.principal),canReview:canApprove(req.principal),
     workerOnline:!!worker && Date.now()-Date.parse(worker.lastSeenAt)<90000,worker,
-    publishingEnabled:process.env.ENABLE_BACKGROUND_WORKERS==='true',supportedPlatforms:['instagram'],
+    publishingEnabled:process.env.ENABLE_BACKGROUND_WORKERS==='true',supportedPlatforms:['instagram'],capabilities:PUBLISHING_CAPABILITIES,
     manualDefaults:videoSetting(`manual:${req.principal.id}`)});
 });
 videoDashboardRouter.get('/jobs', (req,res) => {
@@ -44,6 +46,14 @@ videoDashboardRouter.get('/jobs', (req,res) => {
     : db.prepare('SELECT * FROM antigravity_video_jobs WHERE client_id=? ORDER BY created_at DESC LIMIT 50').all(principal.clientId);
   res.json({jobs:rows.map(formatVideoJob)});
 });
+videoDashboardRouter.get('/desk',wrap((req,res)=>{
+  if(!canEdit(req.principal)&&!canApprove(req.principal))return videoError('Content workspace access is required.',403);
+  const query="SELECT * FROM antigravity_video_jobs WHERE json_extract(input_json,'$.workflow')='creator' AND post_id IS NOT NULL";
+  const rows=req.principal.global?db.prepare(query+' ORDER BY created_at DESC LIMIT 200').all():db.prepare(query+' AND client_id=? ORDER BY created_at DESC LIMIT 200').all(req.principal.clientId);
+  res.json({jobs:rows.map(formatVideoJob)});
+}));
+videoDashboardRouter.patch('/jobs/:id/schedule',wrap((req,res)=>res.json(saveCreatorSchedule(req.principal,String(req.params.id),req.body))));
+videoDashboardRouter.post('/jobs/:id/submit',wrap((req,res)=>res.json(submitCreatorForApproval(req.principal,String(req.params.id),req.body.versionNumber))));
 videoDashboardRouter.get('/reviews',wrap((req,res)=>{
   if (!canApprove(req.principal)) return videoError('Approval permission is required.',403);
   const query=`SELECT j.*,b.brand_name,u.full_name AS author_name FROM antigravity_video_jobs j
@@ -108,6 +118,7 @@ videoMachineRouter.post('/worker/claim',workerAuth,wrap((req,res)=>res.json(clai
 videoMachineRouter.post('/worker/heartbeat',workerAuth,wrap((req,res)=>{
   const row=leasedVideoJob(String(req.body.jobId||''),String(req.body.leaseToken||''));
   if(!['GENERATING','NEEDS_ATTENTION'].includes(row.status))return videoError('This generation is no longer active.',409);
+  setVideoSetting('worker',{...(videoSetting('worker')||{}),lastSeenAt:new Date().toISOString()});
   db.prepare('UPDATE antigravity_video_jobs SET lease_until=?,updated_at=? WHERE id=?').run(new Date(Date.now()+120000).toISOString(),new Date().toISOString(),row.id);
   res.json({ok:true});
 }));
@@ -136,8 +147,9 @@ videoMachineRouter.post('/worker/discover',workerAuth,wrap((req,res)=>{
 }));
 videoMachineRouter.put('/worker/upload/:id',workerAuth,wrap(async(req,res)=>{
   const row=leasedVideoJob(req.params.id,String(req.get('X-Job-Lease')||''));
+  const image=JSON.parse(row.input_json).kind==='post';const limit=image?Math.min(uploadLimit(),20*1024*1024):uploadLimit();
   const digest=String(req.get('X-Content-SHA256')||'');const length=Number(req.get('Content-Length'));
-  if(req.get('Content-Type')!=='video/mp4'||!Number.isSafeInteger(length)||length<24||length>uploadLimit()||!/^[a-f0-9]{64}$/.test(digest))return videoError('Send a complete MP4 with a valid length and SHA-256 digest.');
+  if(req.get('Content-Type')!==(image?'image/png':'video/mp4')||!Number.isSafeInteger(length)||length<(image?45:24)||length>limit||!/^[a-f0-9]{64}$/.test(digest))return videoError('Send the complete generated media with a valid length and SHA-256 digest.');
   if(row.file_sha256){req.resume();if(row.file_sha256!==digest)return videoError('This job already has a different completed video.',409);return res.json({job:formatVideoJob(row)});}
   if(!['GENERATING','NEEDS_ATTENTION'].includes(row.status))return videoError('This job cannot receive a video.',409);
   if(activeUploads.has(row.id))return videoError('An upload is already running for this job.',409);
@@ -145,19 +157,35 @@ videoMachineRouter.put('/worker/upload/:id',workerAuth,wrap(async(req,res)=>{
   if(base.protocol!=='https:'&&process.env.NODE_ENV!=='test')return videoError('Configure an HTTPS public dashboard URL.',503);
   activeUploads.add(row.id);
   const temporary=path.join(uploadRoot(),`${row.id}.${crypto.randomUUID()}.part`);
-  const target=path.join(uploadRoot(),`${row.id}.mp4`);
+  const extension=image?'png':'mp4';const target=path.join(uploadRoot(),`${row.id}.${extension}`);
   let complete=false;
   try{
     await fs.mkdir(uploadRoot(),{recursive:true});
     const handle=await fs.open(temporary,'wx',0o600);const hash=crypto.createHash('sha256');let received=0;let prefix=Buffer.alloc(0);
-    try{for await(const chunk of req){const bytes=Buffer.from(chunk);received+=bytes.length;if(received>length||received>uploadLimit())return videoError('Video upload is larger than declared.',413);hash.update(bytes);if(prefix.length<12)prefix=Buffer.concat([prefix,bytes.subarray(0,12-prefix.length)]);await handle.writeFile(bytes);}}
+    try{for await(const chunk of req){const bytes=Buffer.from(chunk);received+=bytes.length;if(received>length||received>limit)return videoError('Media upload is larger than declared.',413);hash.update(bytes);if(prefix.length<32)prefix=Buffer.concat([prefix,bytes.subarray(0,32-prefix.length)]);await handle.writeFile(bytes);}}
     finally{await handle.close();}
-    if(received!==length||hash.digest('hex')!==digest||prefix.toString('ascii',4,8)!=='ftyp')return videoError('Video upload is incomplete or its checksum does not match.');
+    const validType=image?prefix.length>=24&&prefix.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))&&prefix.toString('ascii',12,16)==='IHDR'&&prefix.readUInt32BE(16)>=128&&prefix.readUInt32BE(20)>=128&&prefix.readUInt32BE(16)<=4096&&prefix.readUInt32BE(20)<=4096:prefix.toString('ascii',4,8)==='ftyp';
+    if(received!==length||hash.digest('hex')!==digest||!validType)return videoError('Media upload is incomplete or its checksum or file type does not match.');
     await fs.rename(temporary,target);
     const now=new Date().toISOString();const publishAt=new Date(Date.parse(now)+600000).toISOString();
-    const fileUrl=new URL(`/uploads/${row.id}.mp4`,base).toString();
-    db.prepare("UPDATE antigravity_video_jobs SET status='READY',file_url=?,file_sha256=?,ready_at=?,publish_at=?,error=NULL,updated_at=? WHERE id=? AND file_sha256 IS NULL")
-      .run(fileUrl,digest,now,publishAt,now,row.id);
+    const fileUrl=new URL(`/uploads/${row.id}.${extension}`,base).toString();
+    db.prepare("UPDATE antigravity_video_jobs SET status=?,file_url=?,file_sha256=?,ready_at=?,publish_at=?,error=NULL,updated_at=? WHERE id=? AND file_sha256 IS NULL")
+      .run(image?'GENERATING':'READY',fileUrl,digest,now,publishAt,now,row.id);
     complete=true;res.status(201).json({job:formatVideoJob(db.prepare('SELECT * FROM antigravity_video_jobs WHERE id=?').get(row.id))});
   }finally{activeUploads.delete(row.id);if(!complete)await fs.rm(temporary,{force:true}).catch(()=>{});}
+}));
+videoMachineRouter.post('/worker/post-result/:id',workerAuth,wrap((req,res)=>{
+  const row=leasedVideoJob(String(req.params.id),String(req.get('X-Job-Lease')||''));const input=JSON.parse(row.input_json);
+  if(input.kind!=='post'||!row.file_sha256||!row.file_url)return videoError('Upload the generated post image before its copy.',409);
+  const title=typeof req.body.title==='string'?req.body.title.trim():'';
+  const caption=typeof req.body.caption==='string'?req.body.caption.trim():'';
+  const hashtags=Array.isArray(req.body.hashtags)?req.body.hashtags.map((h:unknown)=>String(h).trim()).join(' '):String(req.body.hashtags||'').trim();
+  if(!title||title.length>255||!caption||caption.length>5000||hashtags.length>2000)return videoError('The generated post requires a title and valid caption.');
+  const generatedResult={title,caption,hashtags};
+  if(input.generatedResult){if(JSON.stringify(input.generatedResult)!==JSON.stringify(generatedResult))return videoError('This job already has different generated copy.',409);return res.json({job:formatVideoJob(row)});}
+  if(!['GENERATING','NEEDS_ATTENTION'].includes(row.status))return videoError('This post generation is no longer active.',409);
+  const now=new Date().toISOString();
+  db.prepare("UPDATE antigravity_video_jobs SET input_json=?,status='READY',ready_at=?,publish_at=?,updated_at=? WHERE id=?")
+    .run(JSON.stringify({...input,generatedResult}),now,new Date(Date.now()+600000).toISOString(),now,row.id);
+  res.json({job:formatVideoJob(db.prepare('SELECT * FROM antigravity_video_jobs WHERE id=?').get(row.id))});
 }));

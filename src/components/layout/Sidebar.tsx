@@ -28,6 +28,8 @@ import { isTabAllowed, getRolePermissions } from '../../utils/rbac';
 export type NavigationTab =
   | 'overview'
   | 'ai-studio'
+  | 'creator'
+  | 'social-desk'
   | 'content'
   | 'calendar'
   | 'create'
@@ -75,11 +77,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }> = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'ai-studio', label: 'AI Neural Studio', icon: Sparkles },
+    { id: 'creator', label: 'Creator Studio', icon: PlusCircle },
+    { id: 'social-desk', label: 'Social Media Desk', icon: Calendar },
     { id: 'content', label: 'Content Management', icon: FileText },
     { id: 'calendar', label: 'Content Calendar', icon: Calendar },
     { id: 'create', label: 'Create Post', icon: PlusCircle },
     { id: 'approvals', label: 'Approval Queue', icon: CheckSquare, badge: pendingApprovalsCount },
-    { id: 'video-approvals', label: 'Video Approvals', icon: Shield },
+    { id: 'video-approvals', label: 'Creator Approvals', icon: Shield },
     { id: 'published', label: 'Published Posts', icon: Send },
     { id: 'brands', label: 'Brands', icon: Building2 },
     { id: 'accounts', label: 'Social Accounts', icon: Share2 },

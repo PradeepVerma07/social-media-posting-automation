@@ -8,6 +8,7 @@ import { generatePostId, generateTargetId, computeIdempotencyKey } from '../util
 import { sseManager } from '../services/sseManager';
 import { buildAnalyticsReport, parseReportFilters } from '../services/reporting';
 import { reviewVideoJob } from '../services/videoReviews';
+import {saveCreatorSchedule,submitCreatorForApproval} from '../services/creatorSchedule';
 
 export const enterpriseRouter = Router();
 const wrap = (fn: (req: Request, res: Response) => any) => (req: Request, res: Response) => Promise.resolve().then(() => fn(req, res)).catch(error => res.status(error.status || 400).json({ error: error.status === 500 ? 'The operation could not be completed.' : error.message }));
@@ -156,6 +157,8 @@ enterpriseRouter.post('/posts', wrap((req, res) => {
 }));
 enterpriseRouter.patch('/posts/:id', wrap((req, res) => {
   const post = postById(req); const input = req.body;
+  const creator:any=db.prepare("SELECT id FROM antigravity_video_jobs WHERE post_id=? AND json_extract(input_json,'$.workflow')='creator'").get(post.post_id);
+  if(creator){saveCreatorSchedule(req.principal,creator.id,{...input,versionNumber:Number(req.headers['if-match']||input.versionNumber||input.version)});return res.json(formatPost(post.post_id));}
   const expected = Number(req.headers['if-match'] || input.versionNumber || input.version);
   if (!Number.isInteger(expected)) fail('Refresh the post before editing; its version is required.', 428);
   if (expected !== post.version) fail('Another user changed this post. Refresh before editing.', 409);
@@ -191,7 +194,11 @@ for (const action of ['submit', 'approve', 'reject', 'request-revision']) enterp
   const post = postById(req); const now = new Date().toISOString();
   const video:any=db.prepare('SELECT id FROM antigravity_video_jobs WHERE post_id=?').get(post.post_id);
   if (video) {
-    if (action==='submit') return fail('Use the Video approvals dashboard to review or recreate this video.',409);
+    if (action==='submit') {
+      const row:any=db.prepare('SELECT input_json FROM antigravity_video_jobs WHERE id=?').get(video.id);
+      if(JSON.parse(row.input_json).workflow!=='creator')return fail('Use the Video approvals dashboard to review or recreate this video.',409);
+      submitCreatorForApproval(req.principal,video.id,Number(req.headers['if-match']||req.body?.versionNumber));return res.json(formatPost(post.post_id));
+    }
     reviewVideoJob(req.principal,video.id,{action:action==='request-revision'?'request-changes':action,
       notes:req.body.reason || req.body.comments || '',versionNumber:Number(req.headers['if-match'] || req.body?.versionNumber)});
     return res.json(formatPost(post.post_id));

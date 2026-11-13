@@ -45,6 +45,9 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  async getCreatorDesk(): Promise<{jobs:any[]}> {return request('/automation/videos/desk');},
+  async saveCreatorSchedule(id:string,input:any):Promise<{job:any}>{return request(`/automation/videos/jobs/${encodeURIComponent(id)}/schedule`,{method:'PATCH',body:JSON.stringify(input)});},
+  async submitCreatorForApproval(id:string,versionNumber:number):Promise<{job:any}>{return request(`/automation/videos/jobs/${encodeURIComponent(id)}/submit`,{method:'POST',body:JSON.stringify({versionNumber})});},
   async getVideoReviews(): Promise<{jobs:any[]}> { return request('/automation/videos/reviews'); },
   async reviewVideo(id:string,input:{action:'approve'|'reject'|'request-changes';notes:string;versionNumber:number}): Promise<{job:any;replacementJob:any}> {
     return request(`/automation/videos/jobs/${encodeURIComponent(id)}/review`,{method:'POST',body:JSON.stringify(input)});

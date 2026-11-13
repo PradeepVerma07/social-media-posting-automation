@@ -216,6 +216,8 @@ export const getRolePermissions = (role: RoleName): RolePermissionConfig => {
 
 export const isTabAllowed = (tab: NavigationTab, role?: RoleName | null): boolean => {
   if (tab === 'register') return true;
+  if (tab === 'creator') return ['Super Admin','Admin','Content Manager'].includes(role || '');
+  if (tab === 'social-desk') return ['Super Admin','Admin','Content Manager','Approver'].includes(role || '');
   if (tab === 'video-approvals') return ['Super Admin','Admin','Approver'].includes(role || '');
   const config = getRolePermissions(role as RoleName);
   return (config?.allowedTabs || []).includes(tab);
