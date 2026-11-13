@@ -10,6 +10,10 @@ import {saveCreatorSchedule,submitCreatorForApproval} from '../services/creatorS
 import {PUBLISHING_CAPABILITIES} from '../services/publishingCapabilities';
 import { canAutoPublishVideo, createVideoJob, claimVideoJob, formatVideoJob, leasedVideoJob,
   scheduleNextVideo, setVideoSetting, videoAccounts, videoError, videoPrincipal, videoSetting } from '../services/antigravityVideos';
+import { DateTime } from 'luxon';
+import { sseManager } from '../services/sseManager';
+import { generatePostId, generateTargetId, computeIdempotencyKey } from '../utils/idGenerator';
+import { publishTargetDirectly } from './publicRoutes';
 
 export const videoDashboardRouter = Router();
 export const videoMachineRouter = Router();
@@ -56,6 +60,113 @@ videoDashboardRouter.get('/desk',wrap((req,res)=>{
 }));
 videoDashboardRouter.patch('/jobs/:id/schedule',wrap((req,res)=>res.json(saveCreatorSchedule(req.principal,String(req.params.id),req.body))));
 videoDashboardRouter.post('/jobs/:id/submit',wrap((req,res)=>res.json(submitCreatorForApproval(req.principal,String(req.params.id),req.body.versionNumber))));
+videoDashboardRouter.post('/jobs/:id/fix-reschedule',wrap(async(req,res)=>{
+  if (!canEdit(req.principal) && !canApprove(req.principal)) return videoError('Content workspace access is required.',403);
+  const jobId = String(req.params.id);
+  const row: any = db.prepare('SELECT * FROM antigravity_video_jobs WHERE id=? AND deleted_at IS NULL').get(jobId);
+  if (!row) return videoError('Creation not found.',404);
+  const input = JSON.parse(row.input_json || '{}');
+  const body = req.body || {};
+  
+  const { brand, accounts } = videoAccounts(req.principal, row.brand_id, body.accountIds || input.accountIds, input.kind || 'video');
+  if (!accounts.length) return videoError('No active connected channels found for this brand.',422);
+
+  const title = String(body.title || input.title || input.generatedResult?.title || 'Generated Content').trim();
+  const caption = String(body.caption ?? input.caption ?? input.generatedResult?.caption ?? '').trim();
+  const hashtags = String(body.hashtags ?? input.hashtags ?? input.generatedResult?.hashtags ?? '').trim();
+  const timezone = String(body.timezone || brand.default_timezone || 'Asia/Kolkata');
+  const publishNow = body.publishNow === true;
+  
+  let scheduledUtc: string | null = null;
+  let scheduleDate = '';
+  let scheduleTime = '';
+  const now = new Date().toISOString();
+
+  if (!publishNow) {
+    if (body.scheduleDate && body.scheduleTime) {
+      const localTime = body.scheduleTime.length === 5 ? `${body.scheduleTime}:00` : body.scheduleTime;
+      const localStr = `${body.scheduleDate}T${localTime}`;
+      const dt = DateTime.fromISO(localStr, { zone: timezone });
+      if (!dt.isValid) return videoError('Choose a valid publication date and time.');
+      scheduledUtc = dt.toUTC().toISO();
+      scheduleDate = dt.toISODate()!;
+      scheduleTime = dt.toFormat('HH:mm:ss');
+    } else if (body.scheduledAt) {
+      const dt = DateTime.fromISO(body.scheduledAt, { setZone: true });
+      scheduledUtc = dt.toUTC().toISO();
+      scheduleDate = dt.setZone(timezone).toISODate()!;
+      scheduleTime = dt.setZone(timezone).toFormat('HH:mm:ss');
+    } else {
+      const dt = DateTime.now().setZone(timezone).plus({ days: 1 });
+      scheduledUtc = dt.toUTC().toISO();
+      scheduleDate = dt.toISODate()!;
+      scheduleTime = dt.toFormat('HH:mm:ss');
+    }
+  } else {
+    const dt = DateTime.now().setZone(timezone);
+    scheduleDate = dt.toISODate()!;
+    scheduleTime = dt.toFormat('HH:mm:ss');
+    scheduledUtc = dt.toUTC().toISO();
+  }
+
+  const mediaUrl = row.file_url || input.fileUrl || (Array.isArray(body.mediaUrls) ? body.mediaUrls[0] : null);
+  if (!mediaUrl) return videoError('This creation has no completed video or image file to publish.',400);
+
+  const isImage = input.kind === 'post';
+  const placements = isImage ? ['feed'] : ['reels_shorts'];
+  const platforms = accounts.map(a => ({ platform: a.platform, accountId: a.account_id }));
+
+  let postId = row.post_id;
+  const initialApproval = 'Approved';
+  const initialTargetStatus = 'Scheduled';
+
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    if (postId) {
+      db.prepare(`UPDATE posts SET title=?, caption=?, hashtags=?, schedule_local_date=?, schedule_local_time=?, timezone=?, scheduled_utc=?, approval_status=?, approved_by=?, approved_at=?, approved_version=version+1, updated_at=?, version=version+1 WHERE post_id=?`)
+        .run(title, caption, hashtags, scheduleDate, scheduleTime, timezone, scheduledUtc, initialApproval, req.principal.email, now, now, postId);
+      db.prepare("DELETE FROM post_targets WHERE post_id=? AND status IN ('Draft', 'Scheduled', 'Failed')").run(postId);
+    } else {
+      postId = generatePostId();
+      db.prepare(`INSERT INTO posts (post_id, client_id, brand_id, title, caption, hashtags, media_type, media_urls, link_url, schedule_local_date, schedule_local_time, timezone, scheduled_utc, approval_status, approved_by, approved_at, approved_version, source, placement, created_by_user_id, revision_data, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, 1, 'creator', ?, ?, ?, ?, ?)`)
+        .run(postId, brand.client_id, brand.brand_id, title, caption, hashtags, isImage ? 'image' : 'video', JSON.stringify([mediaUrl]), scheduleDate, scheduleTime, timezone, scheduledUtc, initialApproval, req.principal.email, now, JSON.stringify(placements), req.principal.id, JSON.stringify({ platforms, creatorWorkflow: true }), now, now);
+    }
+
+    for (const acc of accounts) {
+      const targetId = generateTargetId();
+      db.prepare("INSERT INTO post_targets (target_id, post_id, account_id, platform, status, idempotency_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        .run(targetId, postId, acc.account_id, acc.platform, initialTargetStatus, computeIdempotencyKey(targetId, scheduledUtc || now, 1), now, now);
+    }
+
+    const updatedInput = { ...input, title, caption, hashtags, accountIds: accounts.map(a => a.account_id) };
+    db.prepare("UPDATE antigravity_video_jobs SET status='SCHEDULED', post_id=?, error=NULL, input_json=?, updated_at=? WHERE id=?")
+      .run(postId, JSON.stringify(updatedInput), now, jobId);
+
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+
+  if (publishNow) {
+    const targets: any[] = db.prepare("SELECT * FROM post_targets WHERE post_id=?").all(postId);
+    const postRow: any = db.prepare("SELECT * FROM posts WHERE post_id=?").get(postId);
+    const executionId = `EXEC-${crypto.randomUUID()}`;
+    for (const target of targets) {
+      await publishTargetDirectly(target, postRow, executionId);
+    }
+  }
+
+  sseManager.emit('post.created', brand.client_id, { postId });
+  audit(req.principal, 'antigravity_video', jobId, publishNow ? 'fix_publish_now' : 'fix_reschedule', { postId, publishNow });
+
+  return res.json({
+    success: true,
+    message: publishNow ? '🚀 Published directly to your channels!' : `📅 Rescheduled for ${scheduleDate} at ${scheduleTime} (${timezone})!`,
+    job: formatVideoJob(db.prepare("SELECT * FROM antigravity_video_jobs WHERE id=?").get(jobId)),
+  });
+}));
 videoDashboardRouter.get('/reviews',wrap((req,res)=>{
   if (!canApprove(req.principal)) return videoError('Approval permission is required.',403);
   const query=`SELECT j.*,b.brand_name,u.full_name AS author_name FROM antigravity_video_jobs j

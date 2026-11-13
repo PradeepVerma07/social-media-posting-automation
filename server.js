@@ -132451,14 +132451,28 @@ function videoAccounts(principal, brandId, accountIds, kind = "video") {
   const brand = resolveBrand(brandId);
   if (!canAccessBrand(principal, brand)) return videoError("Brand not found or access denied.", 404);
   if (!Array.isArray(accountIds) || !accountIds.length || accountIds.length > 10 || accountIds.some((id) => typeof id !== "string")) return videoError("Select connected video destinations.");
-  const accounts2 = [...new Set(accountIds)].map((id) => {
-    const account = db.prepare("SELECT * FROM social_accounts WHERE account_id = ? AND brand_id = ? AND client_id = ? AND status = 'active'").get(String(id), brand.brand_id, brand.client_id);
-    const capabilities = account && PUBLISHING_CAPABILITIES[account.platform];
-    if (!account || !capabilities?.available || !capabilities?.placements?.[kind === "post" ? "feed" : "reels_shorts"]?.includes(kind === "post" ? "image" : "video")) return videoError("A selected account does not support this content format.");
-    if (account.token_expires_at && Date.parse(account.token_expires_at) <= Date.now()) return videoError("Reconnect the selected social account before generating.");
+  const allActive = db.prepare("SELECT * FROM social_accounts WHERE brand_id = ? AND client_id = ? AND status = 'active'").all(brand.brand_id, brand.client_id);
+  const uniqueIds = [...new Set(accountIds)];
+  let matchedAccounts = uniqueIds.map((id) => {
+    const account = allActive.find((a) => String(a.account_id) === String(id));
+    if (!account) return null;
+    const capabilities = PUBLISHING_CAPABILITIES[account.platform];
+    if (!capabilities?.available || !capabilities?.placements?.[kind === "post" ? "feed" : "reels_shorts"]?.includes(kind === "post" ? "image" : "video")) return null;
+    if (account.token_expires_at && Date.parse(account.token_expires_at) <= Date.now()) return null;
     return account;
-  });
-  return { brand, accounts: accounts2 };
+  }).filter(Boolean);
+  if (!matchedAccounts.length) {
+    matchedAccounts = allActive.filter((account) => {
+      const capabilities = PUBLISHING_CAPABILITIES[account.platform];
+      if (!capabilities?.available || !capabilities?.placements?.[kind === "post" ? "feed" : "reels_shorts"]?.includes(kind === "post" ? "image" : "video")) return false;
+      if (account.token_expires_at && Date.parse(account.token_expires_at) <= Date.now()) return false;
+      return true;
+    });
+  }
+  if (!matchedAccounts.length) {
+    return videoError("No active connected channels found for this brand. Connect Facebook or Instagram in Social Accounts.");
+  }
+  return { brand, accounts: matchedAccounts };
 }
 function formatVideoJob(row) {
   if (!row) return null;
@@ -133473,8 +133487,20 @@ enterpriseRouter.post("/posts", wrap(async (req, res) => {
   const caption = String(input2.masterCaption ?? input2.caption ?? "");
   if (!title || title.length > 255 || !caption.trim() || caption.length > 5e3) fail4("Enter a title and a caption of up to 5,000 characters.");
   const date5 = schedule(input2, input2.timezone || brand.default_timezone, !submit || publishImmediately);
-  const media = Array.isArray(input2.media) ? input2.media : (input2.mediaUrls || []).map((fileUrl) => ({ fileUrl }));
-  if (media.some((m2) => typeof m2.fileUrl !== "string" || !/^https:\/\//i.test(m2.fileUrl) && !/^\/uploads\/[a-zA-Z0-9._-]+$/.test(m2.fileUrl))) fail4("Use HTTPS media URLs or uploaded files.");
+  const normalizeMediaUrl = (raw) => {
+    let s3 = String(raw || "").trim();
+    if (!s3) return "";
+    if (s3.startsWith("//")) return "https:" + s3;
+    if (/^https?:\/\//i.test(s3) || /^\/(uploads|runtime)\//i.test(s3)) return s3;
+    if (/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(s3)) return "https://" + s3;
+    return s3;
+  };
+  const rawMedia = Array.isArray(input2.media) ? input2.media : (input2.mediaUrls || []).map((fileUrl) => ({ fileUrl }));
+  const media = rawMedia.map((m2) => ({
+    ...m2,
+    fileUrl: normalizeMediaUrl(typeof m2 === "string" ? m2 : m2.fileUrl)
+  }));
+  if (media.some((m2) => !m2.fileUrl || !/^https?:\/\//i.test(m2.fileUrl) && !/^\/(uploads|runtime)\//i.test(m2.fileUrl))) fail4("Use HTTPS media URLs or uploaded files.");
   const placements = input2.placements || (Array.isArray(input2.placement) ? input2.placement : [input2.placement || "feed"]);
   if (placements.length < 1 || !["feed", "story", "reels_shorts"].includes(placements[0])) fail4("Choose one supported placement per post.");
   const platforms = Array.isArray(input2.platforms) ? input2.platforms.map((p) => typeof p === "string" ? { platform: p } : p) : [];
@@ -134089,6 +134115,95 @@ videoDashboardRouter.get("/desk", wrap2((req, res) => {
 }));
 videoDashboardRouter.patch("/jobs/:id/schedule", wrap2((req, res) => res.json(saveCreatorSchedule(req.principal, String(req.params.id), req.body))));
 videoDashboardRouter.post("/jobs/:id/submit", wrap2((req, res) => res.json(submitCreatorForApproval(req.principal, String(req.params.id), req.body.versionNumber))));
+videoDashboardRouter.post("/jobs/:id/fix-reschedule", wrap2(async (req, res) => {
+  if (!canEdit(req.principal) && !canApprove(req.principal)) return videoError("Content workspace access is required.", 403);
+  const jobId = String(req.params.id);
+  const row = db.prepare("SELECT * FROM antigravity_video_jobs WHERE id=? AND deleted_at IS NULL").get(jobId);
+  if (!row) return videoError("Creation not found.", 404);
+  const input2 = JSON.parse(row.input_json || "{}");
+  const body = req.body || {};
+  const { brand, accounts: accounts2 } = videoAccounts(req.principal, row.brand_id, body.accountIds || input2.accountIds, input2.kind || "video");
+  if (!accounts2.length) return videoError("No active connected channels found for this brand.", 422);
+  const title = String(body.title || input2.title || input2.generatedResult?.title || "Generated Content").trim();
+  const caption = String(body.caption ?? input2.caption ?? input2.generatedResult?.caption ?? "").trim();
+  const hashtags = String(body.hashtags ?? input2.hashtags ?? input2.generatedResult?.hashtags ?? "").trim();
+  const timezone = String(body.timezone || brand.default_timezone || "Asia/Kolkata");
+  const publishNow2 = body.publishNow === true;
+  let scheduledUtc = null;
+  let scheduleDate = "";
+  let scheduleTime = "";
+  const now2 = (/* @__PURE__ */ new Date()).toISOString();
+  if (!publishNow2) {
+    if (body.scheduleDate && body.scheduleTime) {
+      const localTime = body.scheduleTime.length === 5 ? `${body.scheduleTime}:00` : body.scheduleTime;
+      const localStr = `${body.scheduleDate}T${localTime}`;
+      const dt = DateTime.fromISO(localStr, { zone: timezone });
+      if (!dt.isValid) return videoError("Choose a valid publication date and time.");
+      scheduledUtc = dt.toUTC().toISO();
+      scheduleDate = dt.toISODate();
+      scheduleTime = dt.toFormat("HH:mm:ss");
+    } else if (body.scheduledAt) {
+      const dt = DateTime.fromISO(body.scheduledAt, { setZone: true });
+      scheduledUtc = dt.toUTC().toISO();
+      scheduleDate = dt.setZone(timezone).toISODate();
+      scheduleTime = dt.setZone(timezone).toFormat("HH:mm:ss");
+    } else {
+      const dt = DateTime.now().setZone(timezone).plus({ days: 1 });
+      scheduledUtc = dt.toUTC().toISO();
+      scheduleDate = dt.toISODate();
+      scheduleTime = dt.toFormat("HH:mm:ss");
+    }
+  } else {
+    const dt = DateTime.now().setZone(timezone);
+    scheduleDate = dt.toISODate();
+    scheduleTime = dt.toFormat("HH:mm:ss");
+    scheduledUtc = dt.toUTC().toISO();
+  }
+  const mediaUrl = row.file_url || input2.fileUrl || (Array.isArray(body.mediaUrls) ? body.mediaUrls[0] : null);
+  if (!mediaUrl) return videoError("This creation has no completed video or image file to publish.", 400);
+  const isImage = input2.kind === "post";
+  const placements = isImage ? ["feed"] : ["reels_shorts"];
+  const platforms = accounts2.map((a) => ({ platform: a.platform, accountId: a.account_id }));
+  let postId = row.post_id;
+  const initialApproval = "Approved";
+  const initialTargetStatus = "Scheduled";
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    if (postId) {
+      db.prepare(`UPDATE posts SET title=?, caption=?, hashtags=?, schedule_local_date=?, schedule_local_time=?, timezone=?, scheduled_utc=?, approval_status=?, approved_by=?, approved_at=?, approved_version=version+1, updated_at=?, version=version+1 WHERE post_id=?`).run(title, caption, hashtags, scheduleDate, scheduleTime, timezone, scheduledUtc, initialApproval, req.principal.email, now2, now2, postId);
+      db.prepare("DELETE FROM post_targets WHERE post_id=? AND status IN ('Draft', 'Scheduled', 'Failed')").run(postId);
+    } else {
+      postId = generatePostId();
+      db.prepare(`INSERT INTO posts (post_id, client_id, brand_id, title, caption, hashtags, media_type, media_urls, link_url, schedule_local_date, schedule_local_time, timezone, scheduled_utc, approval_status, approved_by, approved_at, approved_version, source, placement, created_by_user_id, revision_data, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, 1, 'creator', ?, ?, ?, ?, ?)`).run(postId, brand.client_id, brand.brand_id, title, caption, hashtags, isImage ? "image" : "video", JSON.stringify([mediaUrl]), scheduleDate, scheduleTime, timezone, scheduledUtc, initialApproval, req.principal.email, now2, JSON.stringify(placements), req.principal.id, JSON.stringify({ platforms, creatorWorkflow: true }), now2, now2);
+    }
+    for (const acc of accounts2) {
+      const targetId = generateTargetId();
+      db.prepare("INSERT INTO post_targets (target_id, post_id, account_id, platform, status, idempotency_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(targetId, postId, acc.account_id, acc.platform, initialTargetStatus, computeIdempotencyKey(targetId, scheduledUtc || now2, 1), now2, now2);
+    }
+    const updatedInput = { ...input2, title, caption, hashtags, accountIds: accounts2.map((a) => a.account_id) };
+    db.prepare("UPDATE antigravity_video_jobs SET status='SCHEDULED', post_id=?, error=NULL, input_json=?, updated_at=? WHERE id=?").run(postId, JSON.stringify(updatedInput), now2, jobId);
+    db.exec("COMMIT");
+  } catch (e2) {
+    db.exec("ROLLBACK");
+    throw e2;
+  }
+  if (publishNow2) {
+    const targets = db.prepare("SELECT * FROM post_targets WHERE post_id=?").all(postId);
+    const postRow = db.prepare("SELECT * FROM posts WHERE post_id=?").get(postId);
+    const executionId = `EXEC-${crypto16.randomUUID()}`;
+    for (const target of targets) {
+      await publishTargetDirectly(target, postRow, executionId);
+    }
+  }
+  sseManager.emit("post.created", brand.client_id, { postId });
+  audit(req.principal, "antigravity_video", jobId, publishNow2 ? "fix_publish_now" : "fix_reschedule", { postId, publishNow: publishNow2 });
+  return res.json({
+    success: true,
+    message: publishNow2 ? "\u{1F680} Published directly to your channels!" : `\u{1F4C5} Rescheduled for ${scheduleDate} at ${scheduleTime} (${timezone})!`,
+    job: formatVideoJob(db.prepare("SELECT * FROM antigravity_video_jobs WHERE id=?").get(jobId))
+  });
+}));
 videoDashboardRouter.get("/reviews", wrap2((req, res) => {
   if (!canApprove(req.principal)) return videoError("Approval permission is required.", 403);
   const query = `SELECT j.*,b.brand_name,u.full_name AS author_name FROM antigravity_video_jobs j

@@ -18,7 +18,8 @@ import {
   Play,
   Zap,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  Clock
 } from 'lucide-react';
 import { api } from '../../api/client';
 import { CreationPanel } from './CreationPanel';
@@ -488,6 +489,22 @@ export function CreatorStudio({
     }
   };
 
+  const handleFixReschedule = async (job: any, data: any) => {
+    setActionBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const res = await api.fixAndRescheduleVideoJob(job.id, data);
+      setNotice(res.message || 'Content successfully fixed and rescheduled!');
+      await refresh().catch(e => setLoadError(e.message));
+    } catch (err: any) {
+      setError(err.message || 'Failed to fix and reschedule content.');
+      throw err;
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-[1600px] w-full space-y-6 p-4 sm:p-6 lg:p-8">
       {/* Header */}
@@ -550,50 +567,54 @@ export function CreatorStudio({
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
               Select Content Format
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-100 p-1.5 rounded-2xl">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-slate-100/90 p-2 rounded-2xl">
               <button
                 type="button"
                 onClick={() => handleFormatChange('reels')}
-                className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-2 h-14 sm:h-16 px-3 rounded-xl transition-all cursor-pointer ${
                   format === 'reels'
-                    ? 'bg-white text-indigo-700 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/80 font-bold text-xs sm:text-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold text-xs'
                 }`}
               >
-                <Film size={15} /> 🎬 Reel / Short
+                <Film className={`w-5 h-5 shrink-0 ${format === 'reels' ? 'text-indigo-600' : 'text-slate-500'}`} />
+                <span className="truncate">Reel / Short</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleFormatChange('story')}
-                className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-2 h-14 sm:h-16 px-3 rounded-xl transition-all cursor-pointer ${
                   format === 'story'
-                    ? 'bg-white text-purple-700 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-purple-700 shadow-sm ring-1 ring-slate-200/80 font-bold text-xs sm:text-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold text-xs'
                 }`}
               >
-                <Film size={15} /> ⏱️ 24h Story
+                <Clock className={`w-5 h-5 shrink-0 ${format === 'story' ? 'text-purple-600' : 'text-slate-500'}`} />
+                <span className="truncate">24h Story</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleFormatChange('feed')}
-                className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-2 h-14 sm:h-16 px-3 rounded-xl transition-all cursor-pointer ${
                   format === 'feed'
-                    ? 'bg-white text-blue-700 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200/80 font-bold text-xs sm:text-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold text-xs'
                 }`}
               >
-                <ImageIcon size={15} /> 📱 Feed Post
+                <ImageIcon className={`w-5 h-5 shrink-0 ${format === 'feed' ? 'text-blue-600' : 'text-slate-500'}`} />
+                <span className="truncate">Feed Post</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleFormatChange('carousel')}
-                className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-2 h-14 sm:h-16 px-3 rounded-xl transition-all cursor-pointer ${
                   format === 'carousel'
-                    ? 'bg-white text-emerald-700 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-emerald-700 shadow-sm ring-1 ring-slate-200/80 font-bold text-xs sm:text-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold text-xs'
                 }`}
               >
-                <Layers size={15} /> 📚 Carousel Post
+                <Layers className={`w-5 h-5 shrink-0 ${format === 'carousel' ? 'text-emerald-600' : 'text-slate-500'}`} />
+                <span className="truncate">Carousel Post</span>
               </button>
             </div>
           </div>
@@ -654,8 +675,8 @@ export function CreatorStudio({
                   required
                   minLength={10}
                   maxLength={12000}
-                  rows={6}
-                  className={field}
+                  rows={7}
+                  className={field + ' min-h-[160px]'}
                   value={brief}
                   onChange={e => setBrief(e.target.value)}
                   placeholder={
@@ -682,8 +703,8 @@ export function CreatorStudio({
 
                 <textarea
                   maxLength={5000}
-                  rows={3}
-                  className={field}
+                  rows={4}
+                  className={field + ' min-h-[110px]'}
                   value={caption}
                   onChange={e => setCaption(e.target.value)}
                   placeholder="Write the actual post caption viewers will read (e.g. Build stunning, responsive WordPress websites for your manpower business! Tap the link in bio to start today 👇)"
@@ -975,6 +996,8 @@ export function CreatorStudio({
             onRestore={job => restore(job).catch(() => {})}
             onRetry={retry}
             onRegenerate={handleRegenerate}
+            onFixReschedule={handleFixReschedule}
+            accounts={accounts}
             showTrash={showTrash}
             onToggleTrash={() => setShowTrash(value => !value)}
             canManage={!!status?.canGenerate}

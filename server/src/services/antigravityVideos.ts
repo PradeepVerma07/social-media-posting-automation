@@ -30,14 +30,31 @@ export function videoAccounts(principal: Principal, brandId: unknown, accountIds
   const brand = resolveBrand(brandId);
   if (!canAccessBrand(principal, brand)) return videoError('Brand not found or access denied.', 404);
   if (!Array.isArray(accountIds) || !accountIds.length || accountIds.length > 10 || accountIds.some(id => typeof id !== 'string')) return videoError('Select connected video destinations.');
-  const accounts = [...new Set(accountIds)].map(id => {
-    const account: any = db.prepare("SELECT * FROM social_accounts WHERE account_id = ? AND brand_id = ? AND client_id = ? AND status = 'active'").get(String(id), brand.brand_id, brand.client_id);
-    const capabilities: any = account && PUBLISHING_CAPABILITIES[account.platform as keyof typeof PUBLISHING_CAPABILITIES];
-    if (!account || !capabilities?.available || !capabilities?.placements?.[kind==='post'?'feed':'reels_shorts']?.includes(kind==='post'?'image':'video')) return videoError('A selected account does not support this content format.');
-    if (account.token_expires_at && Date.parse(account.token_expires_at) <= Date.now()) return videoError('Reconnect the selected social account before generating.');
+  
+  const allActive: any[] = db.prepare("SELECT * FROM social_accounts WHERE brand_id = ? AND client_id = ? AND status = 'active'").all(brand.brand_id, brand.client_id);
+  const uniqueIds = [...new Set(accountIds)];
+  let matchedAccounts = uniqueIds.map(id => {
+    const account = allActive.find(a => String(a.account_id) === String(id));
+    if (!account) return null;
+    const capabilities: any = PUBLISHING_CAPABILITIES[account.platform as keyof typeof PUBLISHING_CAPABILITIES];
+    if (!capabilities?.available || !capabilities?.placements?.[kind==='post'?'feed':'reels_shorts']?.includes(kind==='post'?'image':'video')) return null;
+    if (account.token_expires_at && Date.parse(account.token_expires_at) <= Date.now()) return null;
     return account;
-  });
-  return { brand, accounts };
+  }).filter(Boolean);
+
+  if (!matchedAccounts.length) {
+    matchedAccounts = allActive.filter(account => {
+      const capabilities: any = PUBLISHING_CAPABILITIES[account.platform as keyof typeof PUBLISHING_CAPABILITIES];
+      if (!capabilities?.available || !capabilities?.placements?.[kind==='post'?'feed':'reels_shorts']?.includes(kind==='post'?'image':'video')) return false;
+      if (account.token_expires_at && Date.parse(account.token_expires_at) <= Date.now()) return false;
+      return true;
+    });
+  }
+
+  if (!matchedAccounts.length) {
+    return videoError('No active connected channels found for this brand. Connect Facebook or Instagram in Social Accounts.');
+  }
+  return { brand, accounts: matchedAccounts };
 }
 export function formatVideoJob(row: any) {
   if (!row) return null;

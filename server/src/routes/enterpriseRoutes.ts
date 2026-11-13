@@ -178,8 +178,20 @@ enterpriseRouter.post('/posts', wrap(async (req, res) => {
   const title = String(input.title || '').trim(); const caption = String(input.masterCaption ?? input.caption ?? '');
   if (!title || title.length > 255 || !caption.trim() || caption.length > 5000) fail('Enter a title and a caption of up to 5,000 characters.');
   const date = schedule(input, input.timezone || brand.default_timezone, !submit || publishImmediately);
-  const media = Array.isArray(input.media) ? input.media : (input.mediaUrls || []).map((fileUrl: string) => ({ fileUrl }));
-  if (media.some((m: any) => typeof m.fileUrl !== 'string' || (!/^https:\/\//i.test(m.fileUrl) && !/^\/uploads\/[a-zA-Z0-9._-]+$/.test(m.fileUrl)))) fail('Use HTTPS media URLs or uploaded files.');
+  const normalizeMediaUrl = (raw: unknown) => {
+    let s = String(raw || '').trim();
+    if (!s) return '';
+    if (s.startsWith('//')) return 'https:' + s;
+    if (/^https?:\/\//i.test(s) || /^\/(uploads|runtime)\//i.test(s)) return s;
+    if (/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(s)) return 'https://' + s;
+    return s;
+  };
+  const rawMedia = Array.isArray(input.media) ? input.media : (input.mediaUrls || []).map((fileUrl: string) => ({ fileUrl }));
+  const media = rawMedia.map((m: any) => ({
+    ...m,
+    fileUrl: normalizeMediaUrl(typeof m === 'string' ? m : m.fileUrl),
+  }));
+  if (media.some((m: any) => !m.fileUrl || (!/^https?:\/\//i.test(m.fileUrl) && !/^\/(uploads|runtime)\//i.test(m.fileUrl)))) fail('Use HTTPS media URLs or uploaded files.');
   const placements = input.placements || (Array.isArray(input.placement) ? input.placement : [input.placement || 'feed']);
   if (placements.length < 1 || !['feed', 'story', 'reels_shorts'].includes(placements[0])) fail('Choose one supported placement per post.');
   const platforms = Array.isArray(input.platforms) ? input.platforms.map((p: any) => typeof p === 'string' ? { platform: p } : p) : [];

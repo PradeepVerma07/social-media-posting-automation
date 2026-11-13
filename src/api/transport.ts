@@ -1,7 +1,7 @@
 export class ApiError extends Error {
   constructor(message:string,public status:number,public code:string,public requestId?:string){super(message);this.name='ApiError';}
 }
-export function createApiRequester({fetcher=globalThis.fetch.bind(globalThis),now=Date.now,timeoutMs=20000,blockMs=30000,onSessionExpired=()=>{}}:{fetcher?:typeof fetch;now?:()=>number;timeoutMs?:number;blockMs?:number;onSessionExpired?:()=>void}={}) {
+export function createApiRequester({fetcher=globalThis.fetch.bind(globalThis),now=Date.now,timeoutMs=120000,blockMs=30000,onSessionExpired=()=>{}}:{fetcher?:typeof fetch;now?:()=>number;timeoutMs?:number;blockMs?:number;onSessionExpired?:()=>void}={}) {
   const pending=new Map<string,Promise<any>>();let blockedUntil=0;
   return function request<T>(endpoint:string,options:RequestInit={}):Promise<T>{
     const method=(options.method||'GET').toUpperCase(),headers=new Headers(options.headers);

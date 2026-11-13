@@ -275,12 +275,23 @@ export const InstantBrandPublisher: React.FC<InstantBrandPublisherProps> = ({
       return;
     }
 
-    const effectiveMediaUrls =
+    const sanitizeUrl = (u: string) => {
+      let trimmed = String(u || '').trim();
+      if (!trimmed) return '';
+      if (trimmed.startsWith('//')) return 'https:' + trimmed;
+      if (!/^(https?:\/\/|\/)/i.test(trimmed) && /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(trimmed)) {
+        return 'https://' + trimmed;
+      }
+      return trimmed;
+    };
+
+    const effectiveMediaUrls = (
       placement === 'feed' && carouselUrls.length > 0
         ? carouselUrls
         : mediaUrl
         ? [mediaUrl]
-        : [];
+        : []
+    ).map(sanitizeUrl).filter(Boolean);
 
     if (effectiveMediaUrls.length === 0) {
       setPublishError('Please upload an image or video before publishing.');
