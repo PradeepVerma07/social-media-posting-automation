@@ -19,7 +19,7 @@ const tx = <T>(fn: () => T): T => { db.exec('BEGIN IMMEDIATE'); try { const resu
 const json = (value: any, fallback: any) => { try { return JSON.parse(value); } catch { return fallback; } };
 enterpriseRouter.post('/social-accounts/:id/check',wrap(async(req,res)=>res.json(await checkMetaAccount(req.principal,String(req.params.id)))));
 enterpriseRouter.post('/social-accounts/connect',(req,res,next)=>{
-  if(String(req.body?.platform||'meta').toLowerCase()!=='meta')return next();
+  if(!['meta','instagram','facebook'].includes(String(req.body?.platform||'meta').toLowerCase()))return next();
   return wrap(async(req,res)=>{
     if(!isAdmin(req.principal))return fail('Only administrators can connect social accounts.',403);
     if(!req.body?.brandId)return fail('Select the brand before connecting an account.');

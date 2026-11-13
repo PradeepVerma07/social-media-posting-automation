@@ -10,7 +10,7 @@ async function refreshLinkedInstagram(principal:Principal,account:any,fetcher:ty
   const pages:any[]=db.prepare("SELECT * FROM social_accounts WHERE client_id=? AND brand_id=? AND platform='facebook' AND status='active' ORDER BY last_checked_at DESC LIMIT 5").all(account.client_id,account.brand_id);
   const version=/^v\d+\.\d+$/.test(process.env.META_GRAPH_VERSION||'')?process.env.META_GRAPH_VERSION:'v21.0';
   for(const page of pages){
-    if(!/^\d+$/.test(page.external_id)||!page.last_checked_at||Date.parse(page.last_checked_at)<Date.now()-86400000)continue;
+    if(!/^\d+$/.test(page.external_id)||!page.token_ciphertext)continue;
     try{
       const token=decryptToken({ciphertext:page.token_ciphertext,iv:page.token_iv,tag:page.token_tag,version:page.token_version});
       const options={headers:{Authorization:`Bearer ${token}`,Accept:'application/json'},signal:AbortSignal.timeout(10000),redirect:'error' as const};
@@ -85,6 +85,7 @@ export async function connectMetaAccount(principal:Principal,brand:any,input:{to
   }
   const page=candidates[0],pageToken=typeof page.access_token==='string'?page.access_token:token;
   if(!/^\d+$/.test(String(page.id)))return fail('Meta did not return a valid Page identity.',502);
+  const explicitIg = String((input as any).instagramId || (input as any).instagramHandle || (input as any).igId || '').trim().replace(/^@/, '');
   const targets=[{platform:'facebook',externalId:String(page.id),name:String(page.name||'Facebook Page'),handle:''}];
 
   // 1. Automatic Instagram Discovery
@@ -92,11 +93,29 @@ export async function connectMetaAccount(principal:Principal,brand:any,input:{to
   let igUsername=page.instagram_business_account?.username||page.connected_instagram_account?.username;
   let igName=page.instagram_business_account?.name||page.connected_instagram_account?.name;
 
+  if(explicitIg){
+    try{
+      let igRes=await graph(`${encodeURIComponent(explicitIg)}?fields=id,username,name`,token);
+      if(!igRes.ok&&pageToken!==token){
+        igRes=await graph(`${encodeURIComponent(explicitIg)}?fields=id,username,name`,pageToken);
+      }
+      if(igRes.ok&&igRes.data?.id){
+        igId=igRes.data.id;
+        igUsername=igRes.data.username||explicitIg;
+        igName=igRes.data.name||page.name;
+      }
+    }catch{}
+  }
+
   let pageExtra:any=null;
   if(!igId){
     try{
       pageExtra=await graph(`${encodeURIComponent(page.id)}?fields=instagram_business_account{id,username,name},connected_instagram_account{id,username,name},whatsapp_number`,pageToken);
-      if(pageExtra.ok&&pageExtra.data){
+      if(!pageExtra.ok||!pageExtra.data?.instagram_business_account?.id){
+        const pageExtraUser=await graph(`${encodeURIComponent(page.id)}?fields=instagram_business_account{id,username,name},connected_instagram_account{id,username,name},whatsapp_number`,token);
+        if(pageExtraUser.ok&&pageExtraUser.data?.instagram_business_account?.id)pageExtra=pageExtraUser;
+      }
+      if(pageExtra?.ok&&pageExtra.data){
         const d=pageExtra.data;
         if(d.instagram_business_account?.id){
           igId=d.instagram_business_account.id;
@@ -107,6 +126,40 @@ export async function connectMetaAccount(principal:Principal,brand:any,input:{to
           igUsername=d.connected_instagram_account.username;
           igName=d.connected_instagram_account.name;
         }
+      }
+    }catch{}
+  }
+
+  if(!igId){
+    try{
+      let edgeRes=await graph(`${encodeURIComponent(page.id)}/instagram_business_account?fields=id,username,name`,pageToken);
+      if(!edgeRes.ok&&pageToken!==token)edgeRes=await graph(`${encodeURIComponent(page.id)}/instagram_business_account?fields=id,username,name`,token);
+      if(edgeRes.ok&&edgeRes.data?.id&&edgeRes.data.username&&!edgeRes.data.category){
+        igId=edgeRes.data.id;
+        igUsername=edgeRes.data.username;
+        igName=edgeRes.data.name;
+      }
+    }catch{}
+  }
+
+  if(!igId){
+    try{
+      const bizRes=await graph('me/businesses?fields=id,name,instagram_business_accounts{id,username,name}',token);
+      const bizList:any[]=Array.isArray(bizRes.data?.data)?bizRes.data.data:[];
+      for(const biz of bizList){
+        const igList:any[]=[
+          ...(Array.isArray(biz.instagram_business_accounts?.data)?biz.instagram_business_accounts.data:[]),
+          ...(Array.isArray(biz.instagram_business_accounts)?biz.instagram_business_accounts:[])
+        ];
+        for(const ig of igList){
+          if(ig.id&&(ig.username||ig.name)){
+            igId=ig.id;
+            igUsername=ig.username;
+            igName=ig.name;
+            break;
+          }
+        }
+        if(igId)break;
       }
     }catch{}
   }
@@ -132,6 +185,8 @@ export async function connectMetaAccount(principal:Principal,brand:any,input:{to
       name:String(igName||page.name||'Facebook Page')+' (Instagram)',
       handle:igUsername?'@'+igUsername:''
     });
+  }else if(String((input as any).platform||'').toLowerCase()==='instagram'){
+    return fail(`No Instagram Business or Creator account was found linked to Facebook Page "${page.name}". To connect Instagram: 1) Switch your Instagram account to Professional/Business in the Instagram app, 2) Link it to this Facebook Page in Meta Business Suite, or 3) Enter your Instagram username/ID.`,400);
   }
 
   // 2. Automatic WhatsApp Discovery
