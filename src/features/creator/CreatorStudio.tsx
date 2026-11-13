@@ -449,7 +449,7 @@ export function CreatorStudio({
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
+    <div className="mx-auto max-w-[1600px] w-full space-y-6 p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <header className="flex flex-wrap justify-between gap-4">
         <div>
@@ -503,8 +503,8 @@ export function CreatorStudio({
       )}
 
       {/* Main Grid */}
-      <div className="grid items-start gap-6 xl:grid-cols-[1.15fr_1fr]">
-        <div className="min-w-0 space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <div className="grid items-start gap-6 lg:grid-cols-12">
+        <div className="min-w-0 lg:col-span-5 space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           {/* Format Selector Pills */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
@@ -924,21 +924,23 @@ export function CreatorStudio({
         </div>
 
         {/* Creation Preview & Queue Panel */}
-        <CreationPanel
-          jobs={jobs}
-          selected={selected}
-          onSelect={setSelectedId}
-          onRefresh={() => void refresh().catch(e => setLoadError(e.message))}
-          onOpenDesk={onOpenDesk}
-          onTrash={trash}
-          onRestore={job => restore(job).catch(() => {})}
-          onRetry={retry}
-          showTrash={showTrash}
-          onToggleTrash={() => setShowTrash(value => !value)}
-          canManage={!!status?.canGenerate}
-          busy={actionBusy}
-          workerOnline={!!status?.workerOnline}
-        />
+        <div className="lg:col-span-7 sticky top-6">
+          <CreationPanel
+            jobs={jobs}
+            selected={selected}
+            onSelect={setSelectedId}
+            onRefresh={() => void refresh().catch(e => setLoadError(e.message))}
+            onOpenDesk={onOpenDesk}
+            onTrash={trash}
+            onRestore={job => restore(job).catch(() => {})}
+            onRetry={retry}
+            showTrash={showTrash}
+            onToggleTrash={() => setShowTrash(value => !value)}
+            canManage={!!status?.canGenerate}
+            busy={actionBusy}
+            workerOnline={!!status?.workerOnline}
+          />
+        </div>
       </div>
     </div>
   );
