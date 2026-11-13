@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from './api/client';
 import {
   User,
@@ -46,6 +46,7 @@ import { isTabAllowed, getRolePermissions } from './utils/rbac';
 import { BrandRegistrationPage } from './features/onboarding/BrandRegistrationPage';
 import { AIStudioDashboard } from './features/ai-studio/AIStudioDashboard';
 import {resolveNavigation,navigationPath,navigationTitle} from './utils/navigation';
+import {createSingleFlight,stableUser} from './utils/refresh';
 
 
 
@@ -142,9 +143,9 @@ export default function App() {
   const [autoRefreshSec, setAutoRefreshSec] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('ci360_auto_refresh_sec');
-      return saved !== null ? Number(saved) : 5;
+      return saved !== null && Number(saved) === 0 ? 0 : Math.max(30, Number(saved) || 30);
     } catch {
-      return 5;
+      return 30;
     }
   });
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
@@ -246,18 +247,21 @@ export default function App() {
   });
 
   // Load initial data from Express backend with resilient Promise.allSettled
-  const loadInitialData = async () => {
+  const refreshGate=useRef(createSingleFlight());
+  const activeUserId=useRef(currentUser?.id);activeUserId.current=currentUser?.id;
+  const loadInitialData = () => refreshGate.current(async () => {
+    const owner=currentUser?.id;if(!owner)return;
     try {
       const results = await Promise.allSettled([
         api.getPosts(),
         api.getBrands(),
         api.getSocialAccounts(),
-        api.getWorkflows(),
-        api.getExecutions(),
+        currentRole==='Super Admin'?api.getWorkflows():Promise.resolve([]),
+        currentRole==='Super Admin'?api.getExecutions():Promise.resolve([]),
         api.getAnalyticsOverview(),
         api.getNotifications(),
-        api.getAuditLogs(),
-        api.getUsers(),
+        currentRole==='Super Admin'?api.getAuditLogs():Promise.resolve([]),
+        getRolePermissions(currentRole).canManageTeam?api.getUsers():Promise.resolve([]),
       ]);
 
       const [
@@ -272,6 +276,7 @@ export default function App() {
         usersRes,
       ] = results;
 
+      if(activeUserId.current!==owner)return;
       let currentPosts: Post[] = [];
       if (postsRes.status === 'fulfilled' && Array.isArray(postsRes.value)) {
         setPosts(postsRes.value);
@@ -317,7 +322,7 @@ export default function App() {
             const matched = usersRes.value.find(u => u.id === prevUser.id);
             if (matched) {
               setCurrentRole(matched.role);
-              return matched;
+              return stableUser(prevUser,matched);
             }
           }
           return prevUser;
@@ -334,7 +339,7 @@ export default function App() {
     } catch (err) {
       console.warn('Initial backend fetch warning:', err);
     }
-  };
+  });
 
   useEffect(() => {
     // Strictly require authenticated session before fetching dashboard data or starting background streams
@@ -344,12 +349,13 @@ export default function App() {
 
     // v2 Server-Sent Events (SSE) live push stream
     let eventSource: EventSource | null = null;
+    let eventTimer:ReturnType<typeof setTimeout>|null=null;
     try {
       eventSource = new EventSource('/api/v1/events');
 
       const handleLiveUpdate = () => {
-        loadInitialData();
-        setLastRefreshedAt(new Date());
+        if(eventTimer)clearTimeout(eventTimer);
+        eventTimer=setTimeout(()=>{if(document.visibilityState==='visible')void loadInitialData().then(()=>setLastRefreshedAt(new Date()));},750);
       };
 
       eventSource.addEventListener('target.status_changed', handleLiveUpdate);
@@ -374,6 +380,7 @@ export default function App() {
     }
 
     return () => {
+      if(eventTimer)clearTimeout(eventTimer);
       if (eventSource) {
         eventSource.close();
       }
@@ -381,12 +388,12 @@ export default function App() {
         clearInterval(interval);
       }
     };
-  }, [currentUser, autoRefreshSec]);
+  }, [currentUser?.id, currentRole, autoRefreshSec]);
 
   useEffect(() => {
     const expire = () => { setCurrentUser(null); localStorage.removeItem('ci360_auth_user'); localStorage.removeItem('ci360_auth_token'); };
     window.addEventListener('webtrionix:session-expired', expire);
-    if (currentUser) api.getMe().then(({ user }) => { setCurrentRole(user.role); }).catch(expire);
+    if (currentUser) api.getMe().then(({ user }) => { setCurrentRole(user.role); }).catch(error=>{if(error.status===401)expire();});
     return () => window.removeEventListener('webtrionix:session-expired', expire);
   }, [currentUser?.id]);
 
@@ -844,6 +851,7 @@ export default function App() {
                   accounts={socialAccounts}
                   brands={brands}
                   onRefreshAccounts={loadInitialData}
+                  selectedBrandId={selectedBrandId}
                   currentRole={currentRole}
                 />
               )}

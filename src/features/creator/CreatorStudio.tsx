@@ -10,11 +10,12 @@ export function CreatorStudio({brands,onOpenDesk}:{brands:Brand[];onOpenDesk:(id
   const [language,setLanguage]=useState('English'),[aspect,setAspect]=useState('9:16'),[duration,setDuration]=useState(30);
   const [status,setStatus]=useState<any>(null),[accounts,setAccounts]=useState<SocialAccount[]>([]),[accountIds,setAccountIds]=useState<string[]>([]);
   const [jobs,setJobs]=useState<any[]>([]),[selectedId,setSelectedId]=useState(''),[busy,setBusy]=useState(false);
-  const [error,setError]=useState(''),[notice,setNotice]=useState('');const requestId=useRef<string|null>(null);
-  const refresh=async()=>{const [state,data]=await Promise.all([api.getVideoAutomationStatus(),api.getVideoJobs()]);setStatus(state);setJobs(data.jobs.filter(j=>j.workflow==='creator'));};
-  useEffect(()=>{void refresh().catch(e=>setError(e.message));const timer=setInterval(()=>{void refresh().catch(e=>setError(e.message));},10000);return()=>clearInterval(timer);},[]);
+  const brandRef=useRef(brandId);brandRef.current=brandId;
+  const [error,setError]=useState(''),[loadError,setLoadError]=useState(''),[notice,setNotice]=useState('');const requestId=useRef<string|null>(null);
+  const refresh=async()=>{const requestedBrand=brandRef.current;const [state,data,rows]=await Promise.all([api.getVideoAutomationStatus(),api.getVideoJobs(),requestedBrand?api.getSocialAccounts(requestedBrand):Promise.resolve([])]);setStatus(state);setJobs(data.jobs.filter(j=>j.workflow==='creator'));if(requestedBrand===brandRef.current)setAccounts(rows);setLoadError('');};
+  useEffect(()=>{void refresh().catch(e=>setLoadError(e.message));const timer=setInterval(()=>{if(document.visibilityState==='visible')void refresh().catch(e=>setLoadError(e.message));},15000);return()=>clearInterval(timer);},[]);
   useEffect(()=>{if(!brands.some(b=>b.id===brandId))setBrandId(brands[0]?.id||0);},[brands,brandId]);
-  useEffect(()=>{let alive=true;setAccountIds([]);setAccounts([]);if(brandId)api.getSocialAccounts(brandId).then(rows=>{if(alive)setAccounts(rows);}).catch(e=>{if(alive)setError(e.message);});return()=>{alive=false;};},[brandId]);
+  useEffect(()=>{setAccountIds([]);setAccounts([]);if(brandId)void refresh().catch(e=>setLoadError(e.message));},[brandId]);
   useEffect(()=>{setAccountIds([]);setAspect(kind==='post'?'1:1':'9:16');},[kind]);
   useEffect(()=>{requestId.current=null;},[kind,brandId,title,brief,caption,language,aspect,duration,accountIds]);
   const eligible=accounts.filter(account=>account.connectionStatus==='connected'&&status?.capabilities?.[account.platform]?.placements?.[kind==='post'?'feed':'reels_shorts']?.includes(kind==='post'?'image':'video'));
@@ -22,13 +23,13 @@ export function CreatorStudio({brands,onOpenDesk}:{brands:Brand[];onOpenDesk:(id
   const submit=async(event:React.FormEvent)=>{
     event.preventDefault();if(busy)return;setBusy(true);setError('');setNotice('');
     try{requestId.current||=crypto.randomUUID();const result=await api.createVideoJob({workflow:'creator',kind,requestId:requestId.current,brandId,accountIds,title,topic:brief,caption:caption||brief.slice(0,5000),language,aspectRatio:aspect,durationSeconds:duration,autoPublish:false});
-      setSelectedId(result.job.id);setNotice('Brief accepted. Creation will continue on your PC; the result will appear in Social Media Desk for editing and scheduling.');requestId.current=null;await refresh();
+      setSelectedId(result.job.id);setNotice('Brief accepted. Creation will continue on your PC; the result will appear in Social Media Desk for editing and scheduling.');requestId.current=null;await refresh().catch(e=>setLoadError(e.message));
     }catch(e:any){setError(e.message);}finally{setBusy(false);}
   };
   return <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
     <header className="flex flex-wrap justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-widest text-indigo-600">Create → schedule → approve</p><h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Creator Studio</h1><p className="mt-2 max-w-2xl text-sm text-slate-600">Paste a detailed brief, create a video or image post, and review the result before planning its publication.</p></div><span className={`inline-flex h-fit items-center gap-2 rounded-full px-3 py-2 text-xs font-medium ${status?.workerOnline?'bg-emerald-100 text-emerald-800':'bg-amber-100 text-amber-900'}`}><Monitor size={15}/>{status?.workerOnline?'Creation PC online':'Creation PC offline · briefs will wait'}</span></header>
     <div className="grid gap-3 sm:grid-cols-3">{['1 · Write the creative brief','2 · Edit and choose a schedule','3 · Get manager approval'].map(text=><div key={text} className="rounded-xl border bg-white px-4 py-3 text-sm font-medium text-slate-700">{text}</div>)}</div>
-    {error&&<p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p>}{notice&&<p role="status" className="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800">{notice}</p>}
+    {(error||loadError)&&<p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error||loadError}</p>}{notice&&<p role="status" className="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800">{notice}</p>}
     <div className="grid items-start gap-6 xl:grid-cols-[1.1fr_1fr]">
       <form onSubmit={submit} className="space-y-5 rounded-2xl border bg-white p-5 sm:p-6"><div className="flex rounded-xl bg-slate-100 p-1">{(['video','post'] as const).map(value=><button key={value} type="button" aria-pressed={kind===value} onClick={()=>setKind(value)} className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold ${kind===value?'bg-white text-indigo-700 shadow-sm':'text-slate-600'}`}>{value==='video'?<Film size={17}/>:<Image size={17}/>} {value==='video'?'Video editor':'Image post creator'}</button>)}</div>
         <fieldset disabled={busy||!status?.canGenerate} className="space-y-4">

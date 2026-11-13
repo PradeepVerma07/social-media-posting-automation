@@ -10,12 +10,21 @@ import { buildAnalyticsReport, parseReportFilters } from '../services/reporting'
 import { reviewVideoJob } from '../services/videoReviews';
 import {saveCreatorSchedule,submitCreatorForApproval} from '../services/creatorSchedule';
 import {getDeliveryFailureReport,retryFailedDestination} from '../services/postFailures';
+import {connectMetaAccount} from '../services/metaConnection';
 
 export const enterpriseRouter = Router();
 const wrap = (fn: (req: Request, res: Response) => any) => (req: Request, res: Response) => Promise.resolve().then(() => fn(req, res)).catch(error => res.status(error.status || 400).json({ error: error.status === 500 ? 'The operation could not be completed.' : error.message }));
 const fail = (message: string, status = 400): never => { throw Object.assign(new Error(message), { status }); };
 const tx = <T>(fn: () => T): T => { db.exec('BEGIN IMMEDIATE'); try { const result = fn(); db.exec('COMMIT'); return result; } catch (error) { db.exec('ROLLBACK'); throw error; } };
 const json = (value: any, fallback: any) => { try { return JSON.parse(value); } catch { return fallback; } };
+enterpriseRouter.post('/social-accounts/connect',(req,res,next)=>{
+  if(String(req.body?.platform||'meta').toLowerCase()!=='meta')return next();
+  return wrap(async(req,res)=>{
+    if(!isAdmin(req.principal))return fail('Only administrators can connect social accounts.',403);
+    if(!req.body?.brandId)return fail('Select the brand before connecting an account.');
+    res.json(await connectMetaAccount(req.principal,ownBrand(req,req.body.brandId),req.body));
+  })(req,res);
+});
 const postById = (req: Request) => {
   const post: any = db.prepare('SELECT * FROM posts WHERE post_id = ? AND deleted_at IS NULL').get(req.params.id);
   if (!post || (!req.principal.global && post.client_id !== req.principal.clientId)) fail('Post not found.', 404);

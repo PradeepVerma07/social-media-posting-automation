@@ -16,33 +16,8 @@ import {
   MultiBrandPublishResponse
 } from '../../server/src/types';
 
-const BASE_URL = '/api/v1';
-
-async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  try {
-    const res = await fetch(`${BASE_URL}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options?.headers || {}),
-      },
-      ...options,
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ error: 'Request failed' }));
-      if (res.status === 401 && endpoint !== '/auth/login') window.dispatchEvent(new Event('webtrionix:session-expired'));
-      const detail = errorData.error;
-      throw new Error(typeof detail === 'string' ? detail : detail?.message || errorData.message || `HTTP ${res.status}`);
-    }
-
-    return res.json();
-  } catch (err: any) {
-    if (err.name === 'TypeError' && err.message?.includes('fetch')) {
-      throw new Error('Connection error: server is restarting or unreachable. Please retry in a moment.');
-    }
-    throw err;
-  }
-}
+import {createApiRequester} from './transport';
+const request=createApiRequester({onSessionExpired:()=>{if(typeof window!=='undefined')window.dispatchEvent(new Event('webtrionix:session-expired'));}});
 
 export const api = {
   async getPostFailureReport(id:number):Promise<import('../../server/src/types/postFailures').DeliveryFailureReport>{return request(`/posts/${id}/failure-report`);},

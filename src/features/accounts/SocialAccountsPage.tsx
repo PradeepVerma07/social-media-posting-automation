@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Share2,
   CheckCircle2,
@@ -32,6 +32,7 @@ interface SocialAccountsPageProps {
   brands?: Brand[];
   onRefreshAccounts?: () => void;
   currentRole?: RoleName;
+  selectedBrandId?:number|null;
 }
 
 interface BrandGroup {
@@ -47,6 +48,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
   brands,
   onRefreshAccounts,
   currentRole = 'Super Admin',
+  selectedBrandId=null,
 }) => {
   const permissions = getRolePermissions(currentRole);
   const [modalOpen, setModalOpen] = useState(false);
@@ -57,6 +59,8 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
 
   // Form states per platform
   const [metaToken, setMetaToken] = useState('');
+  const [metaPageId,setMetaPageId]=useState('');
+  const [connectionBrandId,setConnectionBrandId]=useState('');
   const [ytChannelId, setYtChannelId] = useState('');
   const [ytToken, setYtToken] = useState('');
   const [ytHandle, setYtHandle] = useState('');
@@ -73,7 +77,9 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
   const [xAccessSecret, setXAccessSecret] = useState('');
   const [xBearerToken, setXBearerToken] = useState('');
 
-  const openConnectModal = (platform?: PlatformType) => {
+  const openConnectModal = (platform?: PlatformType,brandKey?:string) => {
+    const match=brands?.find(b=>String(b.id)===brandKey||String((b as any).brandId)===brandKey);
+    setConnectionBrandId(String(match?.id||selectedBrandId||''));
     setErrorMsg(null);
     setSuccessMsg(null);
     if (platform) {
@@ -82,6 +88,9 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
     setModalOpen(true);
   };
 
+  const clearCredentials=()=>{setMetaToken('');setYtToken('');setLiToken('');setWaToken('');setXApiKey('');setXApiSecret('');setXAccessToken('');setXAccessSecret('');setXBearerToken('');};
+  const closeModal=()=>{if(isLoading)return;clearCredentials();setModalOpen(false);setErrorMsg(null);};
+  useEffect(()=>{setErrorMsg(null);setMetaPageId('');},[selectedPlatform,connectionBrandId]);
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -89,7 +98,10 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
     setSuccessMsg(null);
 
     try {
-      let payload: any = { platform: selectedPlatform };
+      const selected=brands?.find(b=>String(b.id)===connectionBrandId);
+      if(!selected)throw new Error('Select the brand for this connection.');
+      let payload: any = { platform: selectedPlatform,brandId:(selected as any).brandId||selected.id };
+      if(metaPageId.trim())payload.pageId=metaPageId.trim();
 
       if (selectedPlatform === 'meta') {
         if (!metaToken.trim()) throw new Error('Meta Graph API token is required.');
@@ -122,6 +134,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
       }
 
       const res = await api.connectSocialAccountToken(payload);
+      clearCredentials();
       setSuccessMsg(res.message || `${selectedPlatform.toUpperCase()} channel credentials verified and encrypted!`);
       if (onRefreshAccounts) {
         onRefreshAccounts();
@@ -228,8 +241,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
           const key = String(b.id || (b as any).brandId || 'BR-001');
           if (
             String(acc.brandId) === String(b.id) ||
-            String(acc.brandId) === String((b as any).brandId) ||
-            (b.name && acc.accountName?.toLowerCase().includes(b.name.toLowerCase()))
+            String(acc.brandId) === String((b as any).brandId)
           ) {
             map.get(key)?.accounts.push(acc);
             placed = true;
@@ -264,7 +276,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-[#101828]">Connected Social Accounts</h2>
           <p className="text-xs text-[#667085] mt-1">
-            Real multi-channel OAuth credentials verified and hardware-encrypted via AES-256-GCM token vault.
+            Connect the selected brand with credentials verified by the provider and encrypted at rest.
           </p>
         </div>
 
@@ -345,7 +357,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
 
                   <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                     <button
-                      onClick={() => openConnectModal('meta')}
+                      onClick={() => openConnectModal('meta',group.brandId)}
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 hover:border-indigo-300 text-xs font-semibold rounded-xl transition-all shadow-xs"
                     >
                       <Plus className="w-4 h-4" />
@@ -363,7 +375,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
                     return (
                       <div
                         key={acc.id}
-                        onClick={() => openConnectModal(meta.typeKey)}
+                        onClick={() => openConnectModal(meta.typeKey,group.brandId)}
                         className={`group rounded-2xl border transition-all duration-200 p-4 flex flex-col justify-between space-y-3 cursor-pointer ${
                           isConnected
                             ? 'bg-slate-50/70 hover:bg-white border-slate-200/90 hover:border-indigo-300 hover:shadow-sm'
@@ -427,7 +439,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              openConnectModal(meta.typeKey);
+                              openConnectModal(meta.typeKey,group.brandId);
                             }}
                             className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-colors border ${
                               isConnected
@@ -451,7 +463,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
       {/* MULTI-PLATFORM CONNECTION & STEP-BY-STEP HELP WIZARD MODAL */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+          <div role="dialog" aria-modal="true" aria-label="Connect social account" className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -460,11 +472,11 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">Connect & Authenticate Social Channel</h3>
-                  <p className="text-xs text-slate-500">AES-256-GCM hardware encryption at rest</p>
+                  <p className="text-xs text-slate-500">Verified with the provider and encrypted at rest</p>
                 </div>
               </div>
               <button
-                onClick={() => setModalOpen(false)}
+                onClick={closeModal}
                 className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -546,6 +558,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
 
             {/* FORM PER PLATFORM */}
             <form onSubmit={handleConnect} className="space-y-4">
+              <label className="block text-sm font-semibold text-slate-700">Brand<select aria-label="Connection brand" required disabled={isLoading} value={connectionBrandId} onChange={e=>setConnectionBrandId(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm"><option value="">Select a brand</option>{brands?.map(brand=><option key={brand.id} value={brand.id}>{brand.name}</option>)}</select></label>
               {/* META (FACEBOOK & INSTAGRAM) */}
               {selectedPlatform === 'meta' && (
                 <div className="space-y-4">
@@ -558,19 +571,18 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
                       <li>Go to <a href="https://developers.facebook.com/tools/explorer" target="_blank" rel="noreferrer" className="underline font-bold text-blue-900">Meta Graph API Explorer ↗</a></li>
                       <li>Select your Meta App and add User Token permissions: <code className="bg-white/80 px-1 py-0.5 rounded font-mono font-bold text-[11px]">pages_show_list, pages_read_engagement, pages_manage_posts, instagram_basic, instagram_content_publish</code></li>
                       <li>Click <strong>Generate Access Token</strong> and grant access to your Facebook Page and linked Instagram account.</li>
-                      <li>Copy the generated token starting with <code className="font-mono font-bold">EAGV...</code> and paste below.</li>
+                      <li>Paste a current access token authorized for the Facebook Page and linked Instagram account.</li>
                     </ol>
                   </div>
 
+                  <label className="block text-xs font-semibold text-slate-700">Facebook Page ID (when the token covers multiple Pages)<input aria-label="Facebook Page ID" inputMode="numeric" value={metaPageId} onChange={e=>setMetaPageId(e.target.value)} placeholder="Numeric Page ID" className="mt-2 w-full rounded-xl border border-slate-300 p-3 text-sm"/></label>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      Meta User or Page Access Token (EAGV...) *
+                      Meta User or Page Access Token *
                     </label>
-                    <textarea
-                      rows={3}
-                      value={metaToken}
+                    <input type="password" autoComplete="off" spellCheck={false} aria-label="Meta access token" value={metaToken}
                       onChange={e => setMetaToken(e.target.value)}
-                      placeholder="Paste your Meta Access Token here (e.g. EAGVJejn...)"
+                      placeholder="Paste your Meta access token"
                       required
                       className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:border-indigo-600 leading-relaxed"
                     />
@@ -626,9 +638,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       Google OAuth Access Token or API Key *
                     </label>
-                    <textarea
-                      rows={2}
-                      value={ytToken}
+                    <input type="password" autoComplete="off" spellCheck={false} aria-label="YouTube credential" value={ytToken}
                       onChange={e => setYtToken(e.target.value)}
                       placeholder="Paste your YouTube Data API Key or OAuth Access Token"
                       required
@@ -686,9 +696,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       LinkedIn OAuth 2.0 Access Token *
                     </label>
-                    <textarea
-                      rows={2}
-                      value={liToken}
+                    <input type="password" autoComplete="off" spellCheck={false} aria-label="LinkedIn access token" value={liToken}
                       onChange={e => setLiToken(e.target.value)}
                       placeholder="Paste your LinkedIn OAuth Access Token"
                       required
@@ -745,9 +753,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       Permanent System User Access Token *
                     </label>
-                    <textarea
-                      rows={2}
-                      value={waToken}
+                    <input type="password" autoComplete="off" spellCheck={false} aria-label="WhatsApp access token" value={waToken}
                       onChange={e => setWaToken(e.target.value)}
                       placeholder="Paste your WhatsApp Cloud API Permanent Access Token"
                       required
@@ -817,9 +823,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
                     <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       Access Token (or OAuth 2.0 Bearer Token) *
                     </label>
-                    <textarea
-                      rows={2}
-                      value={xBearerToken || xAccessToken}
+                    <input type="password" autoComplete="off" spellCheck={false} aria-label="X bearer token" value={xBearerToken || xAccessToken}
                       onChange={e => {
                         setXBearerToken(e.target.value);
                         setXAccessToken(e.target.value);
@@ -836,14 +840,14 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
               <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setModalOpen(false)}
+                  onClick={closeModal}
                   className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoading||!connectionBrandId}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm cursor-pointer"
                 >
                   {isLoading && <RotateCw className="w-3.5 h-3.5 animate-spin" />}

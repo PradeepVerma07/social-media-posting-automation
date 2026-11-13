@@ -68,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({
   const safeBrands = Array.isArray(brands) ? brands : [];
   const [n8nHealth, setN8nHealth] = useState<{
     reachable: boolean;
-    status: 'checking' | 'connected' | 'unreachable' | 'unauthorized';
+    status: 'checking' | 'connected' | 'unreachable' | 'unauthorized' | 'unavailable';
     latencyMs?: number;
     error?: string;
   }>({ reachable: false, status: 'checking' });
@@ -99,7 +99,9 @@ export const Header: React.FC<HeaderProps> = ({
   // Real backend health check GET {N8N_URL}/healthz via /api/v1/n8n/health
   useEffect(() => {
     let isMounted = true;
+    if(currentRole!=='Super Admin')return;
     const checkHealth = async () => {
+      if(document.visibilityState!=='visible')return;
       try {
         const res = await api.getN8nHealth();
         if (!isMounted) return;
@@ -119,7 +121,7 @@ export const Header: React.FC<HeaderProps> = ({
         if (!isMounted) return;
         setN8nHealth({
           reachable: false,
-          status: 'unreachable',
+          status: err.code==='HOSTING_BLOCKED'?'unavailable':'unreachable',
           error: err.message || 'n8n instance is unreachable',
         });
       }
@@ -131,7 +133,7 @@ export const Header: React.FC<HeaderProps> = ({
       isMounted = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [currentRole]);
 
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -278,7 +280,7 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         {/* Real n8n Health Status Pill - Only if role has automation permissions */}
-        {permissions.canAccessAutomations && (
+        {currentRole==='Super Admin' && (
           <button
             onClick={onOpenN8nStatus}
             className="h-8 px-2 sm:px-2.5 rounded-lg border border-[#D0D5DD] bg-[#F6F8FC] hover:bg-[#F2F4F7] flex items-center gap-1.5 text-[11px] font-medium text-[#344054] transition-colors shrink-0"
@@ -289,14 +291,14 @@ export const Header: React.FC<HeaderProps> = ({
                 ? `n8n Auth Required: ${n8nHealth.error}`
                 : n8nHealth.status === 'unreachable'
                 ? `n8n Offline: ${n8nHealth.error || 'Server unreachable'}`
-                : 'Checking n8n connection...'
+                : n8nHealth.status==='unavailable' ? n8nHealth.error : 'Checking n8n connection...'
             }
           >
             <span
               className={`w-2 h-2 rounded-full ring-2 ${
                 n8nHealth.status === 'connected'
                   ? 'bg-[#12B76A] ring-[#12B76A]/20'
-                  : n8nHealth.status === 'checking'
+                  : (n8nHealth.status === 'checking'||n8nHealth.status === 'unavailable')
                   ? 'bg-amber-400 ring-amber-400/20 animate-pulse'
                   : n8nHealth.status === 'unauthorized'
                   ? 'bg-amber-500 ring-amber-500/20'
@@ -310,7 +312,7 @@ export const Header: React.FC<HeaderProps> = ({
                 ? 'n8n Checking...'
                 : n8nHealth.status === 'unauthorized'
                 ? 'n8n Auth Key Err'
-                : 'n8n Disconnected'}
+                : n8nHealth.status==='unavailable' ? 'Connection check blocked' : 'n8n Disconnected'}
             </span>
           </button>
         )}
