@@ -251,15 +251,15 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right: n8n Status, Register Brand, Date Range, Notifications & User */}
       <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-                {/* CI360 AI Neural Studio Direct Nav Button */}
+                {/* Automation Studio navigation */}
         <button
           type="button"
           onClick={() => onNavigateToTab?.('ai-studio')}
-          className="h-8 px-2 sm:px-2.5 rounded-lg border border-violet-400/50 bg-gradient-to-r from-violet-600 via-indigo-600 to-pink-600 hover:from-violet-500 hover:to-pink-500 text-white flex items-center gap-1.5 text-[11px] font-bold shadow-xs hover:shadow-md transition-all cursor-pointer shrink-0"
-          title="Open CI360 AI Neural Studio and Predictive Feed Intelligence"
+          className="h-8 px-2 sm:px-2.5 rounded-lg border border-blue-700 bg-blue-700 hover:bg-blue-800 text-white flex items-center gap-1.5 text-[11px] font-bold shadow-xs hover:shadow-md transition-all cursor-pointer shrink-0"
+          title="Open the content automation workflow"
         >
-          <Sparkles className="w-3.5 h-3.5 text-pink-200 animate-pulse" />
-          <span className="hidden sm:inline">AI Neural Studio</span>
+          <Sparkles className="w-3.5 h-3.5 text-blue-100" />
+          <span className="hidden sm:inline">Automation Studio</span>
         </button>
 
         {/* Direct n8n Workflows Link (opens in new tab) - Only if role has automation permissions */}

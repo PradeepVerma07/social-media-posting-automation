@@ -117,7 +117,7 @@ export const metaPublishAdapter: PublishAdapter = async (delivery, token) => {
   throw new ProviderError(`Publishing to ${delivery.platform} is not configured.`, 'UNSUPPORTED_PLATFORM');
 };
 
-export async function publishDelivery(targetId: string, executionId: string, adapter: PublishAdapter = metaPublishAdapter) {
+export async function publishDelivery(targetId: string, executionId: string, adapter: PublishAdapter = metaPublishAdapter, options:{allowAutomaticRetry?:boolean}={}) {
   let current = loadDelivery(targetId);
   if (!current) throw new DeliveryConflict('Delivery not found');
   if (current.status !== 'Processing') {
@@ -143,7 +143,7 @@ export async function publishDelivery(targetId: string, executionId: string, ada
   const fresh = loadDelivery(targetId);
   if (!fresh || fresh.status !== 'Processing' || fresh.lock_execution_id !== executionId)
     throw new DeliveryConflict('Delivery claim expired; reconcile the provider outcome before retrying');
-  const retry = failure?.retryable && !failure.unknownOutcome && fresh.attempt_count < fresh.max_retries;
+  const retry = options.allowAutomaticRetry!==false && failure?.retryable && !failure.unknownOutcome && fresh.attempt_count < fresh.max_retries;
   const status = receipt ? 'Posted' : failure?.unknownOutcome ? 'NeedsVerification' : retry ? 'Retrying' : 'Failed';
   const delaySeconds = Math.max(failure?.retryAfterSeconds || 0, Math.min(2 ** fresh.attempt_count * 60, 3600) + Math.random() * 30);
   db.exec('BEGIN IMMEDIATE');

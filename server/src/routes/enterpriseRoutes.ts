@@ -9,6 +9,7 @@ import { sseManager } from '../services/sseManager';
 import { buildAnalyticsReport, parseReportFilters } from '../services/reporting';
 import { reviewVideoJob } from '../services/videoReviews';
 import {saveCreatorSchedule,submitCreatorForApproval} from '../services/creatorSchedule';
+import {getDeliveryFailureReport,retryFailedDestination} from '../services/postFailures';
 
 export const enterpriseRouter = Router();
 const wrap = (fn: (req: Request, res: Response) => any) => (req: Request, res: Response) => Promise.resolve().then(() => fn(req, res)).catch(error => res.status(error.status || 400).json({ error: error.status === 500 ? 'The operation could not be completed.' : error.message }));
@@ -20,6 +21,12 @@ const postById = (req: Request) => {
   if (!post || (!req.principal.global && post.client_id !== req.principal.clientId)) fail('Post not found.', 404);
   return post;
 };
+enterpriseRouter.get('/posts/:id/failure-report',wrap((req,res)=>res.json(getDeliveryFailureReport(req.principal,String(req.params.id)))));
+enterpriseRouter.post('/posts/:id/retry',wrap(async(req,res)=>{
+  const id=String(req.params.id);
+  const result=await retryFailedDestination(req.principal,id,req.body||{});
+  res.json({...result,post:formatPost(id)});
+}));
 function formatPost(id: string) {
   const data: any = getFormattedPostById(id);
   if (!data) return null;

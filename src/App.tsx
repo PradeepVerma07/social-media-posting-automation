@@ -838,6 +838,8 @@ export default function App() {
             <AIStudioDashboard
               posts={posts}
               brands={brands}
+              selectedBrandId={selectedBrandId}
+              currentRole={currentRole}
               onNavigateToTab={tab => handleTabChange(tab as NavigationTab)}
             />
           )}
@@ -856,6 +858,7 @@ export default function App() {
                   onSubmitPost={handleSubmitPost}
                   onPublishNow={handlePublishNow}
                   onDeletePost={handleDeletePost}
+                  onPostUpdated={updated=>setPosts(previous=>previous.map(post=>post.id===updated.id?updated:post))}
                   currentRole={currentRole}
                 />
               )}
@@ -925,6 +928,7 @@ export default function App() {
                   onSubmitPost={handleSubmitPost}
                   onPublishNow={handlePublishNow}
                   onDeletePost={handleDeletePost}
+                  onPostUpdated={updated=>setPosts(previous=>previous.map(post=>post.id===updated.id?updated:post))}
                   currentRole={currentRole}
                 />
               )}

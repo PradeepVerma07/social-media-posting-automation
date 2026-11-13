@@ -116,3 +116,26 @@ export function beginPublishing(targetId: string, executionId: string): any {
     throw error;
   }
 }
+
+// An explicit operator retry keeps the approved schedule intact and claims only
+// one failed destination. Historical attempts and successful targets are retained.
+export function claimFailedTarget(targetId:string,executionId:string,postVersion:number,targetVersion:number,actor:string) {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const row=loadDelivery(targetId);
+    if(!row||!approvalIsCurrent(row)||row.post_version!==postVersion||row.version!==targetVersion
+      ||row.status!=='Failed'||row.platform_post_id||row.post_url||row.posted_at||row.lock_execution_id||row.lock_stage)
+      throw Object.assign(new DeliveryConflict('Delivery changed or is no longer safe to retry. Refresh its report.'),{status:409});
+    const scheduled=transitionTarget(row,'Scheduled',actor,'Explicit retry of the approved failed destination',{
+      max_retries:Math.max(row.max_retries,row.attempt_count+1),next_retry_at:null,
+    });
+    const now=new Date().toISOString();
+    const result=db.prepare(`UPDATE post_targets SET status='Processing',lock_execution_id=?,lock_stage='claimed',locked_at=?,
+      claimed_post_version=?,attempt_count=attempt_count+1,version=version+1,updated_at=? WHERE target_id=? AND version=? AND status='Scheduled'`)
+      .run(executionId,now,postVersion,now,targetId,scheduled.version);
+    if(result.changes!==1)throw Object.assign(new DeliveryConflict('Delivery was already claimed.'),{status:409});
+    db.prepare(`INSERT INTO publish_attempts (attempt_id,target_id,execution_id,post_version,started_at,result,created_at) VALUES (?,?,?,?,?,'running',?)`)
+      .run(randomUUID(),targetId,executionId,postVersion,now,now);
+    db.exec('COMMIT');
+  }catch(error){db.exec('ROLLBACK');throw error;}
+}

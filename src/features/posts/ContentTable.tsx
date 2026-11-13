@@ -4,6 +4,7 @@ import { Plus, Search, ChevronDown, AlertCircle } from 'lucide-react';
 import { Post, Brand, RoleName } from '../../../server/src/types';
 import { getRolePermissions } from '../../utils/rbac';
 import { MediaThumbnail } from '../../components/media/MediaThumbnail';
+import {FailureReportDialog} from './FailureReportDialog';
 
 interface ContentTableProps {
   posts: Post[];
@@ -17,6 +18,7 @@ interface ContentTableProps {
   onPublishNow: (postId: number) => Promise<void> | void;
   onDeletePost: (postId: number) => Promise<void> | void;
   currentRole?: RoleName;
+  onPostUpdated?: (post:Post)=>void;
 }
 const stateLabel = (state: string) => ({ in_review: 'In review', revision_requested: 'Changes requested', partially_published: 'Partially published', idle: 'Not queued' }[state] || state.replaceAll('_', ' '));
 const stateTone = (state: string) => /failed|rejected|partial|overdue|verification/i.test(state) ? 'bg-amber-50 text-amber-900' : /published|approved|success/i.test(state) ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-700';
@@ -24,7 +26,7 @@ const fieldClass = 'rounded-xl border border-slate-300 bg-white px-3 py-2 text-s
 
 export const ContentTable: React.FC<ContentTableProps> = ({
   posts, brands, onSelectPost, onCreateNew, onApprovePost, onRejectPost, onRequestRevision,
-  onSubmitPost, onPublishNow, onDeletePost, currentRole = 'Client',
+  onSubmitPost, onPublishNow, onDeletePost, currentRole = 'Client', onPostUpdated,
 }) => {
   const [search, setSearch] = useState('');
   const [brand, setBrand] = useState('all');
@@ -34,6 +36,7 @@ export const ContentTable: React.FC<ContentTableProps> = ({
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [failurePost,setFailurePost]=useState<Post|null>(null);
   const permissions = getRolePermissions(currentRole);
   const filtered = posts.filter(post => {
     const query = search.trim().toLowerCase();
@@ -82,6 +85,7 @@ export const ContentTable: React.FC<ContentTableProps> = ({
           <div className="grid gap-3 sm:grid-cols-2">{post.platforms?.map((target, index) => <section key={target.platform + index} className="rounded-xl border border-slate-200 p-3"><div className="flex justify-between gap-2 text-sm"><h3 className="font-semibold capitalize">{target.platform}</h3><span className="capitalize">{stateLabel(String(target.publishingStatus))}</span></div>{target.captionOverride && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{target.captionOverride}</p>}{target.errorMessage && <p className="mt-2 text-sm text-red-700">{target.errorMessage}</p>}{String(target.platformPostUrl || (target as any).publishedUrl || '').split(' | ').filter(u => /^https?:\/\//i.test(u)).map(url => <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="mt-2 block text-sm text-blue-700 underline">Open provider result</a>)}</section>)}</div>
           {['failed', 'partially_published'].includes(post.publishingStatus) && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Review the affected destinations and connection health. Do not republish successful destinations; uncertain outcomes need reconciliation before retrying.</p>}
           <div className="flex flex-wrap gap-2">
+            {post.platforms?.some(t=>['failed','needs_reconciliation'].includes(String(t.publishingStatus)))&&<><button type="button" className={fieldClass+' text-blue-700'} onClick={()=>setFailurePost(post)}>Failure details</button>{permissions.canPublishPost&&post.platforms.some(t=>t.publishingStatus==='failed')&&<button type="button" className={fieldClass+' text-blue-700'} onClick={()=>setFailurePost(post)}>Retry failed destinations</button>}</>}
             <button type="button" className={fieldClass} onClick={() => onSelectPost(post)}>Open review queue</button>
             {permissions.canCreatePost && ['draft', 'revision_requested'].includes(post.approvalStatus) && !terminal && <button type="button" disabled={busy} className={fieldClass} onClick={() => void run(post, () => onSubmitPost(post.id), 'Submitted for approval.')}>Submit for approval</button>}
             {permissions.canApprovePost && ['in_review', 'overdue'].includes(post.approvalStatus) && !terminal && <>
@@ -97,5 +101,6 @@ export const ContentTable: React.FC<ContentTableProps> = ({
       </article>;
     })}</div>
     {!filtered.length && <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"><h3 className="font-semibold">No posts match this view</h3><p className="mt-2 text-sm text-slate-600">{posts.length ? 'Try another filter or clear your search.' : 'Create your first draft to get started.'}</p>{posts.length > 0 && <button type="button" className="mt-4 text-sm font-medium text-blue-700" onClick={() => { setSearch(''); setBrand('all'); setStatus('all'); setPlatform('all'); }}>Clear filters</button>}</section>}
+    {failurePost&&<FailureReportDialog post={failurePost} onClose={()=>setFailurePost(null)} onPostUpdated={onPostUpdated}/>}
   </div>;
 };

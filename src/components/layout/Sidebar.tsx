@@ -76,7 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     badge?: number;
   }> = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'ai-studio', label: 'AI Neural Studio', icon: Sparkles },
+    { id: 'ai-studio', label: 'Automation Studio', icon: Sparkles },
     { id: 'creator', label: 'Creator Studio', icon: PlusCircle },
     { id: 'social-desk', label: 'Social Media Desk', icon: Calendar },
     { id: 'content', label: 'Content Management', icon: FileText },
