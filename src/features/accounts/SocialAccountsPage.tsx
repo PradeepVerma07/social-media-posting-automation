@@ -56,6 +56,8 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [checkingId,setCheckingId]=useState(''),[checkNotice,setCheckNotice]=useState(''),[checkFailed,setCheckFailed]=useState(false);
+  const verifySaved=async(account:SocialAccount)=>{const id=String((account as any).accountId||account.id);if(checkingId)return;setCheckingId(id);setCheckNotice('');setCheckFailed(false);try{const result=await api.checkMetaAccount(id);setCheckNotice(result.message);}catch(error:any){setCheckNotice(error.message);setCheckFailed(true);}finally{await onRefreshAccounts?.();setCheckingId('');}};
 
   // Form states per platform
   const [metaToken, setMetaToken] = useState('');
@@ -349,7 +351,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
                         <span>•</span>
                         <span className="flex items-center gap-1 text-emerald-700 font-medium">
                           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>AES-256-GCM Hardware Vault</span>
+                          <span>AES-256-GCM encrypted credentials</span>
                         </span>
                       </div>
                     </div>
@@ -422,13 +424,14 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
                             </span>
                           </div>
                           <div className="flex items-center justify-between gap-1">
-                            <span className="text-slate-500">Sync:</span>
+                            <span className="text-slate-500">Last check:</span>
                             <span className="font-mono text-[10px] text-slate-500">
-                              {isConnected && acc.lastSuccessfulPublishAt ? `${formatISTTime(acc.lastSuccessfulPublishAt)}` : '—'}
+                              {(acc as any).lastCheckedAt ? formatISTTime((acc as any).lastCheckedAt) : 'Not verified'}
                             </span>
                           </div>
                         </div>
 
+                        {permissions.canManageAccounts&&['facebook','instagram'].includes(acc.platform)&&<button type="button" disabled={!!checkingId} onClick={()=>void verifySaved(acc)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700 disabled:opacity-50">{checkingId===String((acc as any).accountId||acc.id)?'Checking with Meta…':'Check connection'}</button>}
                         {/* Action */}
                         <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-1">
                           <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
@@ -460,6 +463,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
         </div>
       ) : null}
 
+      {checkNotice&&<p role={checkFailed?'alert':'status'} className={'rounded-xl border p-4 text-sm '+(checkFailed?'border-rose-200 bg-rose-50 text-rose-800':'border-emerald-200 bg-emerald-50 text-emerald-800')}>{checkNotice}</p>}
       {/* MULTI-PLATFORM CONNECTION & STEP-BY-STEP HELP WIZARD MODAL */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">

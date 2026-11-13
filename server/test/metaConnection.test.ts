@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {hashSync} from 'bcryptjs';
 process.env.DATABASE_URL=':memory:';process.env.ENABLE_DEMO_DATA='false';process.env.ENABLE_BACKGROUND_WORKERS='false';process.env.NODE_ENV='test';
-const {db}=await import('../src/db/sqlite');const {connectMetaAccount}=await import('../src/services/metaConnection');const {decryptToken}=await import('../src/crypto/tokenVault');const {app}=await import('../src/app');
+const {db}=await import('../src/db/sqlite');const {connectMetaAccount,checkMetaAccount}=await import('../src/services/metaConnection');const {decryptToken}=await import('../src/crypto/tokenVault');const {app}=await import('../src/app');
 const principal={id:1,email:'admin@meta.test',fullName:'Admin',role:'Admin',clientId:'meta-one',global:false};
 const now=new Date().toISOString(),token='private-test-user-token-123456',pageToken='private-test-page-token-654321';
 const response=(data:any,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
@@ -30,6 +30,12 @@ test('Meta connections verify credentials, preserve brand ownership and never ex
   });
   await t.test('provider errors do not reflect credentials or raw provider payloads',async()=>{
     await assert.rejects(()=>connectMetaAccount(principal,brand,{token},async()=>response({error:{code:190,message:'secret='+token}},400)),(e:any)=>e.message.includes('fresh token')&&!e.message.includes(token));
+  });
+  await t.test('stored account checks verify the provider identity without exposing credentials',async()=>{
+    const account:any=db.prepare("SELECT * FROM social_accounts WHERE brand_id=? AND platform='instagram'").get(brand.brand_id);
+    const result=await checkMetaAccount(principal,account.account_id,async(url,options)=>{assert(!String(url).includes(pageToken));assert.equal(new Headers(options?.headers).get('Authorization'),'Bearer '+pageToken);return response({id:account.external_id,username:'real_brand'});});assert.equal(result.verified,true);assert(!JSON.stringify(result).includes(pageToken));assert.equal((db.prepare('SELECT last_checked_at FROM social_accounts WHERE account_id=?').get(account.account_id) as any).last_checked_at,result.checkedAt);
+    await assert.rejects(()=>checkMetaAccount({...principal,clientId:'other'},account.account_id),/not found/);
+    await assert.rejects(()=>checkMetaAccount(principal,account.account_id,async()=>response({error:{code:190,message:'secret='+pageToken}},400)),(e:any)=>e.message.includes('fresh token')&&!e.message.includes(pageToken));assert.equal((db.prepare('SELECT status FROM social_accounts WHERE account_id=?').get(account.account_id) as any).status,'needs_reauth');
   });
   await t.test('the real endpoint requires a session, administrator and explicit brand',async()=>{
     const password='meta-test-password-123';for(const role of ['Admin','Approver'])db.prepare('INSERT INTO users (email,full_name,role,client_id,password,created_at) VALUES (?,?,?,?,?,?)').run(role+'@meta.test',role,role,'meta-one',hashSync(password,4),now);

@@ -1,10 +1,28 @@
 import crypto from 'node:crypto';
 import {db} from '../db/sqlite';
-import {encryptToken} from '../crypto/tokenVault';
+import {encryptToken,decryptToken} from '../crypto/tokenVault';
 import {isAdmin,audit,type Principal} from './access';
 import {sseManager} from './sseManager';
 
 const fail=(message:string,status=400):never=>{throw Object.assign(new Error(message),{status});};
+export async function checkMetaAccount(principal:Principal,accountId:string,fetcher:typeof fetch=fetch){
+  if(!isAdmin(principal))return fail('Only administrators can check account credentials.',403);
+  const account:any=db.prepare('SELECT * FROM social_accounts WHERE account_id=?').get(accountId);
+  if(!account||(!principal.global&&account.client_id!==principal.clientId))return fail('Account not found.',404);
+  if(!['facebook','instagram'].includes(account.platform))return fail('This verification checks Facebook and Instagram accounts.');
+  const now=new Date().toISOString();
+  const reject=(message:string):never=>{db.prepare("UPDATE social_accounts SET status='needs_reauth',updated_at=?,version=version+1 WHERE account_id=?").run(now,accountId);sseManager.emit('account.updated',account.client_id,{accountId});return fail(message);};
+  let token:string;try{token=decryptToken({ciphertext:account.token_ciphertext,iv:account.token_iv,tag:account.token_tag,version:account.token_version});}catch{return reject('The saved credential cannot be read. Reconnect this account with a fresh token.');}
+  if(!token.trim()||!/^\d+$/.test(account.external_id))return reject('The account identity or saved credential is incomplete. Reconnect it.');
+  const version=/^v\d+\.\d+$/.test(process.env.META_GRAPH_VERSION||'')?process.env.META_GRAPH_VERSION:'v21.0';
+  let response:Response;try{response=await fetcher(`https://graph.facebook.com/${version}/${account.external_id}?fields=id,${account.platform==='instagram'?'username':'name'}`,{headers:{Authorization:`Bearer ${token}`,Accept:'application/json'},signal:AbortSignal.timeout(15000),redirect:'error'});}catch{return fail('Meta is temporarily unreachable. Please try the connection check again.',502);}
+  let data:any;try{data=await response.json();}catch{return fail('Meta returned an unreadable response. Please try again.',502);}
+  if(response.status===429||response.status>=500)return fail('Meta is temporarily busy. Please try again later.',502);
+  if(!response.ok||data.error||String(data.id)!==account.external_id)return reject(data.error?.code===190?'Meta rejected the saved token. Reconnect with a fresh token.':'Meta could not verify this account. Check token permissions and the linked Facebook Page / Instagram account.');
+  db.prepare("UPDATE social_accounts SET status='active',last_checked_at=?,updated_at=?,version=version+1 WHERE account_id=?").run(now,now,accountId);
+  audit(principal,'social_account',accountId,'verify_meta_identity',{platform:account.platform});sseManager.emit('account.updated',account.client_id,{accountId});
+  return {verified:true,accountId,platform:account.platform,checkedAt:now,message:'Meta verified the saved account identity. Publishing permissions are checked when content is sent.'};
+}
 export async function connectMetaAccount(principal:Principal,brand:any,input:{token?:unknown;pageId?:unknown},fetcher:typeof fetch=fetch){
   if(!isAdmin(principal))return fail('Only administrators can connect social accounts.',403);
   if(!brand||(!principal.global&&brand.client_id!==principal.clientId))return fail('Brand not found.',404);

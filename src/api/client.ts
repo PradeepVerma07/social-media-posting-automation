@@ -20,6 +20,7 @@ import {createApiRequester} from './transport';
 const request=createApiRequester({onSessionExpired:()=>{if(typeof window!=='undefined')window.dispatchEvent(new Event('webtrionix:session-expired'));}});
 
 export const api = {
+  async checkMetaAccount(accountId:string):Promise<{verified:boolean;message:string;checkedAt:string}>{return request(`/social-accounts/${encodeURIComponent(accountId)}/check`,{method:'POST'});},
   async getPostFailureReport(id:number):Promise<import('../../server/src/types/postFailures').DeliveryFailureReport>{return request(`/posts/${id}/failure-report`);},
   async retryPostDestination(id:number,input:{targetId:string;postVersion:number;targetVersion:number}):Promise<{result:{targetStatus:string};report:import('../../server/src/types/postFailures').DeliveryFailureReport;post:Post}>{return request(`/posts/${id}/retry`,{method:'POST',body:JSON.stringify(input)});},
   async getCreatorDesk(): Promise<{jobs:any[]}> {return request('/automation/videos/desk');},

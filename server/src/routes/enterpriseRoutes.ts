@@ -10,13 +10,14 @@ import { buildAnalyticsReport, parseReportFilters } from '../services/reporting'
 import { reviewVideoJob } from '../services/videoReviews';
 import {saveCreatorSchedule,submitCreatorForApproval} from '../services/creatorSchedule';
 import {getDeliveryFailureReport,retryFailedDestination} from '../services/postFailures';
-import {connectMetaAccount} from '../services/metaConnection';
+import {connectMetaAccount,checkMetaAccount} from '../services/metaConnection';
 
 export const enterpriseRouter = Router();
 const wrap = (fn: (req: Request, res: Response) => any) => (req: Request, res: Response) => Promise.resolve().then(() => fn(req, res)).catch(error => res.status(error.status || 400).json({ error: error.status === 500 ? 'The operation could not be completed.' : error.message }));
 const fail = (message: string, status = 400): never => { throw Object.assign(new Error(message), { status }); };
 const tx = <T>(fn: () => T): T => { db.exec('BEGIN IMMEDIATE'); try { const result = fn(); db.exec('COMMIT'); return result; } catch (error) { db.exec('ROLLBACK'); throw error; } };
 const json = (value: any, fallback: any) => { try { return JSON.parse(value); } catch { return fallback; } };
+enterpriseRouter.post('/social-accounts/:id/check',wrap(async(req,res)=>res.json(await checkMetaAccount(req.principal,String(req.params.id)))));
 enterpriseRouter.post('/social-accounts/connect',(req,res,next)=>{
   if(String(req.body?.platform||'meta').toLowerCase()!=='meta')return next();
   return wrap(async(req,res)=>{
