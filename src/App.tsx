@@ -408,13 +408,19 @@ export default function App() {
   const handleCreatePost = async (postData: any) => {
     try {
       await api.createPost(postData);
-      const [refreshedPosts, refreshedAnalytics] = await Promise.all([
+      const [refreshedPosts, refreshedAnalytics, refreshedExecutions] = await Promise.all([
         api.getPosts(),
         api.getAnalyticsOverview(),
+        api.getExecutions(),
       ]);
       setPosts(refreshedPosts);
       setAnalytics(refreshedAnalytics);
-      setActiveTab('content');
+      setExecutions(refreshedExecutions);
+      if (postData.publishNow || postData.publishImmediately) {
+        setActiveTab('published');
+      } else {
+        setActiveTab('content');
+      }
     } catch (err) {
       console.error('Failed to create post:', err); throw err;
     }

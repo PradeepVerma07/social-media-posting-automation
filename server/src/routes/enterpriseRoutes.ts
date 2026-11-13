@@ -151,15 +151,17 @@ enterpriseRouter.get('/posts', wrap((req, res) => {
   res.json({ data: posts });
 }));
 enterpriseRouter.get('/posts/:id', wrap((req, res) => { const post = postById(req); res.json(formatPost(post.post_id)); }));
-enterpriseRouter.post('/posts', wrap((req, res) => {
-  const input = req.body; const brand = ownBrand(req, input.brandId); const submit = input.submitForApproval === true;
+enterpriseRouter.post('/posts', wrap(async (req, res) => {
+  const input = req.body; const brand = ownBrand(req, input.brandId);
+  const publishImmediately = input.publishNow === true || input.publishImmediately === true;
+  const submit = input.submitForApproval === true || publishImmediately;
   const title = String(input.title || '').trim(); const caption = String(input.masterCaption ?? input.caption ?? '');
   if (!title || title.length > 255 || !caption.trim() || caption.length > 5000) fail('Enter a title and a caption of up to 5,000 characters.');
-  const date = schedule(input, input.timezone || brand.default_timezone, !submit);
+  const date = schedule(input, input.timezone || brand.default_timezone, !submit || publishImmediately);
   const media = Array.isArray(input.media) ? input.media : (input.mediaUrls || []).map((fileUrl: string) => ({ fileUrl }));
   if (media.some((m: any) => typeof m.fileUrl !== 'string' || (!/^https:\/\//i.test(m.fileUrl) && !/^\/uploads\/[a-zA-Z0-9._-]+$/.test(m.fileUrl)))) fail('Use HTTPS media URLs or uploaded files.');
   const placements = input.placements || (Array.isArray(input.placement) ? input.placement : [input.placement || 'feed']);
-  if (placements.length !== 1 || !['feed', 'story', 'reels_shorts'].includes(placements[0])) fail('Choose one supported placement per post.');
+  if (placements.length < 1 || !['feed', 'story', 'reels_shorts'].includes(placements[0])) fail('Choose one supported placement per post.');
   const platforms = Array.isArray(input.platforms) ? input.platforms.map((p: any) => typeof p === 'string' ? { platform: p } : p) : [];
   const selected: any[] = [];
   if (input.accountIds?.length) {
@@ -173,15 +175,30 @@ enterpriseRouter.post('/posts', wrap((req, res) => {
   }
   if (submit && !selected.length) fail('Select a connected account before submitting.');
   if (submit && selected.some(a => a.status !== 'active' || !['facebook', 'instagram'].includes(a.platform))) fail('This release publishes to eligible Facebook and Instagram accounts only.');
-  if (submit && (media.length !== 1 || (selected.some(a => a.platform === 'facebook') && !['image', 'video'].includes(input.mediaType || media[0]?.mediaType)))) fail('Facebook supports one image or video. Instagram supports one image or video in a supported placement.');
+  if (submit && (media.length < 1 || media.length > 10 || (selected.some(a => a.platform === 'facebook') && !['image', 'video', 'carousel'].includes(input.mediaType || media[0]?.mediaType)))) fail('Facebook supports image and video. Instagram supports image, video, and up to 10 carousel slides.');
   const now = new Date().toISOString(); const id = generatePostId();
+  const initialApproval = publishImmediately ? 'Approved' : (submit ? 'PendingApproval' : 'Draft');
+  const initialApprovedBy = publishImmediately ? req.principal.email : null;
+  const initialApprovedAt = publishImmediately ? now : null;
+  const initialApprovedVersion = publishImmediately ? 1 : null;
+  const initialTargetStatus = publishImmediately ? 'Scheduled' : 'Draft';
   tx(() => {
-    db.prepare(`INSERT INTO posts (post_id, client_id, brand_id, title, caption, hashtags, media_type, media_urls, link_url, schedule_local_date, schedule_local_time, timezone, scheduled_utc, approval_status, source, placement, created_by_user_id, revision_data, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'dashboard', ?, ?, ?, ?, ?)`).run(id, brand.client_id, brand.brand_id, title, caption, Array.isArray(input.hashtags) ? input.hashtags.join(' ') : String(input.hashtags || ''), input.mediaType || media[0]?.mediaType || 'image', JSON.stringify(media.map((m: any) => m.fileUrl)), input.targetUrl || input.linkUrl || '', date.date, date.time, input.timezone || brand.default_timezone, date.utc, submit ? 'PendingApproval' : 'Draft', JSON.stringify(placements), req.principal.id, JSON.stringify({ platforms, media, campaignName: input.campaignName, firstComment: input.firstComment, unscheduled: date.unscheduled }), now, now);
-    for (const account of selected) { const target = generateTargetId(); db.prepare("INSERT INTO post_targets (target_id, post_id, account_id, platform, status, idempotency_key, created_at, updated_at) VALUES (?, ?, ?, ?, 'Draft', ?, ?, ?)").run(target, id, account.account_id, account.platform, computeIdempotencyKey(target, date.utc, 1), now, now); }
-    remember(db.prepare('SELECT * FROM posts WHERE post_id = ?').get(id), req.principal.email); audit(req.principal, 'post', id, submit ? 'submit' : 'create');
+    db.prepare(`INSERT INTO posts (post_id, client_id, brand_id, title, caption, hashtags, media_type, media_urls, link_url, schedule_local_date, schedule_local_time, timezone, scheduled_utc, approval_status, approved_by, approved_at, approved_version, source, placement, created_by_user_id, revision_data, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'dashboard', ?, ?, ?, ?, ?)`).run(id, brand.client_id, brand.brand_id, title, caption, Array.isArray(input.hashtags) ? input.hashtags.join(' ') : String(input.hashtags || ''), input.mediaType || (media.length > 1 ? 'carousel' : media[0]?.mediaType || 'image'), JSON.stringify(media.map((m: any) => m.fileUrl)), input.targetUrl || input.linkUrl || '', date.date, date.time, input.timezone || brand.default_timezone, date.utc, initialApproval, initialApprovedBy, initialApprovedAt, initialApprovedVersion, JSON.stringify(placements), req.principal.id, JSON.stringify({ platforms, media, campaignName: input.campaignName, firstComment: input.firstComment, taggedUsers: input.taggedUsers || input.tagged_users, unscheduled: date.unscheduled }), now, now);
+    for (const account of selected) { const target = generateTargetId(); db.prepare("INSERT INTO post_targets (target_id, post_id, account_id, platform, status, idempotency_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(target, id, account.account_id, account.platform, initialTargetStatus, computeIdempotencyKey(target, date.utc, 1), now, now); }
+    remember(db.prepare('SELECT * FROM posts WHERE post_id = ?').get(id), req.principal.email); audit(req.principal, 'post', id, publishImmediately ? 'publish_now' : (submit ? 'submit' : 'create'));
   });
-  sseManager.emit('post.created', brand.client_id, { postId: id }); res.status(201).json({ data: formatPost(id) });
+
+  if (publishImmediately) {
+    const targets: any[] = db.prepare("SELECT * FROM post_targets WHERE post_id = ?").all(id);
+    const postRow: any = db.prepare("SELECT * FROM posts WHERE post_id = ?").get(id);
+    const executionId = `EXEC-${crypto.randomUUID()}`;
+    for (const target of targets) {
+      await publishTargetDirectly(target, postRow, executionId);
+    }
+  }
+
+  sseManager.emit('post.created', brand.client_id, { postId: id }); res.status(201).json({ data: formatPost(id), published: publishImmediately });
 }));
 enterpriseRouter.patch('/posts/:id', wrap((req, res) => {
   const post = postById(req); const input = req.body;
@@ -252,13 +269,23 @@ for (const action of ['submit', 'approve', 'reject', 'request-revision']) enterp
 }));
 const publishNow = wrap(async (req, res) => {
   const post = postById(req);
-  if (post.approval_status !== 'Approved' || post.approved_version !== post.version) fail('The current revision must be approved before publishing.', 409);
-  const targets: any[] = db.prepare("SELECT * FROM post_targets WHERE post_id = ? AND status IN ('Scheduled','Retrying','Failed','Missed')").all(post.post_id);
+  if (post.approval_status !== 'Approved' || post.approved_version !== post.version) {
+    if (isAdmin(req.principal) || canApprove(req.principal)) {
+      const now = new Date().toISOString();
+      db.prepare("UPDATE posts SET approval_status = 'Approved', approved_version = version, approved_by = ?, approved_at = ?, updated_at = ? WHERE post_id = ?")
+        .run(req.principal.email, now, now, post.post_id);
+      db.prepare("UPDATE post_targets SET status = 'Scheduled', version = version + 1, updated_at = ? WHERE post_id = ? AND status NOT IN ('Posted','Processing','NeedsVerification','Cancelled')")
+        .run(now, post.post_id);
+    } else {
+      fail('The current revision must be approved before publishing.', 409);
+    }
+  }
+  const targets: any[] = db.prepare("SELECT * FROM post_targets WHERE post_id = ? AND status IN ('Scheduled','Retrying','Failed','Missed','Draft')").all(post.post_id);
   if (!targets.length) fail('No destinations are eligible. Published or uncertain destinations will not be submitted again.', 409);
   const executionId = `EXEC-${crypto.randomUUID()}`; const now = new Date().toISOString();
   tx(() => {
     db.prepare('UPDATE posts SET scheduled_utc = ?, updated_at = ? WHERE post_id = ?').run(now, now, post.post_id);
-    db.prepare("UPDATE post_targets SET status = 'Scheduled', attempt_count = 0, next_retry_at = NULL, version = version + 1 WHERE post_id = ? AND status IN ('Failed','Missed')").run(post.post_id);
+    db.prepare("UPDATE post_targets SET status = 'Scheduled', attempt_count = 0, next_retry_at = NULL, version = version + 1 WHERE post_id = ? AND status IN ('Failed','Missed','Draft')").run(post.post_id);
     db.prepare("INSERT INTO executions_cache (execution_id, workflow_id, status, mode, started_at, target_ids, created_at, updated_at) VALUES (?, 'application-publisher', 'running', 'manual', ?, ?, ?, ?)").run(executionId, now, JSON.stringify(targets.map(t => t.target_id)), now, now);
     audit(req.principal, 'post', post.post_id, 'publish_now', { executionId, targetIds: targets.map(t => t.target_id) });
   });

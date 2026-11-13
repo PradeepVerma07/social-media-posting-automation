@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DateTime } from 'luxon';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, X, AlertCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, X, AlertCircle, Send } from 'lucide-react';
 import { Post, Brand, SocialAccount, RoleName } from '../../../server/src/types';
 import { CreatePostComposer } from '../posts/CreatePostComposer';
 import { getRolePermissions } from '../../utils/rbac';
@@ -123,7 +123,7 @@ export const ContentCalendar: React.FC<ContentCalendarProps> = ({
         })}<p className="text-xs text-slate-600">Partial and uncertain results need review before retrying. A published destination must not be submitted again.</p></div>
         <footer className="flex flex-wrap gap-3 border-t border-slate-200 pt-4">
           {onUpdatePost && permissions.canCreatePost && !['published', 'partially_published', 'processing'].includes(inspecting.publishingStatus) && !editing && <button type="button" className={inputClass} onClick={() => { const time = instant(inspecting.scheduledAt)?.setZone(inspecting.timezone || zone); setEdit({ title: inspecting.title, caption: inspecting.masterCaption, date: time?.toISODate() || '', time: time?.toFormat('HH:mm') || '09:00', zone: inspecting.timezone || zone }); setEditing(true); }}>Edit or reschedule</button>}
-          {onPublishNow && permissions.canPublishPost && inspecting.approvalStatus === 'approved' && ['idle', 'scheduled'].includes(inspecting.publishingStatus) && <button type="button" disabled={busy} className={inputClass} onClick={() => { if (window.confirm('Publish "' + inspecting.title + '" now instead of its scheduled time?')) void runAction(() => onPublishNow(inspecting.id), 'Publication requested. Review destination outcomes for confirmation.'); }}>Publish now</button>}
+          {onPublishNow && permissions.canPublishPost && !['published', 'partially_published', 'processing'].includes(inspecting.publishingStatus) && <button type="button" disabled={busy} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 cursor-pointer shadow-sm transition-colors" onClick={() => { if (window.confirm('Publish "' + inspecting.title + '" directly now to live channels?')) void runAction(() => onPublishNow(inspecting.id), '🚀 Publication requested. Check live results!'); }}><Send className="h-4 w-4" />Publish now directly</button>}
           <button type="button" className={inputClass} onClick={() => { onSelectPost(inspecting); setInspectingId(null); }}>Open review queue</button>
           {onDeletePost && permissions.canDeletePost && !['published', 'partially_published', 'processing'].includes(inspecting.publishingStatus) && <button type="button" disabled={busy} className={inputClass + ' text-red-700'} onClick={() => { if (window.confirm('Delete "' + inspecting.title + '"? This may permanently remove the draft and its schedule.')) void runAction(async () => { await onDeletePost(inspecting.id); setInspectingId(null); }, 'Post deleted.'); }}>Delete post</button>}
         </footer>

@@ -133377,18 +133377,19 @@ enterpriseRouter.get("/posts/:id", wrap((req, res) => {
   const post = postById(req);
   res.json(formatPost(post.post_id));
 }));
-enterpriseRouter.post("/posts", wrap((req, res) => {
+enterpriseRouter.post("/posts", wrap(async (req, res) => {
   const input2 = req.body;
   const brand = ownBrand(req, input2.brandId);
-  const submit = input2.submitForApproval === true;
+  const publishImmediately = input2.publishNow === true || input2.publishImmediately === true;
+  const submit = input2.submitForApproval === true || publishImmediately;
   const title = String(input2.title || "").trim();
   const caption = String(input2.masterCaption ?? input2.caption ?? "");
   if (!title || title.length > 255 || !caption.trim() || caption.length > 5e3) fail4("Enter a title and a caption of up to 5,000 characters.");
-  const date5 = schedule(input2, input2.timezone || brand.default_timezone, !submit);
+  const date5 = schedule(input2, input2.timezone || brand.default_timezone, !submit || publishImmediately);
   const media = Array.isArray(input2.media) ? input2.media : (input2.mediaUrls || []).map((fileUrl) => ({ fileUrl }));
   if (media.some((m2) => typeof m2.fileUrl !== "string" || !/^https:\/\//i.test(m2.fileUrl) && !/^\/uploads\/[a-zA-Z0-9._-]+$/.test(m2.fileUrl))) fail4("Use HTTPS media URLs or uploaded files.");
   const placements = input2.placements || (Array.isArray(input2.placement) ? input2.placement : [input2.placement || "feed"]);
-  if (placements.length !== 1 || !["feed", "story", "reels_shorts"].includes(placements[0])) fail4("Choose one supported placement per post.");
+  if (placements.length < 1 || !["feed", "story", "reels_shorts"].includes(placements[0])) fail4("Choose one supported placement per post.");
   const platforms = Array.isArray(input2.platforms) ? input2.platforms.map((p) => typeof p === "string" ? { platform: p } : p) : [];
   const selected = [];
   if (input2.accountIds?.length) {
@@ -133404,21 +133405,34 @@ enterpriseRouter.post("/posts", wrap((req, res) => {
   }
   if (submit && !selected.length) fail4("Select a connected account before submitting.");
   if (submit && selected.some((a) => a.status !== "active" || !["facebook", "instagram"].includes(a.platform))) fail4("This release publishes to eligible Facebook and Instagram accounts only.");
-  if (submit && (media.length !== 1 || selected.some((a) => a.platform === "facebook") && !["image", "video"].includes(input2.mediaType || media[0]?.mediaType))) fail4("Facebook supports one image or video. Instagram supports one image or video in a supported placement.");
+  if (submit && (media.length < 1 || media.length > 10 || selected.some((a) => a.platform === "facebook") && !["image", "video", "carousel"].includes(input2.mediaType || media[0]?.mediaType))) fail4("Facebook supports image and video. Instagram supports image, video, and up to 10 carousel slides.");
   const now2 = (/* @__PURE__ */ new Date()).toISOString();
   const id = generatePostId();
+  const initialApproval = publishImmediately ? "Approved" : submit ? "PendingApproval" : "Draft";
+  const initialApprovedBy = publishImmediately ? req.principal.email : null;
+  const initialApprovedAt = publishImmediately ? now2 : null;
+  const initialApprovedVersion = publishImmediately ? 1 : null;
+  const initialTargetStatus = publishImmediately ? "Scheduled" : "Draft";
   tx(() => {
-    db.prepare(`INSERT INTO posts (post_id, client_id, brand_id, title, caption, hashtags, media_type, media_urls, link_url, schedule_local_date, schedule_local_time, timezone, scheduled_utc, approval_status, source, placement, created_by_user_id, revision_data, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'dashboard', ?, ?, ?, ?, ?)`).run(id, brand.client_id, brand.brand_id, title, caption, Array.isArray(input2.hashtags) ? input2.hashtags.join(" ") : String(input2.hashtags || ""), input2.mediaType || media[0]?.mediaType || "image", JSON.stringify(media.map((m2) => m2.fileUrl)), input2.targetUrl || input2.linkUrl || "", date5.date, date5.time, input2.timezone || brand.default_timezone, date5.utc, submit ? "PendingApproval" : "Draft", JSON.stringify(placements), req.principal.id, JSON.stringify({ platforms, media, campaignName: input2.campaignName, firstComment: input2.firstComment, unscheduled: date5.unscheduled }), now2, now2);
+    db.prepare(`INSERT INTO posts (post_id, client_id, brand_id, title, caption, hashtags, media_type, media_urls, link_url, schedule_local_date, schedule_local_time, timezone, scheduled_utc, approval_status, approved_by, approved_at, approved_version, source, placement, created_by_user_id, revision_data, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'dashboard', ?, ?, ?, ?, ?)`).run(id, brand.client_id, brand.brand_id, title, caption, Array.isArray(input2.hashtags) ? input2.hashtags.join(" ") : String(input2.hashtags || ""), input2.mediaType || (media.length > 1 ? "carousel" : media[0]?.mediaType || "image"), JSON.stringify(media.map((m2) => m2.fileUrl)), input2.targetUrl || input2.linkUrl || "", date5.date, date5.time, input2.timezone || brand.default_timezone, date5.utc, initialApproval, initialApprovedBy, initialApprovedAt, initialApprovedVersion, JSON.stringify(placements), req.principal.id, JSON.stringify({ platforms, media, campaignName: input2.campaignName, firstComment: input2.firstComment, taggedUsers: input2.taggedUsers || input2.tagged_users, unscheduled: date5.unscheduled }), now2, now2);
     for (const account of selected) {
       const target = generateTargetId();
-      db.prepare("INSERT INTO post_targets (target_id, post_id, account_id, platform, status, idempotency_key, created_at, updated_at) VALUES (?, ?, ?, ?, 'Draft', ?, ?, ?)").run(target, id, account.account_id, account.platform, computeIdempotencyKey(target, date5.utc, 1), now2, now2);
+      db.prepare("INSERT INTO post_targets (target_id, post_id, account_id, platform, status, idempotency_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(target, id, account.account_id, account.platform, initialTargetStatus, computeIdempotencyKey(target, date5.utc, 1), now2, now2);
     }
     remember(db.prepare("SELECT * FROM posts WHERE post_id = ?").get(id), req.principal.email);
-    audit(req.principal, "post", id, submit ? "submit" : "create");
+    audit(req.principal, "post", id, publishImmediately ? "publish_now" : submit ? "submit" : "create");
   });
+  if (publishImmediately) {
+    const targets = db.prepare("SELECT * FROM post_targets WHERE post_id = ?").all(id);
+    const postRow = db.prepare("SELECT * FROM posts WHERE post_id = ?").get(id);
+    const executionId = `EXEC-${crypto14.randomUUID()}`;
+    for (const target of targets) {
+      await publishTargetDirectly(target, postRow, executionId);
+    }
+  }
   sseManager.emit("post.created", brand.client_id, { postId: id });
-  res.status(201).json({ data: formatPost(id) });
+  res.status(201).json({ data: formatPost(id), published: publishImmediately });
 }));
 enterpriseRouter.patch("/posts/:id", wrap((req, res) => {
   const post = postById(req);
@@ -133503,14 +133517,22 @@ for (const action of ["submit", "approve", "reject", "request-revision"]) enterp
 }));
 var publishNow = wrap(async (req, res) => {
   const post = postById(req);
-  if (post.approval_status !== "Approved" || post.approved_version !== post.version) fail4("The current revision must be approved before publishing.", 409);
-  const targets = db.prepare("SELECT * FROM post_targets WHERE post_id = ? AND status IN ('Scheduled','Retrying','Failed','Missed')").all(post.post_id);
+  if (post.approval_status !== "Approved" || post.approved_version !== post.version) {
+    if (isAdmin(req.principal) || canApprove(req.principal)) {
+      const now3 = (/* @__PURE__ */ new Date()).toISOString();
+      db.prepare("UPDATE posts SET approval_status = 'Approved', approved_version = version, approved_by = ?, approved_at = ?, updated_at = ? WHERE post_id = ?").run(req.principal.email, now3, now3, post.post_id);
+      db.prepare("UPDATE post_targets SET status = 'Scheduled', version = version + 1, updated_at = ? WHERE post_id = ? AND status NOT IN ('Posted','Processing','NeedsVerification','Cancelled')").run(now3, post.post_id);
+    } else {
+      fail4("The current revision must be approved before publishing.", 409);
+    }
+  }
+  const targets = db.prepare("SELECT * FROM post_targets WHERE post_id = ? AND status IN ('Scheduled','Retrying','Failed','Missed','Draft')").all(post.post_id);
   if (!targets.length) fail4("No destinations are eligible. Published or uncertain destinations will not be submitted again.", 409);
   const executionId = `EXEC-${crypto14.randomUUID()}`;
   const now2 = (/* @__PURE__ */ new Date()).toISOString();
   tx(() => {
     db.prepare("UPDATE posts SET scheduled_utc = ?, updated_at = ? WHERE post_id = ?").run(now2, now2, post.post_id);
-    db.prepare("UPDATE post_targets SET status = 'Scheduled', attempt_count = 0, next_retry_at = NULL, version = version + 1 WHERE post_id = ? AND status IN ('Failed','Missed')").run(post.post_id);
+    db.prepare("UPDATE post_targets SET status = 'Scheduled', attempt_count = 0, next_retry_at = NULL, version = version + 1 WHERE post_id = ? AND status IN ('Failed','Missed','Draft')").run(post.post_id);
     db.prepare("INSERT INTO executions_cache (execution_id, workflow_id, status, mode, started_at, target_ids, created_at, updated_at) VALUES (?, 'application-publisher', 'running', 'manual', ?, ?, ?, ?)").run(executionId, now2, JSON.stringify(targets.map((t2) => t2.target_id)), now2, now2);
     audit(req.principal, "post", post.post_id, "publish_now", { executionId, targetIds: targets.map((t2) => t2.target_id) });
   });

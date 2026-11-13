@@ -35,6 +35,7 @@ import {
   UserPlus,
   Tag,
   AtSign,
+  Plus,
   X
 } from 'lucide-react';
 import { Brand, SocialAccount, SocialPlatform, ContentPlacement, RoleName } from '../../../server/src/types';
@@ -141,6 +142,17 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
   const [mediaUploadSuccess, setMediaUploadSuccess] = useState<string | null>(null);
   const [googleDriveUrl, setGoogleDriveUrl] = useState('');
   const [altText, setAltText] = useState('');
+  const [carouselUrls, setCarouselUrls] = useState<string[]>([]);
+  const carouselFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const POPULAR_HASHTAGS = ['#trending', '#viral', '#reels', '#instagram', '#facebook', '#marketing', '#growth', '#business', '#explore', '#creative'];
+  const addHashtagPill = (tag: string) => {
+    setHashtags(prev => {
+      const parts = prev.trim() ? prev.trim().split(/\s+/) : [];
+      if (!parts.includes(tag)) parts.push(tag);
+      return parts.join(' ');
+    });
+  };
 
   // Interactive Lightbox State
   const [activeLightboxUrl, setActiveLightboxUrl] = useState<string | null>(null);
@@ -363,7 +375,7 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
     }
   };
 
-  const handleFinish = async (submitForApproval: boolean) => {
+  const handleFinish = async (submitForApproval: boolean, publishNow = false) => {
     setSaveError('');
     if (!brands.some(brand => brand.id === brandId)) {
       setSaveError('Choose a brand from your workspace before saving.');
@@ -383,7 +395,9 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
     }
 
     let scheduledAt: string | undefined;
-    if (publishTiming === 'scheduled') {
+    if (publishNow) {
+      scheduledAt = new Date().toISOString();
+    } else if (publishTiming === 'scheduled') {
       const localValue = `${scheduledDate}T${scheduledTime}`;
       const due = DateTime.fromISO(localValue, { zone: timezone });
       if (!due.isValid || due.toFormat("yyyy-MM-dd'T'HH:mm") !== localValue) {
@@ -394,7 +408,7 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
         setSaveError('That local time occurs twice because of a clock change. Choose a different time.');
         return;
       }
-      if (due.toMillis() <= Date.now()) {
+      if (due.toMillis() <= Date.now() - 120000) {
         setSaveError('Choose a future publication time, or select Publish now.');
         return;
       }
@@ -403,6 +417,10 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
 
     setIsSubmitting(true);
     const isVideo = isVideoUrl(mediaUrl) || mediaType === 'video';
+    const allMediaUrls = [mediaUrl, ...carouselUrls].filter(Boolean);
+    const isCarousel = allMediaUrls.length > 1;
+    const effectiveMediaType = isCarousel ? 'carousel' : (isVideo ? 'video' : 'image');
+
     const postData = {
       brandId,
       campaignName: campaignName.trim(),
@@ -418,24 +436,26 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
       country,
       timezone,
       scheduledAt,
+      publishNow,
+      publishImmediately: publishNow,
       platforms: selectedPlatforms.map(p => ({
         platform: p,
         captionOverride: platformOverrides[p] || undefined,
         publishingStatus: 'pending',
       })),
-      mediaType: isVideo ? 'video' : 'image',
-      media: mediaUrl
-        ? [{
-            mediaType: isVideo ? 'video' : 'image',
-            fileUrl: mediaUrl,
-            originalFileName: mediaUploadSuccess ? 'uploaded_asset' : mediaUrl.split('/').pop() || 'uploaded_asset',
-            mimeType: isVideo ? 'video/mp4' : 'image/jpeg',
+      mediaType: effectiveMediaType,
+      media: allMediaUrls.length > 0
+        ? allMediaUrls.map((url, idx) => ({
+            mediaType: isVideoUrl(url) ? 'video' : 'image',
+            fileUrl: url,
+            originalFileName: `media_asset_${idx + 1}`,
+            mimeType: isVideoUrl(url) ? 'video/mp4' : 'image/jpeg',
             fileSizeBytes: 0,
             altText,
-          }]
+          }))
         : [],
       assignedApproverId,
-      submitForApproval,
+      submitForApproval: submitForApproval || publishNow,
       taggedUsers: instagramTaggedUsers,
     };
 
@@ -1749,6 +1769,80 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
                 <h3 className="text-base font-bold text-[#101828]">Step 3: Media &amp; Creative Assets</h3>
                 {renderMediaSection(false)}
 
+                {/* Carousel Multi-Media Slides */}
+                <div className="space-y-2 p-4 rounded-xl bg-white border border-[#EAECF0]">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold text-[#101828] flex items-center gap-1.5">
+                        <Layers className="w-4 h-4 text-[#1336E8]" />
+                        <span>Carousel Slides (Multi-Image / Multi-Video)</span>
+                      </h4>
+                      <p className="text-[11px] text-[#667085] mt-0.5">
+                        Add up to 10 photos or videos to create an Instagram &amp; Facebook swipeable carousel.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => carouselFileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#EFF8FF] border border-[#B2DDFF] rounded-lg text-xs font-semibold text-[#1336E8] hover:bg-[#D1E9FF] cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ Add Slide</span>
+                    </button>
+                    <input
+                      ref={carouselFileInputRef}
+                      type="file"
+                      multiple
+                      accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime"
+                      className="hidden"
+                      onChange={async e => {
+                        if (e.target.files) {
+                          for (let i = 0; i < e.target.files.length; i++) {
+                            const file = e.target.files[i];
+                            const reader = new FileReader();
+                            reader.onload = async ev => {
+                              try {
+                                const uploadRes = await api.uploadMedia({
+                                  filename: file.name,
+                                  fileData: ev.target?.result as string,
+                                  mimeType: file.type,
+                                });
+                                setCarouselUrls(prev => [...prev, uploadRes.url]);
+                              } catch {}
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                  {carouselUrls.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {carouselUrls.map((url, idx) => (
+                        <div key={idx} className="relative group w-20 h-20 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                          {isVideoUrl(url) ? (
+                            <div className="w-full h-full flex items-center justify-center bg-slate-900 text-white text-[10px]">
+                              Slide {idx + 2} (Vid)
+                            </div>
+                          ) : (
+                            <img src={url} alt={`Slide ${idx + 2}`} className="w-full h-full object-cover" />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setCarouselUrls(prev => prev.filter((_, i) => i !== idx))}
+                            className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-rose-600 cursor-pointer"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                          <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[9px] px-1 rounded">
+                            #{idx + 2}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-1.5 p-4 rounded-xl bg-white border border-[#EAECF0]">
                   <label className="text-xs font-semibold text-[#344054]">Accessibility Alt Text / Media Caption</label>
                   <input
@@ -1797,8 +1891,22 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
                       type="text"
                       value={hashtags}
                       onChange={e => setHashtags(e.target.value)}
+                      placeholder="#trends #growth #marketing"
                       className="w-full h-10 px-3 bg-[#F6F8FC] border border-[#D0D5DD] rounded-xl text-xs text-[#101828] focus:outline-none focus:border-[#1336E8]"
                     />
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      <span className="text-[10px] text-slate-500 font-semibold self-center">Quick tags:</span>
+                      {POPULAR_HASHTAGS.map(tag => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => addHashtagPill(tag)}
+                          className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-[10px] font-medium border border-slate-200 cursor-pointer transition-colors"
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -1974,6 +2082,15 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
               </button>
 
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleFinish(false, true)}
+                  disabled={isSubmitting || !title.trim() || !masterCaption.trim() || selectedPlatforms.length === 0}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{isSubmitting ? 'Publishing Live…' : '🚀 Direct Post Now'}</span>
+                </button>
                 {currentStep < 6 ? (
                   <button
                     type="button"
@@ -1999,8 +2116,8 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
                       disabled={isSubmitting}
                       className="px-5 py-2.5 bg-[#1336E8] hover:bg-[#0E27B3] text-white text-xs font-semibold rounded-xl shadow-md shadow-[#1336E8]/20 transition-all flex items-center gap-1.5"
                     >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>Submit &amp; Run AI Review</span>
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>Schedule Post</span>
                     </button>
                   </>
                 )}

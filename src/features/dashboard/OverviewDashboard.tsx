@@ -1,7 +1,7 @@
 import type { NavigationTab } from '../../components/layout/Sidebar';
 import React from 'react';
 import { DateTime } from 'luxon';
-import { Calendar, CheckSquare, AlertTriangle, Plus, ArrowRight, RefreshCw, Link2 } from 'lucide-react';
+import { Calendar, CheckSquare, AlertTriangle, Plus, ArrowRight, RefreshCw, Link2, Send } from 'lucide-react';
 import { AnalyticsOverview, Post, WorkflowExecution, SocialAccount, RoleName } from '../../../server/src/types';
 import { isTabAllowed, getRolePermissions } from '../../utils/rbac';
 
@@ -53,7 +53,18 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
 
   return <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
     <header className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-sm font-semibold text-blue-700">Your workspace</p><h2 className="mt-1 text-2xl font-bold text-slate-900">Keep your publishing day on track</h2><p className="mt-2 text-sm text-slate-600">Review upcoming content, approve work, and resolve delivery issues.</p></div>
-      {permissions.canCreatePost && <button type="button" onClick={() => onNavigateToTab('create')} className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800"><Plus className="h-4 w-4" />Create post</button>}
+      {permissions.canCreatePost && (
+        <div className="flex items-center gap-2.5">
+          <button type="button" onClick={() => onNavigateToTab('create')} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm cursor-pointer transition-colors">
+            <Send className="h-4 w-4" />
+            🚀 Direct Post Now
+          </button>
+          <button type="button" onClick={() => onNavigateToTab('create')} className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 cursor-pointer">
+            <Plus className="h-4 w-4" />
+            Create post
+          </button>
+        </div>
+      )}
     </header>
     <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
       <span role="status">{isRefreshing ? 'Refreshing workspace…' : lastRefreshedAt ? 'Last refreshed ' + lastRefreshedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Refresh to check current results'}</span>
