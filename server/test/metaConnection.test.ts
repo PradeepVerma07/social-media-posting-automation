@@ -45,6 +45,18 @@ test('Meta connections verify credentials, preserve brand ownership and never ex
     const rejected:any=db.prepare('SELECT * FROM social_accounts WHERE account_id=?').get(account.account_id);assert.equal(decryptToken({ciphertext:rejected.token_ciphertext,iv:rejected.token_iv,tag:rejected.token_tag}),otherToken);
     const result=await checkMetaAccount(principal,account.account_id,fetcher);assert.equal(result.verified,true);assert.match(result.message,/linked Instagram/);const saved:any=db.prepare('SELECT * FROM social_accounts WHERE account_id=?').get(account.account_id);assert.equal(decryptToken({ciphertext:saved.token_ciphertext,iv:saved.token_iv,tag:saved.token_tag}),pageToken);
   });
+  await t.test('automatically discovers and connects Instagram and WhatsApp from Meta token',async()=>{
+    const fetcher:typeof fetch=async(url)=>{
+      const s=String(url);
+      if(s.includes('me/accounts'))return response({data:[{id:'8888888',name:'Multi Brand Page',access_token:pageToken,instagram_business_account:{id:'8888889',username:'multi_ig'}}]});
+      if(s.includes('assigned_whatsapp_business_accounts'))return response({data:[{id:'waba-1',name:'Brand WABA',phone_numbers:[{id:'1099887766',display_phone_number:'+919876543210',verified_name:'Brand WhatsApp'}]}]});
+      return response({data:[]});
+    };
+    const res=await connectMetaAccount(principal,brand,{token,pageId:'8888888'},fetcher);
+    assert.equal(res.channels.length,3);
+    const platforms=res.channels.map((c:any)=>c.platform).sort();
+    assert.deepEqual(platforms,['facebook','instagram','whatsapp']);
+  });
   await t.test('the real endpoint requires a session, administrator and explicit brand',async()=>{
     const password='meta-test-password-123';for(const role of ['Admin','Approver'])db.prepare('INSERT INTO users (email,full_name,role,client_id,password,created_at) VALUES (?,?,?,?,?,?)').run(role+'@meta.test',role,role,'meta-one',hashSync(password,4),now);
     const server=app.listen(0,'127.0.0.1');await new Promise<void>(resolve=>server.once('listening',resolve));const base=`http://127.0.0.1:${(server.address() as any).port}/api/v1`;

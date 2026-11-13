@@ -577,9 +577,9 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
                     </div>
                     <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside pl-1 leading-relaxed">
                       <li>Go to <a href="https://developers.facebook.com/tools/explorer" target="_blank" rel="noreferrer" className="underline font-bold text-blue-900">Meta Graph API Explorer ↗</a></li>
-                      <li>Select your Meta App and add User Token permissions: <code className="bg-white/80 px-1 py-0.5 rounded font-mono font-bold text-[11px]">pages_show_list, pages_read_engagement, pages_manage_posts, instagram_basic, instagram_content_publish</code></li>
-                      <li>Click <strong>Generate Access Token</strong> and grant access to your Facebook Page and linked Instagram account.</li>
-                      <li>Paste a current access token authorized for the Facebook Page and linked Instagram account.</li>
+                      <li>Select your Meta App and add permissions: <code className="bg-white/80 px-1 py-0.5 rounded font-mono font-bold text-[11px]">pages_show_list, pages_read_engagement, pages_manage_posts, instagram_basic, instagram_content_publish, whatsapp_business_management, whatsapp_business_messaging</code></li>
+                      <li>Click <strong>Generate Access Token</strong> and grant access to your Pages, Instagram, and WhatsApp.</li>
+                      <li>Paste your token below. <strong>Facebook, linked Instagram, and WhatsApp</strong> accounts will be automatically discovered and connected simultaneously!</li>
                     </ol>
                   </div>
 
@@ -873,7 +873,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm cursor-pointer"
                 >
                   {isLoading && <RotateCw className="w-3.5 h-3.5 animate-spin" />}
-                  <span>{isLoading ? 'Verifying & Encrypting...' : `Save & Encrypt ${selectedPlatform.toUpperCase()} Token`}</span>
+                  <span>{isLoading ? 'Verifying & Encrypting...' : selectedPlatform === 'meta' ? 'Save & Connect Channels (FB, Insta & WhatsApp)' : `Save & Encrypt ${selectedPlatform.toUpperCase()} Token`}</span>
                 </button>
               </div>
             </form>

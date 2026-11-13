@@ -132950,7 +132950,111 @@ async function connectMetaAccount(principal, brand, input2, fetcher = fetch) {
   const page = candidates[0], pageToken = typeof page.access_token === "string" ? page.access_token : token;
   if (!/^\d+$/.test(String(page.id))) return fail3("Meta did not return a valid Page identity.", 502);
   const targets = [{ platform: "facebook", externalId: String(page.id), name: String(page.name || "Facebook Page"), handle: "" }];
-  if (page.instagram_business_account?.id) targets.push({ platform: "instagram", externalId: String(page.instagram_business_account.id), name: String(page.name || "Facebook Page") + " (Instagram)", handle: page.instagram_business_account.username ? "@" + page.instagram_business_account.username : "" });
+  let igId = page.instagram_business_account?.id || page.connected_instagram_account?.id;
+  let igUsername = page.instagram_business_account?.username || page.connected_instagram_account?.username;
+  let igName = page.instagram_business_account?.name || page.connected_instagram_account?.name;
+  let pageExtra = null;
+  if (!igId) {
+    try {
+      pageExtra = await graph(`${encodeURIComponent(page.id)}?fields=instagram_business_account{id,username,name},connected_instagram_account{id,username,name},whatsapp_number`, pageToken);
+      if (pageExtra.ok && pageExtra.data) {
+        const d = pageExtra.data;
+        if (d.instagram_business_account?.id) {
+          igId = d.instagram_business_account.id;
+          igUsername = d.instagram_business_account.username;
+          igName = d.instagram_business_account.name;
+        } else if (d.connected_instagram_account?.id) {
+          igId = d.connected_instagram_account.id;
+          igUsername = d.connected_instagram_account.username;
+          igName = d.connected_instagram_account.name;
+        }
+      }
+    } catch {
+    }
+  }
+  if (!igId) {
+    try {
+      const meIg = await graph("me/instagram_accounts?fields=id,username,name", token);
+      if (meIg.ok && Array.isArray(meIg.data?.data) && meIg.data.data.length > 0) {
+        const firstIg = meIg.data.data[0];
+        if (firstIg.id && firstIg.username) {
+          igId = firstIg.id;
+          igUsername = firstIg.username;
+          igName = firstIg.name;
+        }
+      }
+    } catch {
+    }
+  }
+  if (igId) {
+    targets.push({
+      platform: "instagram",
+      externalId: String(igId),
+      name: String(igName || page.name || "Facebook Page") + " (Instagram)",
+      handle: igUsername ? "@" + igUsername : ""
+    });
+  }
+  try {
+    const waAssigned = await graph("me/assigned_whatsapp_business_accounts?fields=id,name,phone_numbers{id,display_phone_number,verified_name}", token);
+    const wabas = Array.isArray(waAssigned.data?.data) ? waAssigned.data.data : [];
+    for (const waba of wabas) {
+      const phones = Array.isArray(waba.phone_numbers?.data) ? waba.phone_numbers.data : Array.isArray(waba.phone_numbers) ? waba.phone_numbers : [];
+      for (const phone of phones) {
+        if (phone.id && !targets.some((t2) => t2.platform === "whatsapp" && t2.externalId === String(phone.id))) {
+          targets.push({
+            platform: "whatsapp",
+            externalId: String(phone.id),
+            name: String(phone.verified_name || waba.name || page.name) + " (WhatsApp)",
+            handle: phone.display_phone_number ? String(phone.display_phone_number) : ""
+          });
+        }
+      }
+    }
+  } catch {
+  }
+  if (!targets.some((t2) => t2.platform === "whatsapp")) {
+    try {
+      const bizRes = await graph("me/businesses?fields=id,name,owned_whatsapp_business_accounts{id,name,phone_numbers{id,display_phone_number,verified_name}},client_whatsapp_business_accounts{id,name,phone_numbers{id,display_phone_number,verified_name}}", token);
+      const bizList = Array.isArray(bizRes.data?.data) ? bizRes.data.data : [];
+      for (const biz of bizList) {
+        const wabas = [
+          ...Array.isArray(biz.owned_whatsapp_business_accounts?.data) ? biz.owned_whatsapp_business_accounts.data : [],
+          ...Array.isArray(biz.client_whatsapp_business_accounts?.data) ? biz.client_whatsapp_business_accounts.data : []
+        ];
+        for (const waba of wabas) {
+          const phones = Array.isArray(waba.phone_numbers?.data) ? waba.phone_numbers.data : Array.isArray(waba.phone_numbers) ? waba.phone_numbers : [];
+          for (const phone of phones) {
+            if (phone.id && !targets.some((t2) => t2.platform === "whatsapp" && t2.externalId === String(phone.id))) {
+              targets.push({
+                platform: "whatsapp",
+                externalId: String(phone.id),
+                name: String(phone.verified_name || waba.name || page.name) + " (WhatsApp)",
+                handle: phone.display_phone_number ? String(phone.display_phone_number) : ""
+              });
+            }
+          }
+        }
+      }
+    } catch {
+    }
+  }
+  if (!targets.some((t2) => t2.platform === "whatsapp")) {
+    try {
+      if (!pageExtra) {
+        pageExtra = await graph(`${encodeURIComponent(page.id)}?fields=whatsapp_number`, pageToken);
+      }
+      if (pageExtra?.ok && pageExtra.data?.whatsapp_number) {
+        const num = String(pageExtra.data.whatsapp_number).trim();
+        targets.push({
+          platform: "whatsapp",
+          externalId: "WA_" + page.id,
+          name: String(page.name || "WhatsApp") + " (WhatsApp)",
+          handle: num.startsWith("+") ? num : "+" + num
+        });
+      }
+    } catch {
+    }
+  }
   const now2 = (/* @__PURE__ */ new Date()).toISOString();
   const channels = [];
   db.exec("BEGIN IMMEDIATE");
@@ -132965,7 +133069,8 @@ async function connectMetaAccount(principal, brand, input2, fetcher = fetch) {
         }
       }
       const existing = db.prepare("SELECT account_id FROM social_accounts WHERE client_id=? AND brand_id=? AND platform=? AND external_id=?").get(brand.client_id, brand.brand_id, target.platform, target.externalId);
-      const enc = encryptToken(pageToken), id = existing?.account_id || (foreign?.client_id === brand.client_id ? foreign.account_id : "ACC-" + crypto13.randomUUID());
+      const channelToken = (target.platform === "whatsapp" ? token : pageToken) || token;
+      const enc = encryptToken(channelToken), id = existing?.account_id || (foreign?.client_id === brand.client_id ? foreign.account_id : "ACC-" + crypto13.randomUUID());
       if (existing || foreign && foreign.client_id === brand.client_id) db.prepare(`UPDATE social_accounts SET token_ciphertext=?,token_iv=?,token_tag=?,token_version=?,token_expires_at=NULL,account_name=?,account_handle=?,status='active',last_checked_at=?,updated_at=?,version=version+1 WHERE account_id=?`).run(enc.ciphertext, enc.iv, enc.tag, enc.version, target.name, target.handle, now2, now2, id);
       else db.prepare(`INSERT INTO social_accounts (account_id,client_id,brand_id,platform,account_name,account_handle,external_id,token_ciphertext,token_iv,token_tag,token_version,status,last_checked_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,'active',?,?,?)`).run(id, brand.client_id, brand.brand_id, target.platform, target.name, target.handle, target.externalId, enc.ciphertext, enc.iv, enc.tag, enc.version, now2, now2, now2);
       channels.push({ accountId: id, platform: target.platform, name: target.name });
@@ -132977,7 +133082,8 @@ async function connectMetaAccount(principal, brand, input2, fetcher = fetch) {
     throw error62;
   }
   sseManager.emit("account.updated", brand.client_id, { brandId: brand.brand_id });
-  return { success: true, message: `Verified and connected ${channels.length} Meta channel(s) to ${brand.brand_name}.`, channels };
+  const channelNames = channels.map((c) => c.platform.charAt(0).toUpperCase() + c.platform.slice(1)).join(", ");
+  return { success: true, message: `Verified and connected ${channels.length} Meta channel(s) to ${brand.brand_name} (${channelNames}).`, channels };
 }
 
 // server/src/routes/enterpriseRoutes.ts
