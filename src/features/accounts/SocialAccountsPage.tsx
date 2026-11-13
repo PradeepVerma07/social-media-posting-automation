@@ -147,6 +147,10 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
       }, 1600);
     } catch (err: any) {
       setErrorMsg(err.message || `Failed connecting ${selectedPlatform} account.`);
+      setTimeout(() => {
+        const dialog = document.querySelector('[role="dialog"]');
+        if (dialog) dialog.scrollTop = 0;
+      }, 50);
     } finally {
       setIsLoading(false);
     }
@@ -837,6 +841,20 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
                       className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:border-indigo-600"
                     />
                   </div>
+                </div>
+              )}
+
+              {/* Inline Bottom Alert for scrolled view */}
+              {errorMsg && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span className="font-medium leading-relaxed">{errorMsg}</span>
+                </div>
+              )}
+              {successMsg && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span className="font-medium leading-relaxed">{successMsg}</span>
                 </div>
               )}
 

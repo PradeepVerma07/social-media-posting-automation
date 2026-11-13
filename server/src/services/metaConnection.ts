@@ -70,8 +70,19 @@ export async function connectMetaAccount(principal:Principal,brand:any,input:{to
     }
   }
   if(!pages.length)return fail(discovered.data.error?.code===190?'Meta rejected this token. Generate a fresh token and reconnect the selected Page.':'No accessible Facebook Page was found. Check the Page assignment and token permissions.');
-  const candidates=pageId?pages.filter(page=>String(page.id)===pageId):pages;
-  if(candidates.length!==1)return fail(pageId?'The token does not grant access to that Facebook Page.':'This token covers multiple Pages. Enter the Facebook Page ID for the selected brand.',409);
+  const cleanPageId=pageId.trim();
+  let candidates=cleanPageId
+    ? pages.filter(page=>String(page.id).trim()===cleanPageId||(page.name&&page.name.trim().toLowerCase()===cleanPageId.toLowerCase()))
+    : pages;
+  if(!cleanPageId&&candidates.length>1){
+    const brandMatch=candidates.filter(p=>p.name&&p.name.trim().toLowerCase()===brand.brand_name.trim().toLowerCase());
+    if(brandMatch.length===1)candidates=brandMatch;
+  }
+  if(candidates.length!==1){
+    const accessible=pages.map(p=>`"${p.name||'Facebook Page'}" (ID: ${p.id})`).join(', ');
+    if(cleanPageId)return fail(`The token does not grant access to that Facebook Page (ID: ${cleanPageId}). Accessible Pages with this token: ${accessible||'None'}. Please select this Page in Meta Graph API Explorer or verify the Page ID.`,409);
+    return fail(`This token covers multiple Pages: ${accessible}. Enter the Facebook Page ID for ${brand.brand_name}.`,409);
+  }
   const page=candidates[0],pageToken=typeof page.access_token==='string'?page.access_token:token;
   if(!/^\d+$/.test(String(page.id)))return fail('Meta did not return a valid Page identity.',502);
   const targets=[{platform:'facebook',externalId:String(page.id),name:String(page.name||'Facebook Page'),handle:''}];
@@ -80,11 +91,18 @@ export async function connectMetaAccount(principal:Principal,brand:any,input:{to
   db.exec('BEGIN IMMEDIATE');
   try{
     for(const target of targets){
-      const foreign:any=db.prepare('SELECT brand_id FROM social_accounts WHERE platform=? AND external_id=? AND (client_id!=? OR brand_id!=?)').get(target.platform,target.externalId,brand.client_id,brand.brand_id);
-      if(foreign)return fail('This Page or Instagram account is already assigned to another brand. Ask an administrator to review its assignment.',409);
+      const foreign:any=db.prepare('SELECT account_id, client_id, brand_id FROM social_accounts WHERE platform=? AND external_id=? AND (client_id!=? OR brand_id!=?)').get(target.platform,target.externalId,brand.client_id,brand.brand_id);
+      if(foreign){
+        if(foreign.client_id===brand.client_id&&isAdmin(principal)){
+          db.prepare("UPDATE social_accounts SET brand_id=?, updated_at=?, version=version+1 WHERE account_id=?")
+            .run(brand.brand_id,now,foreign.account_id);
+        }else{
+          return fail('This Page or Instagram account is already assigned to another brand. Ask an administrator to review its assignment.',409);
+        }
+      }
       const existing:any=db.prepare('SELECT account_id FROM social_accounts WHERE client_id=? AND brand_id=? AND platform=? AND external_id=?').get(brand.client_id,brand.brand_id,target.platform,target.externalId);
-      const enc=encryptToken(pageToken),id=existing?.account_id||'ACC-'+crypto.randomUUID();
-      if(existing)db.prepare(`UPDATE social_accounts SET token_ciphertext=?,token_iv=?,token_tag=?,token_version=?,token_expires_at=NULL,account_name=?,account_handle=?,status='active',last_checked_at=?,updated_at=?,version=version+1 WHERE account_id=?`)
+      const enc=encryptToken(pageToken),id=existing?.account_id||(foreign?.client_id===brand.client_id?foreign.account_id:('ACC-'+crypto.randomUUID()));
+      if(existing||(foreign&&foreign.client_id===brand.client_id))db.prepare(`UPDATE social_accounts SET token_ciphertext=?,token_iv=?,token_tag=?,token_version=?,token_expires_at=NULL,account_name=?,account_handle=?,status='active',last_checked_at=?,updated_at=?,version=version+1 WHERE account_id=?`)
         .run(enc.ciphertext,enc.iv,enc.tag,enc.version,target.name,target.handle,now,now,id);
       else db.prepare(`INSERT INTO social_accounts (account_id,client_id,brand_id,platform,account_name,account_handle,external_id,token_ciphertext,token_iv,token_tag,token_version,status,last_checked_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,'active',?,?,?)`)
         .run(id,brand.client_id,brand.brand_id,target.platform,target.name,target.handle,target.externalId,enc.ciphertext,enc.iv,enc.tag,enc.version,now,now,now);

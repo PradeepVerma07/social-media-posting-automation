@@ -1307,8 +1307,8 @@ var require_node = __commonJS({
           }
           break;
         case "FILE":
-          var fs11 = __require("fs");
-          stream2 = new fs11.SyncWriteStream(fd2, { autoClose: false });
+          var fs12 = __require("fs");
+          stream2 = new fs12.SyncWriteStream(fd2, { autoClose: false });
           stream2._type = "fs";
           break;
         case "PIPE":
@@ -14110,11 +14110,11 @@ var require_mime_types = __commonJS({
       }
       return exts[0];
     }
-    function lookup(path10) {
-      if (!path10 || typeof path10 !== "string") {
+    function lookup(path11) {
+      if (!path11 || typeof path11 !== "string") {
         return false;
       }
-      var extension3 = extname("x." + path10).toLowerCase().substr(1);
+      var extension3 = extname("x." + path11).toLowerCase().substr(1);
       if (!extension3) {
         return false;
       }
@@ -17898,7 +17898,7 @@ var require_path_to_regexp = __commonJS({
   "node_modules/path-to-regexp/index.js"(exports, module) {
     module.exports = pathToRegexp;
     var MATCHING_GROUP_REGEXP = /\\.|\((?:\?<(.*?)>)?(?!\?)/g;
-    function pathToRegexp(path10, keys, options) {
+    function pathToRegexp(path11, keys, options) {
       options = options || {};
       keys = keys || [];
       var strict = options.strict;
@@ -17912,8 +17912,8 @@ var require_path_to_regexp = __commonJS({
       var pos = 0;
       var backtrack = "";
       var m2;
-      if (path10 instanceof RegExp) {
-        while (m2 = MATCHING_GROUP_REGEXP.exec(path10.source)) {
+      if (path11 instanceof RegExp) {
+        while (m2 = MATCHING_GROUP_REGEXP.exec(path11.source)) {
           if (m2[0][0] === "\\") continue;
           keys.push({
             name: m2[1] || name++,
@@ -17921,18 +17921,18 @@ var require_path_to_regexp = __commonJS({
             offset: m2.index
           });
         }
-        return path10;
+        return path11;
       }
-      if (Array.isArray(path10)) {
-        path10 = path10.map(function(value) {
+      if (Array.isArray(path11)) {
+        path11 = path11.map(function(value) {
           return pathToRegexp(value, keys, options).source;
         });
-        return new RegExp(path10.join("|"), flags);
+        return new RegExp(path11.join("|"), flags);
       }
-      if (typeof path10 !== "string") {
+      if (typeof path11 !== "string") {
         throw new TypeError("path must be a string, array of strings, or regular expression");
       }
-      path10 = path10.replace(
+      path11 = path11.replace(
         /\\.|(\/)?(\.)?:(\w+)(\(.*?\))?(\*)?(\?)?|[.*]|\/\(/g,
         function(match3, slash, format, key, capture, star, optional2, offset2) {
           if (match3[0] === "\\") {
@@ -17949,7 +17949,7 @@ var require_path_to_regexp = __commonJS({
           if (slash || format) {
             backtrack = "";
           } else {
-            backtrack += path10.slice(pos, offset2);
+            backtrack += path11.slice(pos, offset2);
           }
           pos = offset2 + match3.length;
           if (match3 === "*") {
@@ -17979,7 +17979,7 @@ var require_path_to_regexp = __commonJS({
           return result;
         }
       );
-      while (m2 = MATCHING_GROUP_REGEXP.exec(path10)) {
+      while (m2 = MATCHING_GROUP_REGEXP.exec(path11)) {
         if (m2[0][0] === "\\") continue;
         if (keysOffset + i2 === keys.length || keys[keysOffset + i2].offset > m2.index) {
           keys.splice(keysOffset + i2, 0, {
@@ -17991,13 +17991,13 @@ var require_path_to_regexp = __commonJS({
         }
         i2++;
       }
-      path10 += strict ? "" : path10[path10.length - 1] === "/" ? "?" : "/?";
+      path11 += strict ? "" : path11[path11.length - 1] === "/" ? "?" : "/?";
       if (end) {
-        path10 += "$";
-      } else if (path10[path10.length - 1] !== "/") {
-        path10 += lookahead ? "(?=/|$)" : "(?:/|$)";
+        path11 += "$";
+      } else if (path11[path11.length - 1] !== "/") {
+        path11 += lookahead ? "(?=/|$)" : "(?:/|$)";
       }
-      return new RegExp("^" + path10, flags);
+      return new RegExp("^" + path11, flags);
     }
   }
 });
@@ -18010,19 +18010,19 @@ var require_layer = __commonJS({
     var debug = require_src()("express:router:layer");
     var hasOwnProperty2 = Object.prototype.hasOwnProperty;
     module.exports = Layer;
-    function Layer(path10, options, fn) {
+    function Layer(path11, options, fn) {
       if (!(this instanceof Layer)) {
-        return new Layer(path10, options, fn);
+        return new Layer(path11, options, fn);
       }
-      debug("new %o", path10);
+      debug("new %o", path11);
       var opts = options || {};
       this.handle = fn;
       this.name = fn.name || "<anonymous>";
       this.params = void 0;
       this.path = void 0;
-      this.regexp = pathRegexp(path10, this.keys = [], opts);
-      this.regexp.fast_star = path10 === "*";
-      this.regexp.fast_slash = path10 === "/" && opts.end === false;
+      this.regexp = pathRegexp(path11, this.keys = [], opts);
+      this.regexp.fast_star = path11 === "*";
+      this.regexp.fast_slash = path11 === "/" && opts.end === false;
     }
     Layer.prototype.handle_error = function handle_error(error62, req, res, next) {
       var fn = this.handle;
@@ -18046,20 +18046,20 @@ var require_layer = __commonJS({
         next(err);
       }
     };
-    Layer.prototype.match = function match3(path10) {
+    Layer.prototype.match = function match3(path11) {
       var match4;
-      if (path10 != null) {
+      if (path11 != null) {
         if (this.regexp.fast_slash) {
           this.params = {};
           this.path = "";
           return true;
         }
         if (this.regexp.fast_star) {
-          this.params = { "0": decode_param(path10) };
-          this.path = path10;
+          this.params = { "0": decode_param(path11) };
+          this.path = path11;
           return true;
         }
-        match4 = this.regexp.exec(path10);
+        match4 = this.regexp.exec(path11);
       }
       if (!match4) {
         this.params = void 0;
@@ -18152,10 +18152,10 @@ var require_route = __commonJS({
     var slice = Array.prototype.slice;
     var toString = Object.prototype.toString;
     module.exports = Route;
-    function Route(path10) {
-      this.path = path10;
+    function Route(path11) {
+      this.path = path11;
       this.stack = [];
-      debug("new %o", path10);
+      debug("new %o", path11);
       this.methods = {};
     }
     Route.prototype._handles_method = function _handles_method(method) {
@@ -18367,8 +18367,8 @@ var require_router = __commonJS({
         if (++sync > 100) {
           return setImmediate(next, err);
         }
-        var path10 = getPathname(req);
-        if (path10 == null) {
+        var path11 = getPathname(req);
+        if (path11 == null) {
           return done(layerError);
         }
         var layer;
@@ -18376,7 +18376,7 @@ var require_router = __commonJS({
         var route;
         while (match3 !== true && idx < stack.length) {
           layer = stack[idx++];
-          match3 = matchLayer(layer, path10);
+          match3 = matchLayer(layer, path11);
           route = layer.route;
           if (typeof match3 !== "boolean") {
             layerError = layerError || match3;
@@ -18414,18 +18414,18 @@ var require_router = __commonJS({
           } else if (route) {
             layer.handle_request(req, res, next);
           } else {
-            trim_prefix(layer, layerError, layerPath, path10);
+            trim_prefix(layer, layerError, layerPath, path11);
           }
           sync = 0;
         });
       }
-      function trim_prefix(layer, layerError, layerPath, path10) {
+      function trim_prefix(layer, layerError, layerPath, path11) {
         if (layerPath.length !== 0) {
-          if (layerPath !== path10.slice(0, layerPath.length)) {
+          if (layerPath !== path11.slice(0, layerPath.length)) {
             next(layerError);
             return;
           }
-          var c = path10[layerPath.length];
+          var c = path11[layerPath.length];
           if (c && c !== "/" && c !== ".") return next(layerError);
           debug("trim prefix (%s) from url %s", layerPath, req.url);
           removed = layerPath;
@@ -18503,7 +18503,7 @@ var require_router = __commonJS({
     };
     proto.use = function use(fn) {
       var offset2 = 0;
-      var path10 = "/";
+      var path11 = "/";
       if (typeof fn !== "function") {
         var arg = fn;
         while (Array.isArray(arg) && arg.length !== 0) {
@@ -18511,7 +18511,7 @@ var require_router = __commonJS({
         }
         if (typeof arg !== "function") {
           offset2 = 1;
-          path10 = fn;
+          path11 = fn;
         }
       }
       var callbacks = flatten(slice.call(arguments, offset2));
@@ -18523,8 +18523,8 @@ var require_router = __commonJS({
         if (typeof fn !== "function") {
           throw new TypeError("Router.use() requires a middleware function but got a " + gettype(fn));
         }
-        debug("use %o %s", path10, fn.name || "<anonymous>");
-        var layer = new Layer(path10, {
+        debug("use %o %s", path11, fn.name || "<anonymous>");
+        var layer = new Layer(path11, {
           sensitive: this.caseSensitive,
           strict: false,
           end: false
@@ -18534,9 +18534,9 @@ var require_router = __commonJS({
       }
       return this;
     };
-    proto.route = function route(path10) {
-      var route2 = new Route(path10);
-      var layer = new Layer(path10, {
+    proto.route = function route(path11) {
+      var route2 = new Route(path11);
+      var layer = new Layer(path11, {
         sensitive: this.caseSensitive,
         strict: this.strict,
         end: true
@@ -18546,8 +18546,8 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      proto[method] = function(path10) {
-        var route = this.route(path10);
+      proto[method] = function(path11) {
+        var route = this.route(path11);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
       };
@@ -18583,9 +18583,9 @@ var require_router = __commonJS({
       }
       return toString.call(obj).replace(objectRegExp, "$1");
     }
-    function matchLayer(layer, path10) {
+    function matchLayer(layer, path11) {
       try {
-        return layer.match(path10);
+        return layer.match(path11);
       } catch (err) {
         return err;
       }
@@ -18703,13 +18703,13 @@ var require_view = __commonJS({
   "node_modules/express/lib/view.js"(exports, module) {
     "use strict";
     var debug = require_src()("express:view");
-    var path10 = __require("path");
-    var fs11 = __require("fs");
-    var dirname = path10.dirname;
-    var basename3 = path10.basename;
-    var extname = path10.extname;
-    var join = path10.join;
-    var resolve = path10.resolve;
+    var path11 = __require("path");
+    var fs12 = __require("fs");
+    var dirname = path11.dirname;
+    var basename3 = path11.basename;
+    var extname = path11.extname;
+    var join = path11.join;
+    var resolve = path11.resolve;
     module.exports = View;
     function View(name, options) {
       var opts = options || {};
@@ -18738,17 +18738,17 @@ var require_view = __commonJS({
       this.path = this.lookup(fileName);
     }
     View.prototype.lookup = function lookup(name) {
-      var path11;
+      var path12;
       var roots = [].concat(this.root);
       debug('lookup "%s"', name);
-      for (var i2 = 0; i2 < roots.length && !path11; i2++) {
+      for (var i2 = 0; i2 < roots.length && !path12; i2++) {
         var root = roots[i2];
         var loc = resolve(root, name);
         var dir = dirname(loc);
         var file2 = basename3(loc);
-        path11 = this.resolve(dir, file2);
+        path12 = this.resolve(dir, file2);
       }
-      return path11;
+      return path12;
     };
     View.prototype.render = function render(options, callback) {
       debug('render "%s"', this.path);
@@ -18756,21 +18756,21 @@ var require_view = __commonJS({
     };
     View.prototype.resolve = function resolve2(dir, file2) {
       var ext = this.ext;
-      var path11 = join(dir, file2);
-      var stat3 = tryStat(path11);
+      var path12 = join(dir, file2);
+      var stat3 = tryStat(path12);
       if (stat3 && stat3.isFile()) {
-        return path11;
+        return path12;
       }
-      path11 = join(dir, basename3(file2, ext), "index" + ext);
-      stat3 = tryStat(path11);
+      path12 = join(dir, basename3(file2, ext), "index" + ext);
+      stat3 = tryStat(path12);
       if (stat3 && stat3.isFile()) {
-        return path11;
+        return path12;
       }
     };
-    function tryStat(path11) {
-      debug('stat "%s"', path11);
+    function tryStat(path12) {
+      debug('stat "%s"', path12);
       try {
-        return fs11.statSync(path11);
+        return fs12.statSync(path12);
       } catch (e2) {
         return void 0;
       }
@@ -19004,14 +19004,14 @@ var require_etag = __commonJS({
   "node_modules/etag/index.js"(exports, module) {
     "use strict";
     module.exports = etag;
-    var crypto14 = __require("crypto");
+    var crypto16 = __require("crypto");
     var Stats = __require("fs").Stats;
     var toString = Object.prototype.toString;
     function entitytag(entity) {
       if (entity.length === 0) {
         return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"';
       }
-      var hash2 = crypto14.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
+      var hash2 = crypto16.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
       var len = typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length;
       return '"' + len.toString(16) + "-" + hash2 + '"';
     }
@@ -19124,8 +19124,8 @@ var require_types = __commonJS({
 // node_modules/mime/mime.js
 var require_mime = __commonJS({
   "node_modules/mime/mime.js"(exports, module) {
-    var path10 = __require("path");
-    var fs11 = __require("fs");
+    var path11 = __require("path");
+    var fs12 = __require("fs");
     function Mime() {
       this.types = /* @__PURE__ */ Object.create(null);
       this.extensions = /* @__PURE__ */ Object.create(null);
@@ -19146,7 +19146,7 @@ var require_mime = __commonJS({
     };
     Mime.prototype.load = function(file2) {
       this._loading = file2;
-      var map2 = {}, content = fs11.readFileSync(file2, "ascii"), lines = content.split(/[\r\n]+/);
+      var map2 = {}, content = fs12.readFileSync(file2, "ascii"), lines = content.split(/[\r\n]+/);
       lines.forEach(function(line) {
         var fields = line.replace(/\s*#.*|^\s*|\s*$/g, "").split(/\s+/);
         map2[fields.shift()] = fields;
@@ -19154,8 +19154,8 @@ var require_mime = __commonJS({
       this.define(map2);
       this._loading = null;
     };
-    Mime.prototype.lookup = function(path11, fallback) {
-      var ext = path11.replace(/^.*[\.\/\\]/, "").toLowerCase();
+    Mime.prototype.lookup = function(path12, fallback) {
+      var ext = path12.replace(/^.*[\.\/\\]/, "").toLowerCase();
       return this.types[ext] || fallback || this.default_type;
     };
     Mime.prototype.extension = function(mimeType) {
@@ -19384,33 +19384,33 @@ var require_send = __commonJS({
     var escapeHtml = require_escape_html();
     var etag = require_etag();
     var fresh = require_fresh();
-    var fs11 = __require("fs");
+    var fs12 = __require("fs");
     var mime = require_mime();
     var ms = require_ms2();
     var onFinished = require_on_finished();
     var parseRange = require_range_parser();
-    var path10 = __require("path");
+    var path11 = __require("path");
     var statuses = require_statuses();
     var Stream4 = __require("stream");
     var util = __require("util");
-    var extname = path10.extname;
-    var join = path10.join;
-    var normalize = path10.normalize;
-    var resolve = path10.resolve;
-    var sep = path10.sep;
+    var extname = path11.extname;
+    var join = path11.join;
+    var normalize = path11.normalize;
+    var resolve = path11.resolve;
+    var sep = path11.sep;
     var BYTES_RANGE_REGEXP = /^ *bytes=/;
     var MAX_MAXAGE = 60 * 60 * 24 * 365 * 1e3;
     var UP_PATH_REGEXP = /(?:^|[\\/])\.\.(?:[\\/]|$)/;
     module.exports = send;
     module.exports.mime = mime;
-    function send(req, path11, options) {
-      return new SendStream(req, path11, options);
+    function send(req, path12, options) {
+      return new SendStream(req, path12, options);
     }
-    function SendStream(req, path11, options) {
+    function SendStream(req, path12, options) {
       Stream4.call(this);
       var opts = options || {};
       this.options = opts;
-      this.path = path11;
+      this.path = path12;
       this.req = req;
       this._acceptRanges = opts.acceptRanges !== void 0 ? Boolean(opts.acceptRanges) : true;
       this._cacheControl = opts.cacheControl !== void 0 ? Boolean(opts.cacheControl) : true;
@@ -19456,8 +19456,8 @@ var require_send = __commonJS({
       this._index = index2;
       return this;
     }, "send.index: pass index as option");
-    SendStream.prototype.root = function root(path11) {
-      this._root = resolve(String(path11));
+    SendStream.prototype.root = function root(path12) {
+      this._root = resolve(String(path12));
       debug("root %s", this._root);
       return this;
     };
@@ -19570,10 +19570,10 @@ var require_send = __commonJS({
       var lastModified = this.res.getHeader("Last-Modified");
       return parseHttpDate(lastModified) <= parseHttpDate(ifRange);
     };
-    SendStream.prototype.redirect = function redirect(path11) {
+    SendStream.prototype.redirect = function redirect(path12) {
       var res = this.res;
       if (hasListeners(this, "directory")) {
-        this.emit("directory", res, path11);
+        this.emit("directory", res, path12);
         return;
       }
       if (this.hasTrailingSlash()) {
@@ -19593,42 +19593,42 @@ var require_send = __commonJS({
     SendStream.prototype.pipe = function pipe2(res) {
       var root = this._root;
       this.res = res;
-      var path11 = decode3(this.path);
-      if (path11 === -1) {
+      var path12 = decode3(this.path);
+      if (path12 === -1) {
         this.error(400);
         return res;
       }
-      if (~path11.indexOf("\0")) {
+      if (~path12.indexOf("\0")) {
         this.error(400);
         return res;
       }
       var parts;
       if (root !== null) {
-        if (path11) {
-          path11 = normalize("." + sep + path11);
+        if (path12) {
+          path12 = normalize("." + sep + path12);
         }
-        if (UP_PATH_REGEXP.test(path11)) {
-          debug('malicious path "%s"', path11);
+        if (UP_PATH_REGEXP.test(path12)) {
+          debug('malicious path "%s"', path12);
           this.error(403);
           return res;
         }
-        parts = path11.split(sep);
-        path11 = normalize(join(root, path11));
+        parts = path12.split(sep);
+        path12 = normalize(join(root, path12));
       } else {
-        if (UP_PATH_REGEXP.test(path11)) {
-          debug('malicious path "%s"', path11);
+        if (UP_PATH_REGEXP.test(path12)) {
+          debug('malicious path "%s"', path12);
           this.error(403);
           return res;
         }
-        parts = normalize(path11).split(sep);
-        path11 = resolve(path11);
+        parts = normalize(path12).split(sep);
+        path12 = resolve(path12);
       }
       if (containsDotFile(parts)) {
         var access = this._dotfiles;
         if (access === void 0) {
           access = parts[parts.length - 1][0] === "." ? this._hidden ? "allow" : "ignore" : "allow";
         }
-        debug('%s dotfile "%s"', access, path11);
+        debug('%s dotfile "%s"', access, path12);
         switch (access) {
           case "allow":
             break;
@@ -19642,13 +19642,13 @@ var require_send = __commonJS({
         }
       }
       if (this._index.length && this.hasTrailingSlash()) {
-        this.sendIndex(path11);
+        this.sendIndex(path12);
         return res;
       }
-      this.sendFile(path11);
+      this.sendFile(path12);
       return res;
     };
-    SendStream.prototype.send = function send2(path11, stat3) {
+    SendStream.prototype.send = function send2(path12, stat3) {
       var len = stat3.size;
       var options = this.options;
       var opts = {};
@@ -19660,9 +19660,9 @@ var require_send = __commonJS({
         this.headersAlreadySent();
         return;
       }
-      debug('pipe "%s"', path11);
-      this.setHeader(path11, stat3);
-      this.type(path11);
+      debug('pipe "%s"', path12);
+      this.setHeader(path12, stat3);
+      this.type(path12);
       if (this.isConditionalGET()) {
         if (this.isPreconditionFailure()) {
           this.error(412);
@@ -19711,28 +19711,28 @@ var require_send = __commonJS({
         res.end();
         return;
       }
-      this.stream(path11, opts);
+      this.stream(path12, opts);
     };
-    SendStream.prototype.sendFile = function sendFile(path11) {
+    SendStream.prototype.sendFile = function sendFile(path12) {
       var i2 = 0;
       var self2 = this;
-      debug('stat "%s"', path11);
-      fs11.stat(path11, function onstat(err, stat3) {
-        if (err && err.code === "ENOENT" && !extname(path11) && path11[path11.length - 1] !== sep) {
+      debug('stat "%s"', path12);
+      fs12.stat(path12, function onstat(err, stat3) {
+        if (err && err.code === "ENOENT" && !extname(path12) && path12[path12.length - 1] !== sep) {
           return next(err);
         }
         if (err) return self2.onStatError(err);
-        if (stat3.isDirectory()) return self2.redirect(path11);
-        self2.emit("file", path11, stat3);
-        self2.send(path11, stat3);
+        if (stat3.isDirectory()) return self2.redirect(path12);
+        self2.emit("file", path12, stat3);
+        self2.send(path12, stat3);
       });
       function next(err) {
         if (self2._extensions.length <= i2) {
           return err ? self2.onStatError(err) : self2.error(404);
         }
-        var p = path11 + "." + self2._extensions[i2++];
+        var p = path12 + "." + self2._extensions[i2++];
         debug('stat "%s"', p);
-        fs11.stat(p, function(err2, stat3) {
+        fs12.stat(p, function(err2, stat3) {
           if (err2) return next(err2);
           if (stat3.isDirectory()) return next();
           self2.emit("file", p, stat3);
@@ -19740,7 +19740,7 @@ var require_send = __commonJS({
         });
       }
     };
-    SendStream.prototype.sendIndex = function sendIndex(path11) {
+    SendStream.prototype.sendIndex = function sendIndex(path12) {
       var i2 = -1;
       var self2 = this;
       function next(err) {
@@ -19748,9 +19748,9 @@ var require_send = __commonJS({
           if (err) return self2.onStatError(err);
           return self2.error(404);
         }
-        var p = join(path11, self2._index[i2]);
+        var p = join(path12, self2._index[i2]);
         debug('stat "%s"', p);
-        fs11.stat(p, function(err2, stat3) {
+        fs12.stat(p, function(err2, stat3) {
           if (err2) return next(err2);
           if (stat3.isDirectory()) return next();
           self2.emit("file", p, stat3);
@@ -19759,10 +19759,10 @@ var require_send = __commonJS({
       }
       next();
     };
-    SendStream.prototype.stream = function stream(path11, options) {
+    SendStream.prototype.stream = function stream(path12, options) {
       var self2 = this;
       var res = this.res;
-      var stream2 = fs11.createReadStream(path11, options);
+      var stream2 = fs12.createReadStream(path12, options);
       this.emit("stream", stream2);
       stream2.pipe(res);
       function cleanup() {
@@ -19777,10 +19777,10 @@ var require_send = __commonJS({
         self2.emit("end");
       });
     };
-    SendStream.prototype.type = function type(path11) {
+    SendStream.prototype.type = function type(path12) {
       var res = this.res;
       if (res.getHeader("Content-Type")) return;
-      var type2 = mime.lookup(path11);
+      var type2 = mime.lookup(path12);
       if (!type2) {
         debug("no content-type");
         return;
@@ -19789,9 +19789,9 @@ var require_send = __commonJS({
       debug("content-type %s", type2);
       res.setHeader("Content-Type", type2 + (charset ? "; charset=" + charset : ""));
     };
-    SendStream.prototype.setHeader = function setHeader(path11, stat3) {
+    SendStream.prototype.setHeader = function setHeader(path12, stat3) {
       var res = this.res;
-      this.emit("headers", res, path11, stat3);
+      this.emit("headers", res, path12, stat3);
       if (this._acceptRanges && !res.getHeader("Accept-Ranges")) {
         debug("accept ranges");
         res.setHeader("Accept-Ranges", "bytes");
@@ -19850,9 +19850,9 @@ var require_send = __commonJS({
       }
       return err instanceof Error ? createError(status, err, { expose: false }) : createError(status, err);
     }
-    function decode3(path11) {
+    function decode3(path12) {
       try {
-        return decodeURIComponent(path11);
+        return decodeURIComponent(path12);
       } catch (err) {
         return -1;
       }
@@ -20777,10 +20777,10 @@ var require_utils2 = __commonJS({
     var querystring = __require("querystring");
     exports.etag = createETagGenerator({ weak: false });
     exports.wetag = createETagGenerator({ weak: true });
-    exports.isAbsolute = function(path10) {
-      if ("/" === path10[0]) return true;
-      if (":" === path10[1] && ("\\" === path10[2] || "/" === path10[2])) return true;
-      if ("\\\\" === path10.substring(0, 2)) return true;
+    exports.isAbsolute = function(path11) {
+      if ("/" === path11[0]) return true;
+      if (":" === path11[1] && ("\\" === path11[2] || "/" === path11[2])) return true;
+      if ("\\\\" === path11.substring(0, 2)) return true;
     };
     exports.flatten = deprecate3.function(
       flatten,
@@ -20992,7 +20992,7 @@ var require_application = __commonJS({
     };
     app2.use = function use(fn) {
       var offset2 = 0;
-      var path10 = "/";
+      var path11 = "/";
       if (typeof fn !== "function") {
         var arg = fn;
         while (Array.isArray(arg) && arg.length !== 0) {
@@ -21000,7 +21000,7 @@ var require_application = __commonJS({
         }
         if (typeof arg !== "function") {
           offset2 = 1;
-          path10 = fn;
+          path11 = fn;
         }
       }
       var fns = flatten(slice.call(arguments, offset2));
@@ -21011,12 +21011,12 @@ var require_application = __commonJS({
       var router = this._router;
       fns.forEach(function(fn2) {
         if (!fn2 || !fn2.handle || !fn2.set) {
-          return router.use(path10, fn2);
+          return router.use(path11, fn2);
         }
-        debug(".use app under %s", path10);
-        fn2.mountpath = path10;
+        debug(".use app under %s", path11);
+        fn2.mountpath = path11;
         fn2.parent = this;
-        router.use(path10, function mounted_app(req, res, next) {
+        router.use(path11, function mounted_app(req, res, next) {
           var orig = req.app;
           fn2.handle(req, res, function(err) {
             setPrototypeOf(req, orig.request);
@@ -21028,9 +21028,9 @@ var require_application = __commonJS({
       }, this);
       return this;
     };
-    app2.route = function route(path10) {
+    app2.route = function route(path11) {
       this.lazyrouter();
-      return this._router.route(path10);
+      return this._router.route(path11);
     };
     app2.engine = function engine(ext, fn) {
       if (typeof fn !== "function") {
@@ -21081,7 +21081,7 @@ var require_application = __commonJS({
       }
       return this;
     };
-    app2.path = function path10() {
+    app2.path = function path11() {
       return this.parent ? this.parent.path() + this.mountpath : "";
     };
     app2.enabled = function enabled(setting) {
@@ -21097,19 +21097,19 @@ var require_application = __commonJS({
       return this.set(setting, false);
     };
     methods.forEach(function(method) {
-      app2[method] = function(path10) {
+      app2[method] = function(path11) {
         if (method === "get" && arguments.length === 1) {
-          return this.set(path10);
+          return this.set(path11);
         }
         this.lazyrouter();
-        var route = this._router.route(path10);
+        var route = this._router.route(path11);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
       };
     });
-    app2.all = function all(path10) {
+    app2.all = function all(path11) {
       this.lazyrouter();
-      var route = this._router.route(path10);
+      var route = this._router.route(path11);
       var args = slice.call(arguments, 1);
       for (var i2 = 0; i2 < methods.length; i2++) {
         route[methods[i2]].apply(route, args);
@@ -21868,7 +21868,7 @@ var require_request = __commonJS({
       var subdomains2 = !isIP2(hostname3) ? hostname3.split(".").reverse() : [hostname3];
       return subdomains2.slice(offset2);
     });
-    defineGetter(req, "path", function path10() {
+    defineGetter(req, "path", function path11() {
       return parse4(this).pathname;
     });
     defineGetter(req, "hostname", function hostname3() {
@@ -21920,11 +21920,11 @@ var require_request = __commonJS({
 // node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
   "node_modules/cookie-signature/index.js"(exports) {
-    var crypto14 = __require("crypto");
+    var crypto16 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" !== typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
-      return val + "." + crypto14.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto16.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports.unsign = function(val, secret) {
       if ("string" !== typeof val) throw new TypeError("Signed cookie string must be provided.");
@@ -21933,7 +21933,7 @@ var require_cookie_signature = __commonJS({
       return sha1(mac3) == sha1(val) ? str : false;
     };
     function sha1(str) {
-      return crypto14.createHash("sha1").update(str).digest("hex");
+      return crypto16.createHash("sha1").update(str).digest("hex");
     }
   }
 });
@@ -22190,7 +22190,7 @@ var require_response = __commonJS({
     var http5 = __require("http");
     var isAbsolute = require_utils2().isAbsolute;
     var onFinished = require_on_finished();
-    var path10 = __require("path");
+    var path11 = __require("path");
     var statuses = require_statuses();
     var merge2 = require_utils_merge();
     var sign = require_cookie_signature().sign;
@@ -22199,9 +22199,9 @@ var require_response = __commonJS({
     var setCharset = require_utils2().setCharset;
     var cookie = require_cookie();
     var send = require_send();
-    var extname = path10.extname;
+    var extname = path11.extname;
     var mime = send.mime;
-    var resolve = path10.resolve;
+    var resolve = path11.resolve;
     var vary = require_vary();
     var res = Object.create(http5.ServerResponse.prototype);
     module.exports = res;
@@ -22378,26 +22378,26 @@ var require_response = __commonJS({
       this.type("txt");
       return this.send(body);
     };
-    res.sendFile = function sendFile(path11, options, callback) {
+    res.sendFile = function sendFile(path12, options, callback) {
       var done = callback;
       var req = this.req;
       var res2 = this;
       var next = req.next;
       var opts = options || {};
-      if (!path11) {
+      if (!path12) {
         throw new TypeError("path argument is required to res.sendFile");
       }
-      if (typeof path11 !== "string") {
+      if (typeof path12 !== "string") {
         throw new TypeError("path must be a string to res.sendFile");
       }
       if (typeof options === "function") {
         done = options;
         opts = {};
       }
-      if (!opts.root && !isAbsolute(path11)) {
+      if (!opts.root && !isAbsolute(path12)) {
         throw new TypeError("path must be absolute or specify root to res.sendFile");
       }
-      var pathname = encodeURI(path11);
+      var pathname = encodeURI(path12);
       var file2 = send(req, pathname, opts);
       sendfile(res2, file2, opts, function(err) {
         if (done) return done(err);
@@ -22407,7 +22407,7 @@ var require_response = __commonJS({
         }
       });
     };
-    res.sendfile = function(path11, options, callback) {
+    res.sendfile = function(path12, options, callback) {
       var done = callback;
       var req = this.req;
       var res2 = this;
@@ -22417,7 +22417,7 @@ var require_response = __commonJS({
         done = options;
         opts = {};
       }
-      var file2 = send(req, path11, opts);
+      var file2 = send(req, path12, opts);
       sendfile(res2, file2, opts, function(err) {
         if (done) return done(err);
         if (err && err.code === "EISDIR") return next();
@@ -22430,7 +22430,7 @@ var require_response = __commonJS({
       res.sendfile,
       "res.sendfile: Use res.sendFile instead"
     );
-    res.download = function download(path11, filename, options, callback) {
+    res.download = function download(path12, filename, options, callback) {
       var done = callback;
       var name = filename;
       var opts = options || null;
@@ -22447,7 +22447,7 @@ var require_response = __commonJS({
         opts = filename;
       }
       var headers = {
-        "Content-Disposition": contentDisposition(name || path11)
+        "Content-Disposition": contentDisposition(name || path12)
       };
       if (opts && opts.headers) {
         var keys = Object.keys(opts.headers);
@@ -22460,7 +22460,7 @@ var require_response = __commonJS({
       }
       opts = Object.create(opts);
       opts.headers = headers;
-      var fullPath = !opts.root ? resolve(path11) : path11;
+      var fullPath = !opts.root ? resolve(path12) : path12;
       return this.sendFile(fullPath, opts, done);
     };
     res.contentType = res.type = function contentType(type) {
@@ -22761,11 +22761,11 @@ var require_serve_static = __commonJS({
         }
         var forwardError = !fallthrough;
         var originalUrl = parseUrl.original(req);
-        var path10 = parseUrl(req).pathname;
-        if (path10 === "/" && originalUrl.pathname.substr(-1) !== "/") {
-          path10 = "";
+        var path11 = parseUrl(req).pathname;
+        if (path11 === "/" && originalUrl.pathname.substr(-1) !== "/") {
+          path11 = "";
         }
-        var stream = send(req, path10, opts);
+        var stream = send(req, path11, opts);
         stream.on("directory", onDirectory);
         if (setHeaders) {
           stream.on("headers", setHeaders);
@@ -23164,8 +23164,8 @@ var require_req = __commonJS({
       if (req.originalUrl) {
         _req.url = req.originalUrl;
       } else {
-        const path10 = req.path;
-        _req.url = typeof path10 === "string" ? path10 : req.url ? req.url.path || req.url : void 0;
+        const path11 = req.path;
+        _req.url = typeof path11 === "string" ? path11 : req.url ? req.url.path || req.url : void 0;
       }
       if (req.query) {
         _req.query = req.query;
@@ -23335,14 +23335,14 @@ var require_redact = __commonJS({
       }
       return obj;
     }
-    function parsePath(path10) {
+    function parsePath(path11) {
       const parts = [];
       let current = "";
       let inBrackets = false;
       let inQuotes = false;
       let quoteChar = "";
-      for (let i2 = 0; i2 < path10.length; i2++) {
-        const char = path10[i2];
+      for (let i2 = 0; i2 < path11.length; i2++) {
+        const char = path11[i2];
         if (!inBrackets && char === ".") {
           if (current) {
             parts.push(current);
@@ -23473,10 +23473,10 @@ var require_redact = __commonJS({
       return current;
     }
     function redactPaths(obj, paths, censor, remove = false) {
-      for (const path10 of paths) {
-        const parts = parsePath(path10);
+      for (const path11 of paths) {
+        const parts = parsePath(path11);
         if (parts.includes("*")) {
-          redactWildcardPath(obj, parts, censor, path10, remove);
+          redactWildcardPath(obj, parts, censor, path11, remove);
         } else {
           if (remove) {
             removeKey(obj, parts);
@@ -23561,8 +23561,8 @@ var require_redact = __commonJS({
           }
         } else {
           if (afterWildcard.includes("*")) {
-            const wrappedCensor = typeof censor === "function" ? (value, path10) => {
-              const fullPath = [...pathArray.slice(0, pathLength), ...path10];
+            const wrappedCensor = typeof censor === "function" ? (value, path11) => {
+              const fullPath = [...pathArray.slice(0, pathLength), ...path11];
               return censor(value, fullPath);
             } : censor;
             redactWildcardPath(current, afterWildcard, wrappedCensor, originalPath, remove);
@@ -23597,8 +23597,8 @@ var require_redact = __commonJS({
         return null;
       }
       const pathStructure = /* @__PURE__ */ new Map();
-      for (const path10 of pathsToClone) {
-        const parts = parsePath(path10);
+      for (const path11 of pathsToClone) {
+        const parts = parsePath(path11);
         let current = pathStructure;
         for (let i2 = 0; i2 < parts.length; i2++) {
           const part = parts[i2];
@@ -23650,24 +23650,24 @@ var require_redact = __commonJS({
       }
       return cloneSelectively(obj, pathStructure);
     }
-    function validatePath(path10) {
-      if (typeof path10 !== "string") {
+    function validatePath(path11) {
+      if (typeof path11 !== "string") {
         throw new Error("Paths must be (non-empty) strings");
       }
-      if (path10 === "") {
+      if (path11 === "") {
         throw new Error("Invalid redaction path ()");
       }
-      if (path10.includes("..")) {
-        throw new Error(`Invalid redaction path (${path10})`);
+      if (path11.includes("..")) {
+        throw new Error(`Invalid redaction path (${path11})`);
       }
-      if (path10.includes(",")) {
-        throw new Error(`Invalid redaction path (${path10})`);
+      if (path11.includes(",")) {
+        throw new Error(`Invalid redaction path (${path11})`);
       }
       let bracketCount = 0;
       let inQuotes = false;
       let quoteChar = "";
-      for (let i2 = 0; i2 < path10.length; i2++) {
-        const char = path10[i2];
+      for (let i2 = 0; i2 < path11.length; i2++) {
+        const char = path11[i2];
         if ((char === '"' || char === "'") && bracketCount > 0) {
           if (!inQuotes) {
             inQuotes = true;
@@ -23681,20 +23681,20 @@ var require_redact = __commonJS({
         } else if (char === "]" && !inQuotes) {
           bracketCount--;
           if (bracketCount < 0) {
-            throw new Error(`Invalid redaction path (${path10})`);
+            throw new Error(`Invalid redaction path (${path11})`);
           }
         }
       }
       if (bracketCount !== 0) {
-        throw new Error(`Invalid redaction path (${path10})`);
+        throw new Error(`Invalid redaction path (${path11})`);
       }
     }
     function validatePaths(paths) {
       if (!Array.isArray(paths)) {
         throw new TypeError("paths must be an array");
       }
-      for (const path10 of paths) {
-        validatePath(path10);
+      for (const path11 of paths) {
+        validatePath(path11);
       }
     }
     function slowRedact(options = {}) {
@@ -23864,8 +23864,8 @@ var require_redaction = __commonJS({
         if (shape[k] === null) {
           o[k] = (value) => topCensor(value, [k]);
         } else {
-          const wrappedCensor = typeof censor === "function" ? (value, path10) => {
-            return censor(value, [k, ...path10]);
+          const wrappedCensor = typeof censor === "function" ? (value, path11) => {
+            return censor(value, [k, ...path11]);
           } : censor;
           o[k] = Redact({
             paths: shape[k],
@@ -24083,10 +24083,10 @@ var require_atomic_sleep = __commonJS({
 var require_sonic_boom = __commonJS({
   "node_modules/sonic-boom/index.js"(exports, module) {
     "use strict";
-    var fs11 = __require("fs");
+    var fs12 = __require("fs");
     var EventEmitter = __require("events");
     var inherits = __require("util").inherits;
-    var path10 = __require("path");
+    var path11 = __require("path");
     var sleep2 = require_atomic_sleep();
     var assert2 = __require("assert");
     var BUSY_WRITE_TIMEOUT = 100;
@@ -24140,20 +24140,20 @@ var require_sonic_boom = __commonJS({
       const mode = sonic.mode;
       if (sonic.sync) {
         try {
-          if (sonic.mkdir) fs11.mkdirSync(path10.dirname(file2), { recursive: true });
-          const fd = fs11.openSync(file2, flags, mode);
+          if (sonic.mkdir) fs12.mkdirSync(path11.dirname(file2), { recursive: true });
+          const fd = fs12.openSync(file2, flags, mode);
           fileOpened(null, fd);
         } catch (err) {
           fileOpened(err);
           throw err;
         }
       } else if (sonic.mkdir) {
-        fs11.mkdir(path10.dirname(file2), { recursive: true }, (err) => {
+        fs12.mkdir(path11.dirname(file2), { recursive: true }, (err) => {
           if (err) return fileOpened(err);
-          fs11.open(file2, flags, mode, fileOpened);
+          fs12.open(file2, flags, mode, fileOpened);
         });
       } else {
-        fs11.open(file2, flags, mode, fileOpened);
+        fs12.open(file2, flags, mode, fileOpened);
       }
     }
     function SonicBoom(opts) {
@@ -24194,8 +24194,8 @@ var require_sonic_boom = __commonJS({
         this.flush = flushBuffer;
         this.flushSync = flushBufferSync;
         this._actualWrite = actualWriteBuffer;
-        fsWriteSync = () => fs11.writeSync(this.fd, this._writingBuf);
-        fsWrite = () => fs11.write(this.fd, this._writingBuf, this.release);
+        fsWriteSync = () => fs12.writeSync(this.fd, this._writingBuf);
+        fsWrite = () => fs12.write(this.fd, this._writingBuf, this.release);
       } else if (contentMode === void 0 || contentMode === kContentModeUtf8) {
         this._writingBuf = "";
         this.write = write;
@@ -24204,15 +24204,15 @@ var require_sonic_boom = __commonJS({
         this._actualWrite = actualWrite;
         fsWriteSync = () => {
           if (Buffer.isBuffer(this._writingBuf)) {
-            return fs11.writeSync(this.fd, this._writingBuf);
+            return fs12.writeSync(this.fd, this._writingBuf);
           }
-          return fs11.writeSync(this.fd, this._writingBuf, "utf8");
+          return fs12.writeSync(this.fd, this._writingBuf, "utf8");
         };
         fsWrite = () => {
           if (Buffer.isBuffer(this._writingBuf)) {
-            return fs11.write(this.fd, this._writingBuf, this.release);
+            return fs12.write(this.fd, this._writingBuf, this.release);
           }
-          return fs11.write(this.fd, this._writingBuf, "utf8", this.release);
+          return fs12.write(this.fd, this._writingBuf, "utf8", this.release);
         };
       } else {
         throw new Error(`SonicBoom supports "${kContentModeUtf8}" and "${kContentModeBuffer}", but passed ${contentMode}`);
@@ -24269,7 +24269,7 @@ var require_sonic_boom = __commonJS({
           }
         }
         if (this._fsync) {
-          fs11.fsyncSync(this.fd);
+          fs12.fsyncSync(this.fd);
         }
         const len = this._len;
         if (this._reopening) {
@@ -24383,7 +24383,7 @@ var require_sonic_boom = __commonJS({
       const onDrain = () => {
         if (!this._fsync) {
           try {
-            fs11.fsync(this.fd, (err) => {
+            fs12.fsync(this.fd, (err) => {
               this._flushPending = false;
               cb(err);
             });
@@ -24485,7 +24485,7 @@ var require_sonic_boom = __commonJS({
       const fd = this.fd;
       this.once("ready", () => {
         if (fd !== this.fd) {
-          fs11.close(fd, (err) => {
+          fs12.close(fd, (err) => {
             if (err) {
               return this.emit("error", err);
             }
@@ -24534,7 +24534,7 @@ var require_sonic_boom = __commonJS({
           buf = this._bufs[0];
         }
         try {
-          const n2 = Buffer.isBuffer(buf) ? fs11.writeSync(this.fd, buf) : fs11.writeSync(this.fd, buf, "utf8");
+          const n2 = Buffer.isBuffer(buf) ? fs12.writeSync(this.fd, buf) : fs12.writeSync(this.fd, buf, "utf8");
           const releasedBufObj = releaseWritingBuf(buf, this._len, n2);
           buf = releasedBufObj.writingBuf;
           this._len = releasedBufObj.len;
@@ -24550,7 +24550,7 @@ var require_sonic_boom = __commonJS({
         }
       }
       try {
-        fs11.fsyncSync(this.fd);
+        fs12.fsyncSync(this.fd);
       } catch {
       }
     }
@@ -24571,7 +24571,7 @@ var require_sonic_boom = __commonJS({
           buf = mergeBuf(this._bufs[0], this._lens[0]);
         }
         try {
-          const n2 = fs11.writeSync(this.fd, buf);
+          const n2 = fs12.writeSync(this.fd, buf);
           buf = buf.subarray(n2);
           this._len = Math.max(this._len - n2, 0);
           if (buf.length <= 0) {
@@ -24599,13 +24599,13 @@ var require_sonic_boom = __commonJS({
       this._writingBuf = this._writingBuf.length ? this._writingBuf : this._bufs.shift() || "";
       if (this.sync) {
         try {
-          const written = Buffer.isBuffer(this._writingBuf) ? fs11.writeSync(this.fd, this._writingBuf) : fs11.writeSync(this.fd, this._writingBuf, "utf8");
+          const written = Buffer.isBuffer(this._writingBuf) ? fs12.writeSync(this.fd, this._writingBuf) : fs12.writeSync(this.fd, this._writingBuf, "utf8");
           release(null, written);
         } catch (err) {
           release(err);
         }
       } else {
-        fs11.write(this.fd, this._writingBuf, release);
+        fs12.write(this.fd, this._writingBuf, release);
       }
     }
     function actualWriteBuffer() {
@@ -24614,7 +24614,7 @@ var require_sonic_boom = __commonJS({
       this._writingBuf = this._writingBuf.length ? this._writingBuf : mergeBuf(this._bufs.shift(), this._lens.shift());
       if (this.sync) {
         try {
-          const written = fs11.writeSync(this.fd, this._writingBuf);
+          const written = fs12.writeSync(this.fd, this._writingBuf);
           release(null, written);
         } catch (err) {
           release(err);
@@ -24623,7 +24623,7 @@ var require_sonic_boom = __commonJS({
         if (kCopyBuffer) {
           this._writingBuf = Buffer.from(this._writingBuf);
         }
-        fs11.write(this.fd, this._writingBuf, release);
+        fs12.write(this.fd, this._writingBuf, release);
       }
     }
     function actualClose(sonic) {
@@ -24639,12 +24639,12 @@ var require_sonic_boom = __commonJS({
       sonic._lens = [];
       assert2(typeof sonic.fd === "number", `sonic.fd must be a number, got ${typeof sonic.fd}`);
       try {
-        fs11.fsync(sonic.fd, closeWrapped);
+        fs12.fsync(sonic.fd, closeWrapped);
       } catch {
       }
       function closeWrapped() {
         if (sonic.fd !== 1 && sonic.fd !== 2) {
-          fs11.close(sonic.fd, done);
+          fs12.close(sonic.fd, done);
         } else {
           done();
         }
@@ -25481,15 +25481,15 @@ var require_transport = __commonJS({
       if (!unquoted) {
         return false;
       }
-      let path10 = unquoted;
-      if (path10.startsWith("file://")) {
+      let path11 = unquoted;
+      if (path11.startsWith("file://")) {
         try {
-          path10 = fileURLToPath(path10);
+          path11 = fileURLToPath(path11);
         } catch {
           return false;
         }
       }
-      return isAbsolute(path10) && !existsSync(path10);
+      return isAbsolute(path11) && !existsSync(path11);
     }
     function stripQuotes(value) {
       const first = value[0];
@@ -26567,8 +26567,8 @@ var require_safe_stable_stringify = __commonJS({
     }
     function configure(options) {
       options = { ...options };
-      const fail3 = getStrictOption(options);
-      if (fail3) {
+      const fail5 = getStrictOption(options);
+      if (fail5) {
         if (options.bigint === void 0) {
           options.bigint = false;
         }
@@ -26679,7 +26679,7 @@ ${originalIndentation}`;
             return `{${res}}`;
           }
           case "number":
-            return isFinite(value) ? String(value) : fail3 ? fail3(value) : "null";
+            return isFinite(value) ? String(value) : fail5 ? fail5(value) : "null";
           case "boolean":
             return value === true ? "true" : "false";
           case "undefined":
@@ -26690,7 +26690,7 @@ ${originalIndentation}`;
             }
           // fallthrough
           default:
-            return fail3 ? fail3(value) : void 0;
+            return fail5 ? fail5(value) : void 0;
         }
       }
       function stringifyArrayReplacer(key, value, stack, replacer, spacer, indentation) {
@@ -26770,7 +26770,7 @@ ${originalIndentation}`;
             return `{${res}}`;
           }
           case "number":
-            return isFinite(value) ? String(value) : fail3 ? fail3(value) : "null";
+            return isFinite(value) ? String(value) : fail5 ? fail5(value) : "null";
           case "boolean":
             return value === true ? "true" : "false";
           case "undefined":
@@ -26781,7 +26781,7 @@ ${originalIndentation}`;
             }
           // fallthrough
           default:
-            return fail3 ? fail3(value) : void 0;
+            return fail5 ? fail5(value) : void 0;
         }
       }
       function stringifyIndent(key, value, stack, spacer, indentation) {
@@ -26882,7 +26882,7 @@ ${originalIndentation}`;
             return `{${res}}`;
           }
           case "number":
-            return isFinite(value) ? String(value) : fail3 ? fail3(value) : "null";
+            return isFinite(value) ? String(value) : fail5 ? fail5(value) : "null";
           case "boolean":
             return value === true ? "true" : "false";
           case "undefined":
@@ -26893,7 +26893,7 @@ ${originalIndentation}`;
             }
           // fallthrough
           default:
-            return fail3 ? fail3(value) : void 0;
+            return fail5 ? fail5(value) : void 0;
         }
       }
       function stringifySimple(key, value, stack) {
@@ -26978,7 +26978,7 @@ ${originalIndentation}`;
             return `{${res}}`;
           }
           case "number":
-            return isFinite(value) ? String(value) : fail3 ? fail3(value) : "null";
+            return isFinite(value) ? String(value) : fail5 ? fail5(value) : "null";
           case "boolean":
             return value === true ? "true" : "false";
           case "undefined":
@@ -26989,7 +26989,7 @@ ${originalIndentation}`;
             }
           // fallthrough
           default:
-            return fail3 ? fail3(value) : void 0;
+            return fail5 ? fail5(value) : void 0;
         }
       }
       function stringify2(value, replacer, space) {
@@ -39194,9 +39194,9 @@ var require_client = __commonJS({
 var require_auth_41 = __commonJS({
   "node_modules/mysql2/lib/auth_41.js"(exports) {
     "use strict";
-    var crypto14 = __require("crypto");
+    var crypto16 = __require("crypto");
     function sha1(msg, msg1, msg2) {
-      const hash2 = crypto14.createHash("sha1");
+      const hash2 = crypto16.createHash("sha1");
       hash2.update(msg);
       if (msg1) {
         hash2.update(msg1);
@@ -41622,7 +41622,7 @@ var require_sha256_password = __commonJS({
   "node_modules/mysql2/lib/auth_plugins/sha256_password.js"(exports, module) {
     "use strict";
     var PLUGIN_NAME = "sha256_password";
-    var crypto14 = __require("crypto");
+    var crypto16 = __require("crypto");
     var { xorRotating } = require_auth_41();
     var Tls = __require("tls");
     var REQUEST_SERVER_KEY_PACKET = Buffer.from([1]);
@@ -41631,7 +41631,7 @@ var require_sha256_password = __commonJS({
     var STATE_FINAL = -1;
     function encrypt(password, scramble, key) {
       const stage1 = xorRotating(Buffer.from(`${password}\0`, "utf8"), scramble);
-      return crypto14.publicEncrypt(
+      return crypto16.publicEncrypt(
         {
           key,
           oaepHash: "sha1"
@@ -41683,7 +41683,7 @@ var require_caching_sha2_password = __commonJS({
   "node_modules/mysql2/lib/auth_plugins/caching_sha2_password.js"(exports, module) {
     "use strict";
     var PLUGIN_NAME = "caching_sha2_password";
-    var crypto14 = __require("crypto");
+    var crypto16 = __require("crypto");
     var { xor: xor2, xorRotating } = require_auth_41();
     var REQUEST_SERVER_KEY_PACKET = Buffer.from([2]);
     var FAST_AUTH_SUCCESS_PACKET = Buffer.from([3]);
@@ -41693,7 +41693,7 @@ var require_caching_sha2_password = __commonJS({
     var STATE_WAIT_SERVER_KEY = 2;
     var STATE_FINAL = -1;
     function sha256(msg) {
-      const hash2 = crypto14.createHash("sha256");
+      const hash2 = crypto16.createHash("sha256");
       hash2.update(msg);
       return hash2.digest();
     }
@@ -41708,11 +41708,11 @@ var require_caching_sha2_password = __commonJS({
     }
     function encrypt(password, scramble, key) {
       const stage1 = xorRotating(Buffer.from(`${password}\0`, "utf8"), scramble);
-      return crypto14.publicEncrypt(
+      return crypto16.publicEncrypt(
         {
           key,
           oaepHash: "sha1",
-          padding: crypto14.constants.RSA_PKCS1_OAEP_PADDING
+          padding: crypto16.constants.RSA_PKCS1_OAEP_PADDING
         },
         stage1
       );
@@ -44090,12 +44090,12 @@ var require_query3 = __commonJS({
         this._fields.push(this._currentFields);
         return this.readField;
       }
-      _streamLocalInfile(connection, path10) {
+      _streamLocalInfile(connection, path11) {
         if (this._streamFactory) {
-          this._localStream = this._streamFactory(path10);
+          this._localStream = this._streamFactory(path11);
         } else {
           this._localStreamError = new Error(
-            `As a result of LOCAL INFILE command server wants to read ${path10} file, but as of v2.0 you must provide streamFactory option returning ReadStream.`
+            `As a result of LOCAL INFILE command server wants to read ${path11} file, but as of v2.0 you must provide streamFactory option returning ReadStream.`
           );
           connection.writePacket(createEmptyPacket());
           return this.infileOk;
@@ -54971,22 +54971,22 @@ var init_from = __esm({
     init_file();
     init_fetch_blob();
     ({ stat } = fs4);
-    blobFromSync = (path10, type) => fromBlob(statSync(path10), path10, type);
-    blobFrom = (path10, type) => stat(path10).then((stat3) => fromBlob(stat3, path10, type));
-    fileFrom = (path10, type) => stat(path10).then((stat3) => fromFile(stat3, path10, type));
-    fileFromSync = (path10, type) => fromFile(statSync(path10), path10, type);
-    fromBlob = (stat3, path10, type = "") => new fetch_blob_default([new BlobDataItem({
-      path: path10,
+    blobFromSync = (path11, type) => fromBlob(statSync(path11), path11, type);
+    blobFrom = (path11, type) => stat(path11).then((stat3) => fromBlob(stat3, path11, type));
+    fileFrom = (path11, type) => stat(path11).then((stat3) => fromFile(stat3, path11, type));
+    fileFromSync = (path11, type) => fromFile(statSync(path11), path11, type);
+    fromBlob = (stat3, path11, type = "") => new fetch_blob_default([new BlobDataItem({
+      path: path11,
       size: stat3.size,
       lastModified: stat3.mtimeMs,
       start: 0
     })], { type });
-    fromFile = (stat3, path10, type = "") => new file_default([new BlobDataItem({
-      path: path10,
+    fromFile = (stat3, path11, type = "") => new file_default([new BlobDataItem({
+      path: path11,
       size: stat3.size,
       lastModified: stat3.mtimeMs,
       start: 0
-    })], basename(path10), { type, lastModified: stat3.mtimeMs });
+    })], basename(path11), { type, lastModified: stat3.mtimeMs });
     BlobDataItem = class _BlobDataItem {
       #path;
       #start;
@@ -59831,22 +59831,22 @@ var require_crypto2 = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.NodeCrypto = void 0;
-    var crypto14 = __require("crypto");
+    var crypto16 = __require("crypto");
     var NodeCrypto = class {
       async sha256DigestBase64(str) {
-        return crypto14.createHash("sha256").update(str).digest("base64");
+        return crypto16.createHash("sha256").update(str).digest("base64");
       }
       randomBytesBase64(count) {
-        return crypto14.randomBytes(count).toString("base64");
+        return crypto16.randomBytes(count).toString("base64");
       }
       async verify(pubkey, data, signature) {
-        const verifier = crypto14.createVerify("RSA-SHA256");
+        const verifier = crypto16.createVerify("RSA-SHA256");
         verifier.update(data);
         verifier.end();
         return verifier.verify(pubkey, signature, "base64");
       }
       async sign(privateKey, data) {
-        const signer = crypto14.createSign("RSA-SHA256");
+        const signer = crypto16.createSign("RSA-SHA256");
         signer.update(data);
         signer.end();
         return signer.sign(privateKey, "base64");
@@ -59864,7 +59864,7 @@ var require_crypto2 = __commonJS({
        *   string in hexadecimal encoding.
        */
       async sha256DigestHex(str) {
-        return crypto14.createHash("sha256").update(str).digest("hex");
+        return crypto16.createHash("sha256").update(str).digest("hex");
       }
       /**
        * Computes the HMAC hash of a message using the provided crypto key and the
@@ -59876,7 +59876,7 @@ var require_crypto2 = __commonJS({
        */
       async signWithHmacSha256(key, msg) {
         const cryptoKey = typeof key === "string" ? key : toBuffer(key);
-        return toArrayBuffer(crypto14.createHmac("sha256", cryptoKey).update(msg).digest());
+        return toArrayBuffer(crypto16.createHmac("sha256", cryptoKey).update(msg).digest());
       }
     };
     exports.NodeCrypto = NodeCrypto;
@@ -60107,9 +60107,9 @@ var require_util2 = __commonJS({
     exports.removeUndefinedValuesInObject = removeUndefinedValuesInObject;
     exports.isValidFile = isValidFile;
     exports.getWellKnownCertificateConfigFileLocation = getWellKnownCertificateConfigFileLocation;
-    var fs11 = __require("fs");
+    var fs12 = __require("fs");
     var os = __require("os");
-    var path10 = __require("path");
+    var path11 = __require("path");
     var WELL_KNOWN_CERTIFICATE_CONFIG_FILE = "certificate_config.json";
     var CLOUDSDK_CONFIG_DIRECTORY = "gcloud";
     function snakeToCamel(str) {
@@ -60195,15 +60195,15 @@ var require_util2 = __commonJS({
     }
     async function isValidFile(filePath) {
       try {
-        const stats = await fs11.promises.lstat(filePath);
+        const stats = await fs12.promises.lstat(filePath);
         return stats.isFile();
       } catch (e2) {
         return false;
       }
     }
     function getWellKnownCertificateConfigFileLocation() {
-      const configDir = process.env.CLOUDSDK_CONFIG || (_isWindows() ? path10.join(process.env.APPDATA || "", CLOUDSDK_CONFIG_DIRECTORY) : path10.join(process.env.HOME || "", ".config", CLOUDSDK_CONFIG_DIRECTORY));
-      return path10.join(configDir, WELL_KNOWN_CERTIFICATE_CONFIG_FILE);
+      const configDir = process.env.CLOUDSDK_CONFIG || (_isWindows() ? path11.join(process.env.APPDATA || "", CLOUDSDK_CONFIG_DIRECTORY) : path11.join(process.env.HOME || "", ".config", CLOUDSDK_CONFIG_DIRECTORY));
+      return path11.join(configDir, WELL_KNOWN_CERTIFICATE_CONFIG_FILE);
     }
     function _isWindows() {
       return os.platform().startsWith("win");
@@ -60731,10 +60731,10 @@ var require_oauth2client = __commonJS({
        * https://github.com/googleapis/google-auth-library-nodejs/blob/main/samples/oauth2-codeVerifier.js
        */
       async generateCodeVerifierAsync() {
-        const crypto14 = (0, crypto_1.createCrypto)();
-        const randomString2 = crypto14.randomBytesBase64(96);
+        const crypto16 = (0, crypto_1.createCrypto)();
+        const randomString2 = crypto16.randomBytesBase64(96);
         const codeVerifier = randomString2.replace(/\+/g, "~").replace(/=/g, "_").replace(/\//g, "-");
-        const unencodedCodeChallenge = await crypto14.sha256DigestBase64(codeVerifier);
+        const unencodedCodeChallenge = await crypto16.sha256DigestBase64(codeVerifier);
         const codeChallenge = unencodedCodeChallenge.split("=")[0].replace(/\+/g, "-").replace(/\//g, "_");
         return { codeVerifier, codeChallenge };
       }
@@ -61175,7 +61175,7 @@ var require_oauth2client = __commonJS({
        * @return Returns a promise resolving to LoginTicket on verification.
        */
       async verifySignedJwtWithCertsAsync(jwt2, certs, requiredAudience, issuers, maxExpiry) {
-        const crypto14 = (0, crypto_1.createCrypto)();
+        const crypto16 = (0, crypto_1.createCrypto)();
         if (!maxExpiry) {
           maxExpiry = _OAuth2Client.DEFAULT_MAX_TOKEN_LIFETIME_SECS_;
         }
@@ -61188,7 +61188,7 @@ var require_oauth2client = __commonJS({
         let envelope;
         let payload;
         try {
-          envelope = JSON.parse(crypto14.decodeBase64StringUtf8(segments[0]));
+          envelope = JSON.parse(crypto16.decodeBase64StringUtf8(segments[0]));
         } catch (err) {
           if (err instanceof Error) {
             err.message = `Can't parse token envelope: ${segments[0]}': ${err.message}`;
@@ -61199,7 +61199,7 @@ var require_oauth2client = __commonJS({
           throw new Error("Can't parse token envelope: " + segments[0]);
         }
         try {
-          payload = JSON.parse(crypto14.decodeBase64StringUtf8(segments[1]));
+          payload = JSON.parse(crypto16.decodeBase64StringUtf8(segments[1]));
         } catch (err) {
           if (err instanceof Error) {
             err.message = `Can't parse token payload '${segments[0]}`;
@@ -61216,7 +61216,7 @@ var require_oauth2client = __commonJS({
         if (envelope.alg === "ES256") {
           signature = formatEcdsa.joseToDer(signature, "ES256").toString("base64");
         }
-        const verified = await crypto14.verify(cert, signed, signature);
+        const verified = await crypto16.verify(cert, signed, signature);
         if (!verified) {
           throw new Error("Invalid token signature: " + jwt2);
         }
@@ -61591,14 +61591,14 @@ var require_buffer_equal_constant_time = __commonJS({
 var require_jwa = __commonJS({
   "node_modules/jwa/index.js"(exports, module) {
     var Buffer4 = require_safe_buffer().Buffer;
-    var crypto14 = __require("crypto");
+    var crypto16 = __require("crypto");
     var formatEcdsa = require_ecdsa_sig_formatter();
     var util = __require("util");
     var MSG_INVALID_ALGORITHM = '"%s" is not a valid algorithm.\n  Supported algorithms are:\n  "HS256", "HS384", "HS512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512", "ES256", "ES384", "ES512" and "none".';
     var MSG_INVALID_SECRET = "secret must be a string or buffer";
     var MSG_INVALID_VERIFIER_KEY = "key must be a string or a buffer";
     var MSG_INVALID_SIGNER_KEY = "key must be a string, a buffer or an object";
-    var supportsKeyObjects = typeof crypto14.createPublicKey === "function";
+    var supportsKeyObjects = typeof crypto16.createPublicKey === "function";
     if (supportsKeyObjects) {
       MSG_INVALID_VERIFIER_KEY += " or a KeyObject";
       MSG_INVALID_SECRET += "or a KeyObject";
@@ -61688,17 +61688,17 @@ var require_jwa = __commonJS({
       return function sign(thing, secret) {
         checkIsSecretKey(secret);
         thing = normalizeInput(thing);
-        var hmac = crypto14.createHmac("sha" + bits, secret);
+        var hmac = crypto16.createHmac("sha" + bits, secret);
         var sig = (hmac.update(thing), hmac.digest("base64"));
         return fromBase64(sig);
       };
     }
     var bufferEqual;
-    var timingSafeEqual2 = "timingSafeEqual" in crypto14 ? function timingSafeEqual3(a, b) {
+    var timingSafeEqual2 = "timingSafeEqual" in crypto16 ? function timingSafeEqual3(a, b) {
       if (a.byteLength !== b.byteLength) {
         return false;
       }
-      return crypto14.timingSafeEqual(a, b);
+      return crypto16.timingSafeEqual(a, b);
     } : function timingSafeEqual3(a, b) {
       if (!bufferEqual) {
         bufferEqual = require_buffer_equal_constant_time();
@@ -61715,7 +61715,7 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto14.createSign("RSA-SHA" + bits);
+        var signer = crypto16.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign(privateKey, "base64"));
         return fromBase64(sig);
       };
@@ -61725,7 +61725,7 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto14.createVerify("RSA-SHA" + bits);
+        var verifier = crypto16.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify(publicKey, signature, "base64");
       };
@@ -61734,11 +61734,11 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto14.createSign("RSA-SHA" + bits);
+        var signer = crypto16.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign({
           key: privateKey,
-          padding: crypto14.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto14.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto16.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto16.constants.RSA_PSS_SALTLEN_DIGEST
         }, "base64"));
         return fromBase64(sig);
       };
@@ -61748,12 +61748,12 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto14.createVerify("RSA-SHA" + bits);
+        var verifier = crypto16.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify({
           key: publicKey,
-          padding: crypto14.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto14.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto16.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto16.constants.RSA_PSS_SALTLEN_DIGEST
         }, signature, "base64");
       };
     }
@@ -62149,11 +62149,11 @@ var require_getCredentials = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.getCredentials = getCredentials;
-    var path10 = __require("path");
-    var fs11 = __require("fs");
+    var path11 = __require("path");
+    var fs12 = __require("fs");
     var util_1 = __require("util");
     var errorWithCode_1 = require_errorWithCode();
-    var readFile = fs11.readFile ? (0, util_1.promisify)(fs11.readFile) : async () => {
+    var readFile = fs12.readFile ? (0, util_1.promisify)(fs12.readFile) : async () => {
       throw new errorWithCode_1.ErrorWithCode("use key rather than keyFile.", "MISSING_CREDENTIALS");
     };
     var ExtensionFiles;
@@ -62221,7 +62221,7 @@ var require_getCredentials = __commonJS({
        * @returns An instance of a class that implements ICredentialsProvider.
        */
       static create(keyFilePath) {
-        const keyFileExtension = path10.extname(keyFilePath);
+        const keyFileExtension = path11.extname(keyFilePath);
         switch (keyFileExtension) {
           case ExtensionFiles.JSON:
             return new JsonCredentialsProvider(keyFilePath);
@@ -63830,12 +63830,12 @@ var require_filesubjecttokensupplier = __commonJS({
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.FileSubjectTokenSupplier = void 0;
     var util_1 = __require("util");
-    var fs11 = __require("fs");
-    var readFile = (0, util_1.promisify)(fs11.readFile ?? (() => {
+    var fs12 = __require("fs");
+    var readFile = (0, util_1.promisify)(fs12.readFile ?? (() => {
     }));
-    var realpath = (0, util_1.promisify)(fs11.realpath ?? (() => {
+    var realpath = (0, util_1.promisify)(fs12.realpath ?? (() => {
     }));
-    var lstat = (0, util_1.promisify)(fs11.lstat ?? (() => {
+    var lstat = (0, util_1.promisify)(fs12.lstat ?? (() => {
     }));
     var FileSubjectTokenSupplier = class {
       filePath;
@@ -63953,7 +63953,7 @@ var require_certificatesubjecttokensupplier = __commonJS({
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.CertificateSubjectTokenSupplier = exports.InvalidConfigurationError = exports.CertificateSourceUnavailableError = exports.CERTIFICATE_CONFIGURATION_ENV_VARIABLE = void 0;
     var util_1 = require_util2();
-    var fs11 = __require("fs");
+    var fs12 = __require("fs");
     var crypto_1 = __require("crypto");
     var https4 = __require("https");
     exports.CERTIFICATE_CONFIGURATION_ENV_VARIABLE = "GOOGLE_API_CERTIFICATE_CONFIG";
@@ -64047,7 +64047,7 @@ var require_certificatesubjecttokensupplier = __commonJS({
         const configPath = this.certificateConfigPath;
         let fileContents;
         try {
-          fileContents = await fs11.promises.readFile(configPath, "utf8");
+          fileContents = await fs12.promises.readFile(configPath, "utf8");
         } catch (err) {
           throw new CertificateSourceUnavailableError(`Failed to read certificate config file at: ${configPath}`);
         }
@@ -64072,14 +64072,14 @@ var require_certificatesubjecttokensupplier = __commonJS({
       async #getKeyAndCert(certPath, keyPath) {
         let cert, key;
         try {
-          cert = await fs11.promises.readFile(certPath);
+          cert = await fs12.promises.readFile(certPath);
           new crypto_1.X509Certificate(cert);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           throw new CertificateSourceUnavailableError(`Failed to read certificate file at ${certPath}: ${message}`);
         }
         try {
-          key = await fs11.promises.readFile(keyPath);
+          key = await fs12.promises.readFile(keyPath);
           (0, crypto_1.createPrivateKey)(key);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -64098,7 +64098,7 @@ var require_certificatesubjecttokensupplier = __commonJS({
           return JSON.stringify([leafCert.raw.toString("base64")]);
         }
         try {
-          const chainPems = await fs11.promises.readFile(this.trustChainPath, "utf8");
+          const chainPems = await fs12.promises.readFile(this.trustChainPath, "utf8");
           const pemBlocks = chainPems.match(/-----BEGIN CERTIFICATE-----[^-]+-----END CERTIFICATE-----/g) ?? [];
           const chainCerts = pemBlocks.map((pem, index) => {
             try {
@@ -64329,14 +64329,14 @@ var require_awsrequestsigner = __commonJS({
       }
     };
     exports.AwsRequestSigner = AwsRequestSigner;
-    async function sign(crypto14, key, msg) {
-      return await crypto14.signWithHmacSha256(key, msg);
+    async function sign(crypto16, key, msg) {
+      return await crypto16.signWithHmacSha256(key, msg);
     }
-    async function getSigningKey(crypto14, key, dateStamp, region, serviceName) {
-      const kDate = await sign(crypto14, `AWS4${key}`, dateStamp);
-      const kRegion = await sign(crypto14, kDate, region);
-      const kService = await sign(crypto14, kRegion, serviceName);
-      const kSigning = await sign(crypto14, kService, "aws4_request");
+    async function getSigningKey(crypto16, key, dateStamp, region, serviceName) {
+      const kDate = await sign(crypto16, `AWS4${key}`, dateStamp);
+      const kRegion = await sign(crypto16, kDate, region);
+      const kService = await sign(crypto16, kRegion, serviceName);
+      const kSigning = await sign(crypto16, kService, "aws4_request");
       return kSigning;
     }
     async function generateAuthenticationHeaderMap(options) {
@@ -64800,7 +64800,7 @@ var require_pluggable_auth_handler = __commonJS({
     exports.PluggableAuthHandler = exports.ExecutableError = void 0;
     var executable_response_1 = require_executable_response();
     var childProcess = __require("child_process");
-    var fs11 = __require("fs");
+    var fs12 = __require("fs");
     var ExecutableError = class extends Error {
       /**
        * The exit code returned by the executable.
@@ -64885,14 +64885,14 @@ var require_pluggable_auth_handler = __commonJS({
         }
         let filePath;
         try {
-          filePath = await fs11.promises.realpath(this.outputFile);
+          filePath = await fs12.promises.realpath(this.outputFile);
         } catch {
           return void 0;
         }
-        if (!(await fs11.promises.lstat(filePath)).isFile()) {
+        if (!(await fs12.promises.lstat(filePath)).isFile()) {
           return void 0;
         }
-        const responseString = await fs11.promises.readFile(filePath, {
+        const responseString = await fs12.promises.readFile(filePath, {
           encoding: "utf8"
         });
         if (responseString === "") {
@@ -65302,8 +65302,8 @@ var require_gdchclient = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.GdchClient = exports.GDCH_SERVICE_ACCOUNT_TYPE = void 0;
-    var crypto14 = __require("crypto");
-    var fs11 = __require("fs");
+    var crypto16 = __require("crypto");
+    var fs12 = __require("fs");
     var https4 = __require("https");
     var oauth2client_1 = require_oauth2client();
     var DEFAULT_LIFETIME_IN_SECONDS = 3600;
@@ -65493,7 +65493,7 @@ var require_gdchclient = __commonJS({
         const encodedHeader = this.base64UrlEncode(JSON.stringify(header));
         const encodedPayload = this.base64UrlEncode(JSON.stringify(payload));
         const signingInput = `${encodedHeader}.${encodedPayload}`;
-        const signature = crypto14.sign("sha256", Buffer.from(signingInput), {
+        const signature = crypto16.sign("sha256", Buffer.from(signingInput), {
           key: this.privateKey,
           dsaEncoding: "ieee-p1363"
         });
@@ -65526,7 +65526,7 @@ var require_gdchclient = __commonJS({
         const currentPath = this.caCertPath;
         this.caAgentPromise = (async () => {
           try {
-            const ca = await fs11.promises.readFile(currentPath);
+            const ca = await fs12.promises.readFile(currentPath);
             return new https4.Agent({ ca });
           } catch (err) {
             if (this.cachedCaCertPath === currentPath) {
@@ -65586,11 +65586,11 @@ var require_googleauth = __commonJS({
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.GoogleAuth = exports.GoogleAuthExceptionMessages = void 0;
     var child_process_1 = __require("child_process");
-    var fs11 = __require("fs");
+    var fs12 = __require("fs");
     var gaxios_1 = require_src3();
     var gcpMetadata = require_src5();
     var os = __require("os");
-    var path10 = __require("path");
+    var path11 = __require("path");
     var crypto_1 = require_crypto3();
     var computeclient_1 = require_computeclient();
     var idtokenclient_1 = require_idtokenclient();
@@ -65875,20 +65875,20 @@ var require_googleauth = __commonJS({
         if (!configDir) {
           if (this._isWindows()) {
             if (process.env["APPDATA"]) {
-              configDir = path10.join(process.env["APPDATA"], "gcloud");
+              configDir = path11.join(process.env["APPDATA"], "gcloud");
             }
           } else {
             const home = process.env["HOME"];
             if (home) {
-              configDir = path10.join(home, ".config", "gcloud");
+              configDir = path11.join(home, ".config", "gcloud");
             }
           }
         }
         if (!configDir) {
           return null;
         }
-        const location = path10.join(configDir, "application_default_credentials.json");
-        if (!fs11.existsSync(location)) {
+        const location = path11.join(configDir, "application_default_credentials.json");
+        if (!fs12.existsSync(location)) {
           return null;
         }
         const client = await this._getApplicationCredentialsFromFilePath(location, options);
@@ -65905,8 +65905,8 @@ var require_googleauth = __commonJS({
           throw new Error("The file path is invalid.");
         }
         try {
-          filePath = fs11.realpathSync(filePath);
-          if (!fs11.lstatSync(filePath).isFile()) {
+          filePath = fs12.realpathSync(filePath);
+          if (!fs12.lstatSync(filePath).isFile()) {
             throw new Error();
           }
         } catch (err) {
@@ -65915,7 +65915,7 @@ var require_googleauth = __commonJS({
           }
           throw err;
         }
-        const readStream = fs11.createReadStream(filePath);
+        const readStream = fs12.createReadStream(filePath);
         return this.fromStream(readStream, options);
       }
       /**
@@ -66242,8 +66242,8 @@ var require_googleauth = __commonJS({
         if (this.jsonContent) {
           return this._cacheClientFromJSON(this.jsonContent, this.clientOptions);
         } else if (this.keyFilename) {
-          const filePath = path10.resolve(this.keyFilename);
-          const stream = fs11.createReadStream(filePath);
+          const filePath = path11.resolve(this.keyFilename);
+          const stream = fs12.createReadStream(filePath);
           return await this.fromStreamAsync(stream, this.clientOptions);
         } else if (this.apiKey) {
           const client = await this.fromAPIKey(this.apiKey, this.clientOptions);
@@ -66356,24 +66356,24 @@ var require_googleauth = __commonJS({
           const signed = await client.sign(data);
           return signed.signedBlob;
         }
-        const crypto14 = (0, crypto_1.createCrypto)();
+        const crypto16 = (0, crypto_1.createCrypto)();
         if (client instanceof jwtclient_1.JWT && client.key) {
-          const sign = await crypto14.sign(client.key, data);
+          const sign = await crypto16.sign(client.key, data);
           return sign;
         }
         const creds = await this.getCredentials();
         if (!creds.client_email) {
           throw new Error("Cannot sign data without `client_email`.");
         }
-        return this.signBlob(crypto14, creds.client_email, data, endpoint);
+        return this.signBlob(crypto16, creds.client_email, data, endpoint);
       }
-      async signBlob(crypto14, emailOrUniqueId, data, endpoint) {
+      async signBlob(crypto16, emailOrUniqueId, data, endpoint) {
         const url2 = new URL(endpoint + `${emailOrUniqueId}:signBlob`);
         const res = await this.request({
           method: "POST",
           url: url2.href,
           data: {
-            payload: crypto14.encodeBase64StringUtf8(data)
+            payload: crypto16.encodeBase64StringUtf8(data)
           },
           retry: true,
           retryConfig: {
@@ -70473,8 +70473,8 @@ var require_websocket_server = __commonJS({
 });
 
 // server.ts
-import fs10 from "fs";
-import path9 from "path";
+import fs11 from "fs";
+import path10 from "path";
 
 // server/src/utils/dnsResolver.ts
 import dns from "node:dns";
@@ -70504,7 +70504,6 @@ dns.lookup = function(hostname3, options, callback) {
 };
 
 // server.ts
-var import_express8 = __toESM(require_express2(), 1);
 import { createServer } from "http";
 
 // server/src/app.ts
@@ -74287,10 +74286,10 @@ function mergeDefs(...defs) {
 function cloneDef(schema) {
   return mergeDefs(schema._zod.def);
 }
-function getElementAtPath(obj, path10) {
-  if (!path10)
+function getElementAtPath(obj, path11) {
+  if (!path11)
     return obj;
-  return path10.reduce((acc, key) => acc?.[key], obj);
+  return path11.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -74630,11 +74629,11 @@ function explicitlyAborted(x2, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path10, issues) {
+function prefixIssues(path11, issues) {
   return issues.map((iss) => {
     var _a4;
     (_a4 = iss).path ?? (_a4.path = []);
-    iss.path.unshift(path10);
+    iss.path.unshift(path11);
     return iss;
   });
 }
@@ -75096,16 +75095,16 @@ function flattenError(error62, mapper = (issue2) => issue2.message) {
 }
 function formatError(error62, mapper = (issue2) => issue2.message) {
   const fieldErrors = { _errors: [] };
-  const processError = (error63, path10 = []) => {
+  const processError = (error63, path11 = []) => {
     for (const issue2 of error63.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path10, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path11, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path10, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path11, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path10, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path11, ...issue2.path]);
       } else {
-        const fullpath = [...path10, ...issue2.path];
+        const fullpath = [...path11, ...issue2.path];
         if (fullpath.length === 0) {
           fieldErrors._errors.push(mapper(issue2));
         } else {
@@ -75144,17 +75143,17 @@ function formatError(error62, mapper = (issue2) => issue2.message) {
 }
 function treeifyError(error62, mapper = (issue2) => issue2.message) {
   const result = { errors: [] };
-  const processError = (error63, path10 = []) => {
+  const processError = (error63, path11 = []) => {
     var _a4;
     for (const issue2 of error63.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path10, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path11, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path10, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path11, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path10, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path11, ...issue2.path]);
       } else {
-        const fullpath = [...path10, ...issue2.path];
+        const fullpath = [...path11, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -75193,8 +75192,8 @@ function treeifyError(error62, mapper = (issue2) => issue2.message) {
 }
 function toDotPath(_path) {
   const segs = [];
-  const path10 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-  for (const seg of path10) {
+  const path11 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+  for (const seg of path11) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -92332,13 +92331,13 @@ function resolveRef(ref, ctx) {
   if (!ref.startsWith("#")) {
     throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
   }
-  const path10 = ref.slice(1).split("/").filter(Boolean);
-  if (path10.length === 0) {
+  const path11 = ref.slice(1).split("/").filter(Boolean);
+  if (path11.length === 0) {
     return ctx.rootSchema;
   }
   const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-  if (path10[0] === defsKey) {
-    const key = path10[1] === void 0 ? void 0 : decodeJSONPointerSegment(path10[1]);
+  if (path11[0] === defsKey) {
+    const key = path11[1] === void 0 ? void 0 : decodeJSONPointerSegment(path11[1]);
     if (!key || !ctx.defs[key]) {
       throw new Error(`Reference not found: ${ref}`);
     }
@@ -93669,6 +93668,27 @@ function beginPublishing(targetId, executionId) {
     throw error62;
   }
 }
+function claimFailedTarget(targetId, executionId, postVersion, targetVersion, actor) {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const row = loadDelivery(targetId);
+    if (!row || !approvalIsCurrent(row) || row.post_version !== postVersion || row.version !== targetVersion || row.status !== "Failed" || row.platform_post_id || row.post_url || row.posted_at || row.lock_execution_id || row.lock_stage)
+      throw Object.assign(new DeliveryConflict("Delivery changed or is no longer safe to retry. Refresh its report."), { status: 409 });
+    const scheduled = transitionTarget(row, "Scheduled", actor, "Explicit retry of the approved failed destination", {
+      max_retries: Math.max(row.max_retries, row.attempt_count + 1),
+      next_retry_at: null
+    });
+    const now2 = (/* @__PURE__ */ new Date()).toISOString();
+    const result = db.prepare(`UPDATE post_targets SET status='Processing',lock_execution_id=?,lock_stage='claimed',locked_at=?,
+      claimed_post_version=?,attempt_count=attempt_count+1,version=version+1,updated_at=? WHERE target_id=? AND version=? AND status='Scheduled'`).run(executionId, now2, postVersion, now2, targetId, scheduled.version);
+    if (result.changes !== 1) throw Object.assign(new DeliveryConflict("Delivery was already claimed."), { status: 409 });
+    db.prepare(`INSERT INTO publish_attempts (attempt_id,target_id,execution_id,post_version,started_at,result,created_at) VALUES (?,?,?,?,?,'running',?)`).run(randomUUID(), targetId, executionId, postVersion, now2, now2);
+    db.exec("COMMIT");
+  } catch (error62) {
+    db.exec("ROLLBACK");
+    throw error62;
+  }
+}
 
 // server/src/services/sheetsOutboxWorker.ts
 import https from "https";
@@ -94051,10 +94071,10 @@ var ProviderError = class extends Error {
   }
 };
 var graphVersion = () => /^v\d+\.\d+$/.test(process.env.META_GRAPH_VERSION || "") ? process.env.META_GRAPH_VERSION : "v21.0";
-async function graphRequest(path10, token, values, publishing = false) {
+async function graphRequest(path11, token, values, publishing = false) {
   let response;
   try {
-    response = await fetch(`https://graph.facebook.com/${graphVersion()}/${path10}`, {
+    response = await fetch(`https://graph.facebook.com/${graphVersion()}/${path11}`, {
       method: values ? "POST" : "GET",
       headers: { Authorization: `Bearer ${token}`, ...values ? { "Content-Type": "application/json" } : {} },
       body: values ? JSON.stringify(values) : void 0,
@@ -94167,7 +94187,7 @@ var metaPublishAdapter = async (delivery, token) => {
   }
   throw new ProviderError(`Publishing to ${delivery.platform} is not configured.`, "UNSUPPORTED_PLATFORM");
 };
-async function publishDelivery(targetId, executionId, adapter = metaPublishAdapter) {
+async function publishDelivery(targetId, executionId, adapter = metaPublishAdapter, options = {}) {
   let current = loadDelivery(targetId);
   if (!current) throw new DeliveryConflict("Delivery not found");
   if (current.status !== "Processing") {
@@ -94196,7 +94216,7 @@ async function publishDelivery(targetId, executionId, adapter = metaPublishAdapt
   const fresh = loadDelivery(targetId);
   if (!fresh || fresh.status !== "Processing" || fresh.lock_execution_id !== executionId)
     throw new DeliveryConflict("Delivery claim expired; reconcile the provider outcome before retrying");
-  const retry2 = failure2?.retryable && !failure2.unknownOutcome && fresh.attempt_count < fresh.max_retries;
+  const retry2 = options.allowAutomaticRetry !== false && failure2?.retryable && !failure2.unknownOutcome && fresh.attempt_count < fresh.max_retries;
   const status = receipt ? "Posted" : failure2?.unknownOutcome ? "NeedsVerification" : retry2 ? "Retrying" : "Failed";
   const delaySeconds = Math.max(failure2?.retryAfterSeconds || 0, Math.min(2 ** fresh.attempt_count * 60, 3600) + Math.random() * 30);
   db.exec("BEGIN IMMEDIATE");
@@ -95011,25 +95031,25 @@ internalRouter.post("/n8n/callback", (req, res) => {
         return res.status(400).json({ error: "A valid provider post ID is required" });
       }
       shouldVerify = payload.stage === "succeeded";
-      const uncertain = target.lock_stage === "publishing" || shouldVerify;
+      const uncertain2 = target.lock_stage === "publishing" || shouldVerify;
       changed = transitionTarget(
         target,
-        uncertain ? "NeedsVerification" : "Failed",
+        uncertain2 ? "NeedsVerification" : "Failed",
         "n8n_callback",
-        uncertain ? "External execution outcome requires provider verification" : "Execution failed before publication",
+        uncertain2 ? "External execution outcome requires provider verification" : "Execution failed before publication",
         {
           platform_post_id: payload.platform_post_id || null,
           post_url: null,
-          error_code: uncertain ? "EXTERNAL_OUTCOME_UNVERIFIED" : "EXECUTION_FAILED",
+          error_code: uncertain2 ? "EXTERNAL_OUTCOME_UNVERIFIED" : "EXECUTION_FAILED",
           error_category: "unknown",
-          error_message: uncertain ? "Verify this delivery before retrying." : "The automation failed before publication.",
-          lock_execution_id: uncertain ? payload.execution_id : null,
-          lock_stage: uncertain ? "publishing" : null,
-          locked_at: uncertain ? target.locked_at : null
+          error_message: uncertain2 ? "Verify this delivery before retrying." : "The automation failed before publication.",
+          lock_execution_id: uncertain2 ? payload.execution_id : null,
+          lock_stage: uncertain2 ? "publishing" : null,
+          locked_at: uncertain2 ? target.locked_at : null
         }
       );
       db.prepare(`UPDATE publish_attempts SET result = ?, finished_at = ?, error_code = ?
-        WHERE attempt_id = ?`).run(uncertain ? "unknown" : "failed", now2, changed.error_code, attempt.attempt_id);
+        WHERE attempt_id = ?`).run(uncertain2 ? "unknown" : "failed", now2, changed.error_code, attempt.attempt_id);
     }
     db.prepare("INSERT INTO webhook_events (event_id, received_at) VALUES (?, ?)").run(eventId, now2);
     db.exec("COMMIT");
@@ -105778,7 +105798,7 @@ var Batches = class extends BaseModule {
       params
     );
     const urlParams = body["_url"];
-    const path10 = formatMap2("{model}:batchGenerateContent", urlParams);
+    const path11 = formatMap2("{model}:batchGenerateContent", urlParams);
     const batch = body["batch"];
     const inputConfig = batch["inputConfig"];
     const requestsWrapper = inputConfig["requests"];
@@ -105799,7 +105819,7 @@ var Batches = class extends BaseModule {
     delete body["config"];
     delete body["_url"];
     delete body["_query"];
-    return { path: path10, body };
+    return { path: path11, body };
   }
   // Helper function to get the first GCS URI
   getGcsUri(src) {
@@ -105855,16 +105875,16 @@ var Batches = class extends BaseModule {
   async createInternal(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = createBatchJobParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("batchPredictionJobs", body["_url"]);
+      path11 = formatMap2("batchPredictionJobs", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -105879,12 +105899,12 @@ var Batches = class extends BaseModule {
       });
     } else {
       const body = createBatchJobParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("{model}:batchGenerateContent", body["_url"]);
+      path11 = formatMap2("{model}:batchGenerateContent", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -105909,18 +105929,18 @@ var Batches = class extends BaseModule {
   async createEmbeddingsInternal(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       throw new Error("This method is only supported by the Gemini Developer API.");
     } else {
       const body = createEmbeddingsBatchJobParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("{model}:asyncBatchEmbedContent", body["_url"]);
+      path11 = formatMap2("{model}:asyncBatchEmbedContent", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -105949,16 +105969,16 @@ var Batches = class extends BaseModule {
   async get(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = getBatchJobParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("batchPredictionJobs/{name}", body["_url"]);
+      path11 = formatMap2("batchPredictionJobs/{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -105973,12 +105993,12 @@ var Batches = class extends BaseModule {
       });
     } else {
       const body = getBatchJobParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("batches/{name}", body["_url"]);
+      path11 = formatMap2("batches/{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -106006,16 +106026,16 @@ var Batches = class extends BaseModule {
    */
   async cancel(params) {
     var _a4, _b, _c, _d;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = cancelBatchJobParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("batchPredictionJobs/{name}:cancel", body["_url"]);
+      path11 = formatMap2("batchPredictionJobs/{name}:cancel", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       await this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -106024,12 +106044,12 @@ var Batches = class extends BaseModule {
       });
     } else {
       const body = cancelBatchJobParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("batches/{name}:cancel", body["_url"]);
+      path11 = formatMap2("batches/{name}:cancel", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       await this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -106041,16 +106061,16 @@ var Batches = class extends BaseModule {
   async listInternal(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = listBatchJobsParametersToVertex(params);
-      path10 = formatMap2("batchPredictionJobs", body["_url"]);
+      path11 = formatMap2("batchPredictionJobs", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -106073,12 +106093,12 @@ var Batches = class extends BaseModule {
       });
     } else {
       const body = listBatchJobsParametersToMldev(params);
-      path10 = formatMap2("batches", body["_url"]);
+      path11 = formatMap2("batches", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -106115,16 +106135,16 @@ var Batches = class extends BaseModule {
   async delete(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = deleteBatchJobParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("batchPredictionJobs/{name}", body["_url"]);
+      path11 = formatMap2("batchPredictionJobs/{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "DELETE",
@@ -106145,12 +106165,12 @@ var Batches = class extends BaseModule {
       });
     } else {
       const body = deleteBatchJobParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("batches/{name}", body["_url"]);
+      path11 = formatMap2("batches/{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "DELETE",
@@ -107037,16 +107057,16 @@ var Caches = class extends BaseModule {
   async create(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = createCachedContentParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("cachedContents", body["_url"]);
+      path11 = formatMap2("cachedContents", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -107060,12 +107080,12 @@ var Caches = class extends BaseModule {
       });
     } else {
       const body = createCachedContentParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("cachedContents", body["_url"]);
+      path11 = formatMap2("cachedContents", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -107093,16 +107113,16 @@ var Caches = class extends BaseModule {
   async get(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = getCachedContentParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("{name}", body["_url"]);
+      path11 = formatMap2("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -107116,12 +107136,12 @@ var Caches = class extends BaseModule {
       });
     } else {
       const body = getCachedContentParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("{name}", body["_url"]);
+      path11 = formatMap2("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -107149,16 +107169,16 @@ var Caches = class extends BaseModule {
   async delete(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = deleteCachedContentParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("{name}", body["_url"]);
+      path11 = formatMap2("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "DELETE",
@@ -107181,12 +107201,12 @@ var Caches = class extends BaseModule {
       });
     } else {
       const body = deleteCachedContentParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("{name}", body["_url"]);
+      path11 = formatMap2("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "DELETE",
@@ -107226,16 +107246,16 @@ var Caches = class extends BaseModule {
   async update(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = updateCachedContentParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("{name}", body["_url"]);
+      path11 = formatMap2("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "PATCH",
@@ -107249,12 +107269,12 @@ var Caches = class extends BaseModule {
       });
     } else {
       const body = updateCachedContentParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("{name}", body["_url"]);
+      path11 = formatMap2("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "PATCH",
@@ -107271,16 +107291,16 @@ var Caches = class extends BaseModule {
   async listInternal(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = listCachedContentsParametersToVertex(params);
-      path10 = formatMap2("cachedContents", body["_url"]);
+      path11 = formatMap2("cachedContents", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -107303,12 +107323,12 @@ var Caches = class extends BaseModule {
       });
     } else {
       const body = listCachedContentsParametersToMldev(params);
-      path10 = formatMap2("cachedContents", body["_url"]);
+      path11 = formatMap2("cachedContents", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -107918,18 +107938,18 @@ var Files$1 = class Files extends BaseModule {
   async listInternal(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       throw new Error("This method is only supported by the Gemini Developer API.");
     } else {
       const body = listFilesParametersToMldev(params);
-      path10 = formatMap2("files", body["_url"]);
+      path11 = formatMap2("files", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -107955,18 +107975,18 @@ var Files$1 = class Files extends BaseModule {
   async createInternal(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       throw new Error("This method is only supported by the Gemini Developer API.");
     } else {
       const body = createFileParametersToMldev(params);
-      path10 = formatMap2("upload/v1beta/files", body["_url"]);
+      path11 = formatMap2("upload/v1beta/files", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -108001,18 +108021,18 @@ var Files$1 = class Files extends BaseModule {
   async get(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       throw new Error("This method is only supported by the Gemini Developer API.");
     } else {
       const body = getFileParametersToMldev(params);
-      path10 = formatMap2("files/{file}", body["_url"]);
+      path11 = formatMap2("files/{file}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -108042,18 +108062,18 @@ var Files$1 = class Files extends BaseModule {
   async delete(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       throw new Error("This method is only supported by the Gemini Developer API.");
     } else {
       const body = deleteFileParametersToMldev(params);
-      path10 = formatMap2("files/{file}", body["_url"]);
+      path11 = formatMap2("files/{file}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "DELETE",
@@ -108079,18 +108099,18 @@ var Files$1 = class Files extends BaseModule {
   async registerFilesInternal(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       throw new Error("This method is only supported by the Gemini Developer API.");
     } else {
       const body = internalRegisterFilesParametersToMldev(params);
-      path10 = formatMap2("files:register", body["_url"]);
+      path11 = formatMap2("files:register", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -113476,13 +113496,13 @@ var ApiClient = class {
       throw new Error("HTTP options are not correctly set.");
     }
   }
-  constructUrl(path10, httpOptions, prependProjectLocation) {
+  constructUrl(path11, httpOptions, prependProjectLocation) {
     const urlElement = [this.getRequestUrlInternal(httpOptions)];
     if (prependProjectLocation) {
       urlElement.push(this.getBaseResourcePath());
     }
-    if (path10 !== "") {
-      urlElement.push(path10);
+    if (path11 !== "") {
+      urlElement.push(path11);
     }
     const url2 = new URL(`${urlElement.join("/")}`);
     return url2;
@@ -113760,8 +113780,8 @@ var ApiClient = class {
       file: fileToUpload
     };
     const fileName = this.getFileName(file2);
-    const path10 = formatMap2("upload/v1beta/files", body["_url"]);
-    const uploadUrl = await this.fetchUploadUrl(path10, fileToUpload.sizeBytes, fileToUpload.mimeType, fileName, body, config2 === null || config2 === void 0 ? void 0 : config2.httpOptions);
+    const path11 = formatMap2("upload/v1beta/files", body["_url"]);
+    const uploadUrl = await this.fetchUploadUrl(path11, fileToUpload.sizeBytes, fileToUpload.mimeType, fileName, body, config2 === null || config2 === void 0 ? void 0 : config2.httpOptions);
     return uploader.upload(file2, uploadUrl, this);
   }
   /**
@@ -113785,13 +113805,13 @@ var ApiClient = class {
     if (mimeType === void 0 || mimeType === "") {
       throw new Error("Can not determine mimeType. Please provide mimeType in the config.");
     }
-    const path10 = `upload/v1beta/${fileSearchStoreName}:uploadToFileSearchStore`;
+    const path11 = `upload/v1beta/${fileSearchStoreName}:uploadToFileSearchStore`;
     const fileName = this.getFileName(file2);
     const body = {};
     if (config2 != null) {
       uploadToFileSearchStoreConfigToMldev(config2, body);
     }
-    const uploadUrl = await this.fetchUploadUrl(path10, sizeBytes, mimeType, fileName, body, config2 === null || config2 === void 0 ? void 0 : config2.httpOptions);
+    const uploadUrl = await this.fetchUploadUrl(path11, sizeBytes, mimeType, fileName, body, config2 === null || config2 === void 0 ? void 0 : config2.httpOptions);
     return uploader.uploadToFileSearchStore(file2, uploadUrl, this);
   }
   /**
@@ -113804,7 +113824,7 @@ var ApiClient = class {
     const downloader = this.clientOptions.downloader;
     await downloader.download(params, this);
   }
-  async fetchUploadUrl(path10, sizeBytes, mimeType, fileName, body, configHttpOptions) {
+  async fetchUploadUrl(path11, sizeBytes, mimeType, fileName, body, configHttpOptions) {
     var _a4;
     let httpOptions = {};
     if (configHttpOptions) {
@@ -113817,7 +113837,7 @@ var ApiClient = class {
       };
     }
     const httpResponse = await this.request({
-      path: path10,
+      path: path11,
       body: JSON.stringify(body),
       httpMethod: "POST",
       httpOptions
@@ -115560,16 +115580,16 @@ var Models = class _Models extends BaseModule {
   async generateContentInternal(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = generateContentParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("{model}:generateContent", body["_url"]);
+      path11 = formatMap2("{model}:generateContent", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -115592,12 +115612,12 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = generateContentParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("{model}:generateContent", body["_url"]);
+      path11 = formatMap2("{model}:generateContent", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -115623,17 +115643,17 @@ var Models = class _Models extends BaseModule {
   async generateContentStreamInternal(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = generateContentParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("{model}:streamGenerateContent?alt=sse", body["_url"]);
+      path11 = formatMap2("{model}:streamGenerateContent?alt=sse", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       const apiClient = this.apiClient;
       response = apiClient.requestStream({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -115669,13 +115689,13 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = generateContentParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("{model}:streamGenerateContent?alt=sse", body["_url"]);
+      path11 = formatMap2("{model}:streamGenerateContent?alt=sse", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       const apiClient = this.apiClient;
       response = apiClient.requestStream({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -115735,17 +115755,17 @@ var Models = class _Models extends BaseModule {
   async embedContentInternal(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = embedContentParametersPrivateToVertex(this.apiClient, params, params);
       const endpointUrl = tIsVertexEmbedContentModel(params.model) ? "{model}:embedContent" : "{model}:predict";
-      path10 = formatMap2(endpointUrl, body["_url"]);
+      path11 = formatMap2(endpointUrl, body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -115768,12 +115788,12 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = embedContentParametersPrivateToMldev(this.apiClient, params);
-      path10 = formatMap2("{model}:batchEmbedContents", body["_url"]);
+      path11 = formatMap2("{model}:batchEmbedContents", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -115802,16 +115822,16 @@ var Models = class _Models extends BaseModule {
   async generateImagesInternal(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = generateImagesParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("{model}:predict", body["_url"]);
+      path11 = formatMap2("{model}:predict", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -115842,16 +115862,16 @@ var Models = class _Models extends BaseModule {
   async editImageInternal(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = editImageParametersInternalToVertex(this.apiClient, params);
-      path10 = formatMap2("{model}:predict", body["_url"]);
+      path11 = formatMap2("{model}:predict", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -115882,16 +115902,16 @@ var Models = class _Models extends BaseModule {
   async upscaleImageInternal(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = upscaleImageAPIParametersInternalToVertex(this.apiClient, params);
-      path10 = formatMap2("{model}:predict", body["_url"]);
+      path11 = formatMap2("{model}:predict", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -115943,16 +115963,16 @@ var Models = class _Models extends BaseModule {
   async recontextImage(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = recontextImageParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("{model}:predict", body["_url"]);
+      path11 = formatMap2("{model}:predict", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -115994,16 +116014,16 @@ var Models = class _Models extends BaseModule {
   async segmentImage(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = segmentImageParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("{model}:predict", body["_url"]);
+      path11 = formatMap2("{model}:predict", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -116033,16 +116053,16 @@ var Models = class _Models extends BaseModule {
   async get(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = getModelParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("{name}", body["_url"]);
+      path11 = formatMap2("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -116057,12 +116077,12 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = getModelParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("{name}", body["_url"]);
+      path11 = formatMap2("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -116080,16 +116100,16 @@ var Models = class _Models extends BaseModule {
   async listInternal(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = listModelsParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("{models_url}", body["_url"]);
+      path11 = formatMap2("{models_url}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -116112,12 +116132,12 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = listModelsParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("{models_url}", body["_url"]);
+      path11 = formatMap2("{models_url}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -116160,16 +116180,16 @@ var Models = class _Models extends BaseModule {
   async update(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = updateModelParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("{model}", body["_url"]);
+      path11 = formatMap2("{model}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "PATCH",
@@ -116184,12 +116204,12 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = updateModelParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("{name}", body["_url"]);
+      path11 = formatMap2("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "PATCH",
@@ -116218,16 +116238,16 @@ var Models = class _Models extends BaseModule {
   async delete(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = deleteModelParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("{name}", body["_url"]);
+      path11 = formatMap2("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "DELETE",
@@ -116250,12 +116270,12 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = deleteModelParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("{name}", body["_url"]);
+      path11 = formatMap2("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "DELETE",
@@ -116297,16 +116317,16 @@ var Models = class _Models extends BaseModule {
   async countTokens(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = countTokensParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("{model}:countTokens", body["_url"]);
+      path11 = formatMap2("{model}:countTokens", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -116329,12 +116349,12 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = countTokensParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("{model}:countTokens", body["_url"]);
+      path11 = formatMap2("{model}:countTokens", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -116378,16 +116398,16 @@ var Models = class _Models extends BaseModule {
   async computeTokens(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = computeTokensParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("{model}:computeTokens", body["_url"]);
+      path11 = formatMap2("{model}:computeTokens", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -116418,16 +116438,16 @@ var Models = class _Models extends BaseModule {
   async generateVideosInternal(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = generateVideosParametersToVertex(this.apiClient, params);
-      path10 = formatMap2("{model}:predictLongRunning", body["_url"]);
+      path11 = formatMap2("{model}:predictLongRunning", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -116444,12 +116464,12 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = generateVideosParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("{model}:predictLongRunning", body["_url"]);
+      path11 = formatMap2("{model}:predictLongRunning", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -116554,16 +116574,16 @@ var Operations = class extends BaseModule {
   async getVideosOperationInternal(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = getOperationParametersToVertex(params);
-      path10 = formatMap2("{operationName}", body["_url"]);
+      path11 = formatMap2("{operationName}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -116575,12 +116595,12 @@ var Operations = class extends BaseModule {
       return response;
     } else {
       const body = getOperationParametersToMldev(params);
-      path10 = formatMap2("{operationName}", body["_url"]);
+      path11 = formatMap2("{operationName}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -116595,16 +116615,16 @@ var Operations = class extends BaseModule {
   async fetchPredictVideosOperationInternal(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = fetchPredictOperationParametersToVertex(params);
-      path10 = formatMap2("{resourceName}:fetchPredictOperation", body["_url"]);
+      path11 = formatMap2("{resourceName}:fetchPredictOperation", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -117267,20 +117287,20 @@ var Tokens = class extends BaseModule {
   async create(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       throw new Error("The client.tokens.create method is only supported by the Gemini Developer API.");
     } else {
       const body = createAuthTokenParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("auth_tokens", body["_url"]);
+      path11 = formatMap2("auth_tokens", body["_url"]);
       queryParams = body["_query"];
       delete body["config"];
       delete body["_url"];
       delete body["_query"];
       const transformedBody = convertBidiSetupToTokenSetup(body, params.config);
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(transformedBody),
         httpMethod: "POST",
@@ -117390,18 +117410,18 @@ var Documents = class extends BaseModule {
   async get(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       throw new Error("This method is only supported by the Gemini Developer API.");
     } else {
       const body = getDocumentParametersToMldev(params);
-      path10 = formatMap2("{name}", body["_url"]);
+      path11 = formatMap2("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -117422,18 +117442,18 @@ var Documents = class extends BaseModule {
    */
   async delete(params) {
     var _a4, _b;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       throw new Error("This method is only supported by the Gemini Developer API.");
     } else {
       const body = deleteDocumentParametersToMldev(params);
-      path10 = formatMap2("{name}", body["_url"]);
+      path11 = formatMap2("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       await this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "DELETE",
@@ -117445,18 +117465,18 @@ var Documents = class extends BaseModule {
   async listInternal(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       throw new Error("This method is only supported by the Gemini Developer API.");
     } else {
       const body = listDocumentsParametersToMldev(params);
-      path10 = formatMap2("{parent}/documents", body["_url"]);
+      path11 = formatMap2("{parent}/documents", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -117573,18 +117593,18 @@ var FileSearchStores = class extends BaseModule {
   async create(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       throw new Error("This method is only supported by the Gemini Developer API.");
     } else {
       const body = createFileSearchStoreParametersToMldev(this.apiClient, params);
-      path10 = formatMap2("fileSearchStores", body["_url"]);
+      path11 = formatMap2("fileSearchStores", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -117607,18 +117627,18 @@ var FileSearchStores = class extends BaseModule {
   async get(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       throw new Error("This method is only supported by the Gemini Developer API.");
     } else {
       const body = getFileSearchStoreParametersToMldev(params);
-      path10 = formatMap2("{name}", body["_url"]);
+      path11 = formatMap2("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -117639,18 +117659,18 @@ var FileSearchStores = class extends BaseModule {
    */
   async delete(params) {
     var _a4, _b;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       throw new Error("This method is only supported by the Gemini Developer API.");
     } else {
       const body = deleteFileSearchStoreParametersToMldev(params);
-      path10 = formatMap2("{name}", body["_url"]);
+      path11 = formatMap2("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       await this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "DELETE",
@@ -117662,18 +117682,18 @@ var FileSearchStores = class extends BaseModule {
   async listInternal(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       throw new Error("This method is only supported by the Gemini Developer API.");
     } else {
       const body = listFileSearchStoresParametersToMldev(params);
-      path10 = formatMap2("fileSearchStores", body["_url"]);
+      path11 = formatMap2("fileSearchStores", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -117693,18 +117713,18 @@ var FileSearchStores = class extends BaseModule {
   async uploadToFileSearchStoreInternal(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       throw new Error("This method is only supported by the Gemini Developer API.");
     } else {
       const body = uploadToFileSearchStoreParametersToMldev(params);
-      path10 = formatMap2("upload/v1beta/{file_search_store_name}:uploadToFileSearchStore", body["_url"]);
+      path11 = formatMap2("upload/v1beta/{file_search_store_name}:uploadToFileSearchStore", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -117732,18 +117752,18 @@ var FileSearchStores = class extends BaseModule {
   async importFile(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       throw new Error("This method is only supported by the Gemini Developer API.");
     } else {
       const body = importFileParametersToMldev(params);
-      path10 = formatMap2("{file_search_store_name}:importFile", body["_url"]);
+      path11 = formatMap2("{file_search_store_name}:importFile", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -118926,16 +118946,16 @@ var ClientSDK = class {
   }
   _createRequest(context, conf, options) {
     var _a4, _b, _c, _d, _e;
-    const { method, path: path10, query, headers: opHeaders, security } = conf;
+    const { method, path: path11, query, headers: opHeaders, security } = conf;
     const base = (_a4 = conf.baseURL) !== null && _a4 !== void 0 ? _a4 : this._baseURL;
     if (!base) {
       return ERR(new InvalidRequestError("No base URL provided for operation"));
     }
     const baseURL = new URL(base);
     let reqURL;
-    if (path10) {
+    if (path11) {
       baseURL.pathname = baseURL.pathname.replace(/\/+$/, "") + "/";
-      reqURL = new URL(path10, baseURL);
+      reqURL = new URL(path11, baseURL);
       if (!reqURL.search && baseURL.search) {
         reqURL.search = baseURL.search;
       }
@@ -119751,7 +119771,7 @@ async function $do$A(client, body, api_version, options) {
   const pathParams = {
     api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
   };
-  const path10 = pathToFunc("/{api_version}/agents")(pathParams);
+  const path11 = pathToFunc("/{api_version}/agents")(pathParams);
   const headers = new Headers(compactMap({
     "Content-Type": "application/json",
     Accept: "application/json"
@@ -119782,7 +119802,7 @@ async function $do$A(client, body, api_version, options) {
     security: requestSecurity,
     method: "POST",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body: body$,
     userAgent: client._options.user_agent,
@@ -119826,7 +119846,7 @@ async function $do$z(client, id, api_version, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/agents/{agentsId}")(pathParams);
+  const path11 = pathToFunc("/{api_version}/agents/{agentsId}")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -119856,7 +119876,7 @@ async function $do$z(client, id, api_version, options) {
     security: requestSecurity,
     method: "DELETE",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body,
     userAgent: client._options.user_agent,
@@ -119900,7 +119920,7 @@ async function $do$y(client, id, api_version, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/agents/{agentsId}")(pathParams);
+  const path11 = pathToFunc("/{api_version}/agents/{agentsId}")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -119930,7 +119950,7 @@ async function $do$y(client, id, api_version, options) {
     security: requestSecurity,
     method: "GET",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body,
     userAgent: client._options.user_agent,
@@ -119972,7 +119992,7 @@ async function $do$x(client, api_version, page_size, page_token, parent, options
   const pathParams = {
     api_version: encodeSimple("api_version", (_a4 = payload === null || payload === void 0 ? void 0 : payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
   };
-  const path10 = pathToFunc("/{api_version}/agents")(pathParams);
+  const path11 = pathToFunc("/{api_version}/agents")(pathParams);
   const query = encodeFormQuery({
     "page_size": payload === null || payload === void 0 ? void 0 : payload.page_size,
     "page_token": payload === null || payload === void 0 ? void 0 : payload.page_token,
@@ -120007,7 +120027,7 @@ async function $do$x(client, api_version, page_size, page_token, parent, options
     security: requestSecurity,
     method: "GET",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     query,
     body,
@@ -120075,7 +120095,7 @@ async function $do$w(client, body, api_version, options) {
   const pathParams = {
     api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
   };
-  const path10 = pathToFunc("/{api_version}/credentials")(pathParams);
+  const path11 = pathToFunc("/{api_version}/credentials")(pathParams);
   const headers = new Headers(compactMap({
     "Content-Type": "application/json",
     Accept: "application/json"
@@ -120106,7 +120126,7 @@ async function $do$w(client, body, api_version, options) {
     security: requestSecurity,
     method: "POST",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body: body$,
     userAgent: client._options.user_agent,
@@ -120150,7 +120170,7 @@ async function $do$v(client, id, api_version, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/credentials/{id}")(pathParams);
+  const path11 = pathToFunc("/{api_version}/credentials/{id}")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -120180,7 +120200,7 @@ async function $do$v(client, id, api_version, options) {
     security: requestSecurity,
     method: "DELETE",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body,
     userAgent: client._options.user_agent,
@@ -120224,7 +120244,7 @@ async function $do$u(client, id, api_version, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/credentials/{id}")(pathParams);
+  const path11 = pathToFunc("/{api_version}/credentials/{id}")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -120254,7 +120274,7 @@ async function $do$u(client, id, api_version, options) {
     security: requestSecurity,
     method: "GET",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body,
     userAgent: client._options.user_agent,
@@ -120295,7 +120315,7 @@ async function $do$t(client, api_version, page_size, page_token, options) {
   const pathParams = {
     api_version: encodeSimple("api_version", (_a4 = payload === null || payload === void 0 ? void 0 : payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
   };
-  const path10 = pathToFunc("/{api_version}/credentials")(pathParams);
+  const path11 = pathToFunc("/{api_version}/credentials")(pathParams);
   const query = encodeFormQuery({
     "page_size": payload === null || payload === void 0 ? void 0 : payload.page_size,
     "page_token": payload === null || payload === void 0 ? void 0 : payload.page_token
@@ -120329,7 +120349,7 @@ async function $do$t(client, api_version, page_size, page_token, options) {
     security: requestSecurity,
     method: "GET",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     query,
     body,
@@ -120376,7 +120396,7 @@ async function $do$s(client, id, body, api_version, update_mask, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/credentials/{id}")(pathParams);
+  const path11 = pathToFunc("/{api_version}/credentials/{id}")(pathParams);
   const query = encodeFormQuery({
     "update_mask": payload.update_mask
   });
@@ -120410,7 +120430,7 @@ async function $do$s(client, id, body, api_version, update_mask, options) {
     security: requestSecurity,
     method: "PATCH",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     query,
     body: body$,
@@ -120485,7 +120505,7 @@ async function $do$r(client, body, api_version, options) {
   const pathParams = {
     api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
   };
-  const path10 = pathToFunc("/{api_version}/environments")(pathParams);
+  const path11 = pathToFunc("/{api_version}/environments")(pathParams);
   const headers = new Headers(compactMap({
     "Content-Type": "application/json",
     Accept: "application/json"
@@ -120516,7 +120536,7 @@ async function $do$r(client, body, api_version, options) {
     security: requestSecurity,
     method: "POST",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body: body$,
     userAgent: client._options.user_agent,
@@ -120560,7 +120580,7 @@ async function $do$q(client, id, api_version, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/environments/{id}")(pathParams);
+  const path11 = pathToFunc("/{api_version}/environments/{id}")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -120590,7 +120610,7 @@ async function $do$q(client, id, api_version, options) {
     security: requestSecurity,
     method: "DELETE",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body,
     userAgent: client._options.user_agent,
@@ -120634,7 +120654,7 @@ async function $do$p(client, id, api_version, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/environments/{id}")(pathParams);
+  const path11 = pathToFunc("/{api_version}/environments/{id}")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -120664,7 +120684,7 @@ async function $do$p(client, id, api_version, options) {
     security: requestSecurity,
     method: "GET",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body,
     userAgent: client._options.user_agent,
@@ -120705,7 +120725,7 @@ async function $do$o(client, api_version, page_size, page_token, options) {
   const pathParams = {
     api_version: encodeSimple("api_version", (_a4 = payload === null || payload === void 0 ? void 0 : payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
   };
-  const path10 = pathToFunc("/{api_version}/environments")(pathParams);
+  const path11 = pathToFunc("/{api_version}/environments")(pathParams);
   const query = encodeFormQuery({
     "page_size": payload === null || payload === void 0 ? void 0 : payload.page_size,
     "page_token": payload === null || payload === void 0 ? void 0 : payload.page_token
@@ -120739,7 +120759,7 @@ async function $do$o(client, api_version, page_size, page_token, options) {
     security: requestSecurity,
     method: "GET",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     query,
     body,
@@ -120766,14 +120786,14 @@ async function $do$o(client, api_version, page_size, page_token, options) {
   }
   return [result, { status: "complete", request: req, response }];
 }
-function environmentsFilesList(client, environment, path10, api_version, page_size, page_token, recursive2, options) {
-  return new APIPromise($do$n(client, environment, path10, api_version, page_size, page_token, recursive2, options));
+function environmentsFilesList(client, environment, path11, api_version, page_size, page_token, recursive2, options) {
+  return new APIPromise($do$n(client, environment, path11, api_version, page_size, page_token, recursive2, options));
 }
-async function $do$n(client, environment, path10, api_version, page_size, page_token, recursive2, options) {
+async function $do$n(client, environment, path11, api_version, page_size, page_token, recursive2, options) {
   var _a4, _b, _c;
   const input2 = {
     environment,
-    path: path10,
+    path: path11,
     api_version,
     page_size,
     page_token,
@@ -120858,18 +120878,18 @@ var Files2 = class extends ClientSDK {
   /**
    * Retrieves file metadata or directory contents from an environment's snapshot. To download file content, use the download URL returned in the response.
    */
-  list(environment, path10, params, options) {
-    return unwrapAsAPIPromise(environmentsFilesList(this, environment, path10, params === null || params === void 0 ? void 0 : params.api_version, params === null || params === void 0 ? void 0 : params.page_size, params === null || params === void 0 ? void 0 : params.page_token, params === null || params === void 0 ? void 0 : params.recursive, options));
+  list(environment, path11, params, options) {
+    return unwrapAsAPIPromise(environmentsFilesList(this, environment, path11, params === null || params === void 0 ? void 0 : params.api_version, params === null || params === void 0 ? void 0 : params.page_size, params === null || params === void 0 ? void 0 : params.page_token, params === null || params === void 0 ? void 0 : params.recursive, options));
   }
 };
-function environmentsInternalStartUpload(client, environment, path10, x_goog_upload_command, x_goog_upload_header_content_length, x_goog_upload_header_content_type, x_goog_upload_protocol, api_version, extract, overwrite, options) {
-  return new APIPromise($do$m(client, environment, path10, x_goog_upload_command, x_goog_upload_header_content_length, x_goog_upload_header_content_type, x_goog_upload_protocol, api_version, extract, overwrite, options));
+function environmentsInternalStartUpload(client, environment, path11, x_goog_upload_command, x_goog_upload_header_content_length, x_goog_upload_header_content_type, x_goog_upload_protocol, api_version, extract, overwrite, options) {
+  return new APIPromise($do$m(client, environment, path11, x_goog_upload_command, x_goog_upload_header_content_length, x_goog_upload_header_content_type, x_goog_upload_protocol, api_version, extract, overwrite, options));
 }
-async function $do$m(client, environment, path10, x_goog_upload_command, x_goog_upload_header_content_length, x_goog_upload_header_content_type, x_goog_upload_protocol, api_version, extract, overwrite, options) {
+async function $do$m(client, environment, path11, x_goog_upload_command, x_goog_upload_header_content_length, x_goog_upload_header_content_type, x_goog_upload_protocol, api_version, extract, overwrite, options) {
   var _a4, _b, _c;
   const input2 = {
     environment,
-    path: path10,
+    path: path11,
     "X-Goog-Upload-Command": x_goog_upload_command,
     "X-Goog-Upload-Header-Content-Length": x_goog_upload_header_content_length,
     "X-Goog-Upload-Header-Content-Type": x_goog_upload_header_content_type,
@@ -120970,8 +120990,8 @@ var Internal = class extends ClientSDK {
    * Upload the file bytes to the URL returned in the `X-Goog-Upload-URL`
    * response header, using the resumable upload protocol.
    */
-  startUpload(environment, path10, params, options) {
-    return unwrapAsAPIPromise(environmentsInternalStartUpload(this, environment, path10, params["X-Goog-Upload-Command"], params["X-Goog-Upload-Header-Content-Length"], params["X-Goog-Upload-Header-Content-Type"], params["X-Goog-Upload-Protocol"], params.api_version, params.extract, params.overwrite, options));
+  startUpload(environment, path11, params, options) {
+    return unwrapAsAPIPromise(environmentsInternalStartUpload(this, environment, path11, params["X-Goog-Upload-Command"], params["X-Goog-Upload-Header-Content-Length"], params["X-Goog-Upload-Header-Content-Type"], params["X-Goog-Upload-Protocol"], params.api_version, params.extract, params.overwrite, options));
   }
 };
 var Environments = class extends ClientSDK {
@@ -121106,7 +121126,7 @@ async function $do$l(client, id, api_version, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/interactions/{interactionsId}/cancel")(pathParams);
+  const path11 = pathToFunc("/{api_version}/interactions/{interactionsId}/cancel")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -121136,7 +121156,7 @@ async function $do$l(client, id, api_version, options) {
     security: requestSecurity,
     method: "POST",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body,
     userAgent: client._options.user_agent,
@@ -121179,7 +121199,7 @@ async function $do$k(client, body, api_version, options) {
   const pathParams = {
     api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
   };
-  const path10 = pathToFunc("/{api_version}/interactions")(pathParams);
+  const path11 = pathToFunc("/{api_version}/interactions")(pathParams);
   const headers = new Headers(compactMap({
     "Content-Type": "application/json",
     Accept: ((_b = input2 === null || input2 === void 0 ? void 0 : input2.body) === null || _b === void 0 ? void 0 : _b.stream) ? "text/event-stream" : "application/json"
@@ -121210,7 +121230,7 @@ async function $do$k(client, body, api_version, options) {
     security: requestSecurity,
     method: "POST",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body: body$,
     userAgent: client._options.user_agent,
@@ -121260,7 +121280,7 @@ async function $do$j(client, id, api_version, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/interactions/{interactionsId}")(pathParams);
+  const path11 = pathToFunc("/{api_version}/interactions/{interactionsId}")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -121290,7 +121310,7 @@ async function $do$j(client, id, api_version, options) {
     security: requestSecurity,
     method: "DELETE",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body,
     userAgent: client._options.user_agent,
@@ -121340,7 +121360,7 @@ async function $do$i(client, id, api_version, include_input, last_event_id, stre
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/interactions/{interactionsId}")(pathParams);
+  const path11 = pathToFunc("/{api_version}/interactions/{interactionsId}")(pathParams);
   const query = encodeFormQuery({
     "include_input": payload.include_input,
     "last_event_id": payload.last_event_id,
@@ -121375,7 +121395,7 @@ async function $do$i(client, id, api_version, include_input, last_event_id, stre
     security: requestSecurity,
     method: "GET",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     query,
     body,
@@ -121444,7 +121464,7 @@ async function $do$h(client, body, api_version, options) {
   const pathParams = {
     api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
   };
-  const path10 = pathToFunc("/{api_version}/triggers")(pathParams);
+  const path11 = pathToFunc("/{api_version}/triggers")(pathParams);
   const headers = new Headers(compactMap({
     "Content-Type": "application/json",
     Accept: "application/json"
@@ -121475,7 +121495,7 @@ async function $do$h(client, body, api_version, options) {
     security: requestSecurity,
     method: "POST",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body: body$,
     userAgent: client._options.user_agent,
@@ -121519,7 +121539,7 @@ async function $do$g(client, id, api_version, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/triggers/{id}")(pathParams);
+  const path11 = pathToFunc("/{api_version}/triggers/{id}")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -121549,7 +121569,7 @@ async function $do$g(client, id, api_version, options) {
     security: requestSecurity,
     method: "DELETE",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body,
     userAgent: client._options.user_agent,
@@ -121593,7 +121613,7 @@ async function $do$f(client, id, api_version, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/triggers/{id}")(pathParams);
+  const path11 = pathToFunc("/{api_version}/triggers/{id}")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -121623,7 +121643,7 @@ async function $do$f(client, id, api_version, options) {
     security: requestSecurity,
     method: "GET",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body,
     userAgent: client._options.user_agent,
@@ -121669,7 +121689,7 @@ async function $do$e(client, trigger_id, api_version, page_size, page_token, opt
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/triggers/{triggerId}/executions")(pathParams);
+  const path11 = pathToFunc("/{api_version}/triggers/{triggerId}/executions")(pathParams);
   const query = encodeFormQuery({
     "page_size": payload.page_size,
     "page_token": payload.page_token
@@ -121703,7 +121723,7 @@ async function $do$e(client, trigger_id, api_version, page_size, page_token, opt
     security: requestSecurity,
     method: "GET",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     query,
     body,
@@ -121746,7 +121766,7 @@ async function $do$d(client, api_version, filter, page_size, page_token, options
   const pathParams = {
     api_version: encodeSimple("api_version", (_a4 = payload === null || payload === void 0 ? void 0 : payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
   };
-  const path10 = pathToFunc("/{api_version}/triggers")(pathParams);
+  const path11 = pathToFunc("/{api_version}/triggers")(pathParams);
   const query = encodeFormQuery({
     "filter": payload === null || payload === void 0 ? void 0 : payload.filter,
     "page_size": payload === null || payload === void 0 ? void 0 : payload.page_size,
@@ -121781,7 +121801,7 @@ async function $do$d(client, api_version, filter, page_size, page_token, options
     security: requestSecurity,
     method: "GET",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     query,
     body,
@@ -121826,7 +121846,7 @@ async function $do$c(client, trigger_id, api_version, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/triggers/{triggerId}/executions")(pathParams);
+  const path11 = pathToFunc("/{api_version}/triggers/{triggerId}/executions")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -121856,7 +121876,7 @@ async function $do$c(client, trigger_id, api_version, options) {
     security: requestSecurity,
     method: "POST",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body,
     userAgent: client._options.user_agent,
@@ -121901,7 +121921,7 @@ async function $do$b(client, id, body, api_version, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/triggers/{id}")(pathParams);
+  const path11 = pathToFunc("/{api_version}/triggers/{id}")(pathParams);
   const headers = new Headers(compactMap({
     "Content-Type": "application/json",
     Accept: "application/json"
@@ -121932,7 +121952,7 @@ async function $do$b(client, id, body, api_version, options) {
     security: requestSecurity,
     method: "PATCH",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body: body$,
     userAgent: client._options.user_agent,
@@ -122019,7 +122039,7 @@ async function $do$a(client, body, api_version, options) {
   const pathParams = {
     api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
   };
-  const path10 = pathToFunc("/{api_version}/voices")(pathParams);
+  const path11 = pathToFunc("/{api_version}/voices")(pathParams);
   const headers = new Headers(compactMap({
     "Content-Type": "application/json",
     Accept: "application/json"
@@ -122050,7 +122070,7 @@ async function $do$a(client, body, api_version, options) {
     security: requestSecurity,
     method: "POST",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body: body$,
     userAgent: client._options.user_agent,
@@ -122094,7 +122114,7 @@ async function $do$9(client, id, api_version, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/voices/{voicesId}")(pathParams);
+  const path11 = pathToFunc("/{api_version}/voices/{voicesId}")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -122124,7 +122144,7 @@ async function $do$9(client, id, api_version, options) {
     security: requestSecurity,
     method: "DELETE",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body,
     userAgent: client._options.user_agent,
@@ -122168,7 +122188,7 @@ async function $do$8(client, id, api_version, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/voices/{voicesId}")(pathParams);
+  const path11 = pathToFunc("/{api_version}/voices/{voicesId}")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -122198,7 +122218,7 @@ async function $do$8(client, id, api_version, options) {
     security: requestSecurity,
     method: "GET",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body,
     userAgent: client._options.user_agent,
@@ -122248,7 +122268,7 @@ async function $do$7(client, api_version, accent, contexts, gender, language_cod
   const pathParams = {
     api_version: encodeSimple("api_version", (_a4 = payload === null || payload === void 0 ? void 0 : payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
   };
-  const path10 = pathToFunc("/{api_version}/voices")(pathParams);
+  const path11 = pathToFunc("/{api_version}/voices")(pathParams);
   const query = encodeFormQuery({
     "accent": payload === null || payload === void 0 ? void 0 : payload.accent,
     "context": payload === null || payload === void 0 ? void 0 : payload.contexts,
@@ -122291,7 +122311,7 @@ async function $do$7(client, api_version, accent, contexts, gender, language_cod
     security: requestSecurity,
     method: "GET",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     query,
     body,
@@ -122364,7 +122384,7 @@ async function $do$6(client, body, api_version, options) {
   const pathParams = {
     api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
   };
-  const path10 = pathToFunc("/{api_version}/webhooks")(pathParams);
+  const path11 = pathToFunc("/{api_version}/webhooks")(pathParams);
   const headers = new Headers(compactMap({
     "Content-Type": "application/json",
     Accept: "application/json"
@@ -122395,7 +122415,7 @@ async function $do$6(client, body, api_version, options) {
     security: requestSecurity,
     method: "POST",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body: body$,
     userAgent: client._options.user_agent,
@@ -122439,7 +122459,7 @@ async function $do$5(client, id, api_version, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/webhooks/{id}")(pathParams);
+  const path11 = pathToFunc("/{api_version}/webhooks/{id}")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -122469,7 +122489,7 @@ async function $do$5(client, id, api_version, options) {
     security: requestSecurity,
     method: "DELETE",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body,
     userAgent: client._options.user_agent,
@@ -122513,7 +122533,7 @@ async function $do$4(client, id, api_version, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/webhooks/{id}")(pathParams);
+  const path11 = pathToFunc("/{api_version}/webhooks/{id}")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -122543,7 +122563,7 @@ async function $do$4(client, id, api_version, options) {
     security: requestSecurity,
     method: "GET",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body,
     userAgent: client._options.user_agent,
@@ -122584,7 +122604,7 @@ async function $do$3(client, api_version, page_size, page_token, options) {
   const pathParams = {
     api_version: encodeSimple("api_version", (_a4 = payload === null || payload === void 0 ? void 0 : payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
   };
-  const path10 = pathToFunc("/{api_version}/webhooks")(pathParams);
+  const path11 = pathToFunc("/{api_version}/webhooks")(pathParams);
   const query = encodeFormQuery({
     "page_size": payload === null || payload === void 0 ? void 0 : payload.page_size,
     "page_token": payload === null || payload === void 0 ? void 0 : payload.page_token
@@ -122618,7 +122638,7 @@ async function $do$3(client, api_version, page_size, page_token, options) {
     security: requestSecurity,
     method: "GET",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     query,
     body,
@@ -122664,7 +122684,7 @@ async function $do$2(client, id, api_version, body, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/webhooks/{id}:ping")(pathParams);
+  const path11 = pathToFunc("/{api_version}/webhooks/{id}:ping")(pathParams);
   const headers = new Headers(compactMap({
     "Content-Type": "application/json",
     Accept: "application/json"
@@ -122695,7 +122715,7 @@ async function $do$2(client, id, api_version, body, options) {
     security: requestSecurity,
     method: "POST",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body: body$,
     userAgent: client._options.user_agent,
@@ -122740,7 +122760,7 @@ async function $do$1(client, id, body, api_version, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/webhooks/{id}:rotateSigningSecret")(pathParams);
+  const path11 = pathToFunc("/{api_version}/webhooks/{id}:rotateSigningSecret")(pathParams);
   const headers = new Headers(compactMap({
     "Content-Type": "application/json",
     Accept: "application/json"
@@ -122771,7 +122791,7 @@ async function $do$1(client, id, body, api_version, options) {
     security: requestSecurity,
     method: "POST",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     body: body$,
     userAgent: client._options.user_agent,
@@ -122817,7 +122837,7 @@ async function $do(client, id, body, api_version, update_mask, options) {
       charEncoding: "percent"
     })
   };
-  const path10 = pathToFunc("/{api_version}/webhooks/{id}")(pathParams);
+  const path11 = pathToFunc("/{api_version}/webhooks/{id}")(pathParams);
   const query = encodeFormQuery({
     "update_mask": payload.update_mask
   });
@@ -122851,7 +122871,7 @@ async function $do(client, id, body, api_version, update_mask, options) {
     security: requestSecurity,
     method: "PATCH",
     baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path10,
+    path: path11,
     headers,
     query,
     body: body$,
@@ -123434,8 +123454,8 @@ var GeminiNextGenEnvironmentFiles = class {
       try {
         const req = globalThis.require;
         if (req) {
-          const fs11 = req("fs");
-          buffer = fs11.readFileSync(params.file);
+          const fs12 = req("fs");
+          buffer = fs12.readFileSync(params.file);
         }
       } catch (_j) {
       }
@@ -123443,8 +123463,8 @@ var GeminiNextGenEnvironmentFiles = class {
         try {
           const mod = (_b = (_a4 = globalThis.process.mainModule) === null || _a4 === void 0 ? void 0 : _a4.require) !== null && _b !== void 0 ? _b : globalThis.require;
           if (mod) {
-            const fs11 = mod("fs");
-            buffer = fs11.readFileSync(params.file);
+            const fs12 = mod("fs");
+            buffer = fs12.readFileSync(params.file);
           }
         } catch (_k) {
         }
@@ -125311,16 +125331,16 @@ var Tunings = class extends BaseModule {
   async getInternal(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = getTuningJobParametersToVertex(params);
-      path10 = formatMap2("{name}", body["_url"]);
+      path11 = formatMap2("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -125341,12 +125361,12 @@ var Tunings = class extends BaseModule {
       });
     } else {
       const body = getTuningJobParametersToMldev(params);
-      path10 = formatMap2("{name}", body["_url"]);
+      path11 = formatMap2("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -125370,16 +125390,16 @@ var Tunings = class extends BaseModule {
   async listInternal(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = listTuningJobsParametersToVertex(params);
-      path10 = formatMap2("tuningJobs", body["_url"]);
+      path11 = formatMap2("tuningJobs", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -125418,16 +125438,16 @@ var Tunings = class extends BaseModule {
   async cancel(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = cancelTuningJobParametersToVertex(params);
-      path10 = formatMap2("{name}:cancel", body["_url"]);
+      path11 = formatMap2("{name}:cancel", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -125450,12 +125470,12 @@ var Tunings = class extends BaseModule {
       });
     } else {
       const body = cancelTuningJobParametersToMldev(params);
-      path10 = formatMap2("{name}:cancel", body["_url"]);
+      path11 = formatMap2("{name}:cancel", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -125481,16 +125501,16 @@ var Tunings = class extends BaseModule {
   async tuneInternal(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = createTuningJobParametersPrivateToVertex(params, params);
-      path10 = formatMap2("tuningJobs", body["_url"]);
+      path11 = formatMap2("tuningJobs", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -125516,18 +125536,18 @@ var Tunings = class extends BaseModule {
   async tuneMldevInternal(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       throw new Error("This method is only supported by the Gemini Developer API.");
     } else {
       const body = createTuningJobParametersPrivateToMldev(params);
-      path10 = formatMap2("tunedModels", body["_url"]);
+      path11 = formatMap2("tunedModels", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -125551,16 +125571,16 @@ var Tunings = class extends BaseModule {
   async validateReward(params) {
     var _a4, _b;
     let response;
-    let path10 = "";
+    let path11 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = validateRewardParametersToVertex(params);
-      path10 = formatMap2("{parent}/tuningJobs:validateReinforcementTuningReward", body["_url"]);
+      path11 = formatMap2("{parent}/tuningJobs:validateReinforcementTuningReward", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path10,
+        path: path11,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -132066,22 +132086,22 @@ function authorize(req, res, next) {
   const p = req.principal;
   const route = req.path;
   const write = !["GET", "HEAD", "OPTIONS"].includes(req.method);
-  const fail3 = () => res.status(403).json({ error: "Your role does not allow this action." });
+  const fail5 = () => res.status(403).json({ error: "Your role does not allow this action." });
   const studioRoute = /^\/ai\/studio(?:\/|$)/.test(route);
-  if (!studioRoute && /^\/(ai|feed|social|database|sync|n8n|integrations|workflows|executions|audit-logs|webhooks|api)(\/|$)/.test(route) && !p.global) return fail3();
+  if (!studioRoute && /^\/(ai|feed|social|database|sync|n8n|integrations|workflows|executions|audit-logs|webhooks|api)(\/|$)/.test(route) && !p.global) return fail5();
   if (write && /^\/posts\//.test(route)) {
-    if (/\/(approve|approve-reviewed|reject|request-revision)$/.test(route) && !canApprove(p)) return fail3();
-    if (/\/(publish|publish-now)$/.test(route) && !canApprove(p)) return fail3();
-    if (/\/(submit|submit-for-review)$/.test(route) && !canEdit(p)) return fail3();
-    if (req.method === "PATCH" && !canEdit(p)) return fail3();
-    if (req.method === "DELETE" && !isAdmin(p)) return fail3();
+    if (/\/(approve|approve-reviewed|reject|request-revision)$/.test(route) && !canApprove(p)) return fail5();
+    if (/\/(publish|publish-now)$/.test(route) && !canApprove(p)) return fail5();
+    if (/\/(submit|submit-for-review)$/.test(route) && !canEdit(p)) return fail5();
+    if (req.method === "PATCH" && !canEdit(p)) return fail5();
+    if (req.method === "DELETE" && !isAdmin(p)) return fail5();
   }
-  if (write && ["/posts", "/posts/multi-brand-publish", "/upload"].includes(route) && !canEdit(p)) return fail3();
-  if (write && /^\/(brands|social-accounts|accounts)(\/|$)/.test(route) && !isAdmin(p)) return fail3();
+  if (write && ["/posts", "/posts/multi-brand-publish", "/upload"].includes(route) && !canEdit(p)) return fail5();
+  if (write && /^\/(brands|social-accounts|accounts)(\/|$)/.test(route) && !isAdmin(p)) return fail5();
   if (write && /^\/users(\/|$)/.test(route) && !isAdmin(p)) {
-    if (req.method !== "PATCH" || route !== `/users/${p.id}` || Object.keys(req.body || {}).some((k) => !["avatarUrl", "fullName", "password", "currentPassword"].includes(k))) return fail3();
+    if (req.method !== "PATCH" || route !== `/users/${p.id}` || Object.keys(req.body || {}).some((k) => !["avatarUrl", "fullName", "password", "currentPassword"].includes(k))) return fail5();
   }
-  if (req.body?.role === "Super Admin" && !p.global) return fail3();
+  if (req.body?.role === "Super Admin" && !p.global) return fail5();
   const postMatch = route.match(/^\/posts\/([^/]+)/);
   if (postMatch && postMatch[1] !== "multi-brand-publish") {
     const post = db.prepare("SELECT * FROM posts WHERE post_id = ? AND deleted_at IS NULL").get(postMatch[1]);
@@ -132097,8 +132117,8 @@ function authorize(req, res, next) {
   for (const value of [req.body?.brandId, req.query.brandId, ...Array.isArray(req.body?.brandIds) ? req.body.brandIds : []]) {
     if (value !== void 0 && value !== "" && !canAccessBrand(p, resolveBrand(value))) return res.status(404).json({ error: "Brand not found." });
   }
-  for (const value of [req.body?.clientId, req.query.clientId]) if (value && !p.global && value !== p.clientId) return fail3();
-  if (req.body?.userId && Number(req.body.userId) !== p.id && !isAdmin(p)) return fail3();
+  for (const value of [req.body?.clientId, req.query.clientId]) if (value && !p.global && value !== p.clientId) return fail5();
+  if (req.body?.userId && Number(req.body.userId) !== p.id && !isAdmin(p)) return fail5();
   if (/^\/posts\/[^/]+\/(approve-reviewed|submit-for-review|recommendations)(\/|$)/.test(route)) return res.status(409).json({ error: "Use the standard draft and approval workflow for this release." });
   next();
 }
@@ -132108,7 +132128,7 @@ function audit(actor, entity, entityId, action, details = null) {
 
 // server/src/routes/enterpriseRoutes.ts
 var import_express4 = __toESM(require_express2(), 1);
-import crypto12 from "node:crypto";
+import crypto14 from "node:crypto";
 
 // server/src/services/social/platform_metrics.config.ts
 var PLATFORM_METRICS_CONFIG = {
@@ -132723,10 +132743,247 @@ function submitCreatorForApproval(principal, id, version2) {
   return result;
 }
 
+// server/src/services/postFailures.ts
+import crypto12 from "node:crypto";
+var fail2 = (message, status = 409) => {
+  throw Object.assign(new Error(message), { status });
+};
+function redactFailure(value) {
+  if (!value) return null;
+  return String(value).replace(/Bearer\s+[^\s,;"']+/gi, "Bearer [redacted]").replace(/((?:access[_-]?token|refresh[_-]?token|api[_-]?key|client[_-]?secret|password|authorization)["']?\s*[=:]\s*["']?)[^\s&;,"']+/gi, "$1[redacted]").replace(/\bEAA[A-Za-z0-9_-]{12,}\b/g, "[redacted]").replace(/\b[A-Za-z0-9_+\/-]{80,}={0,2}\b/g, "[redacted]").slice(0, 2e3);
+}
+function scopedPost(p, id) {
+  const post = db.prepare("SELECT * FROM posts WHERE post_id=? AND deleted_at IS NULL").get(id);
+  if (!post || !p.global && post.client_id !== p.clientId) return fail2("Post not found.", 404);
+  return post;
+}
+function credentialCheck(row) {
+  if (row.account_status !== "active") return "Reconnect or activate this social account in Social Accounts.";
+  if (row.token_expires_at && Date.parse(row.token_expires_at) <= Date.now()) return "The stored credential has expired. Reconnect this account in Social Accounts.";
+  if (!row.token_ciphertext) return "This account has no saved publishing credential. Reconnect it in Social Accounts.";
+  try {
+    if (!decryptToken({ ciphertext: row.token_ciphertext, iv: row.token_iv, tag: row.token_tag, version: row.token_version }).trim()) throw new Error();
+  } catch {
+    return "The server cannot read the saved credential. An administrator must restore the matching encryption key or reconnect this account.";
+  }
+  return null;
+}
+function uncertain(row) {
+  return row.status === "NeedsVerification" || row.error_category === "unknown" || !!row.platform_post_id || !!row.post_url || !!row.posted_at || /UNKNOWN|UNCONFIRMED|TIMEOUT|WARN_PARTIAL/i.test(row.error_code || "") || /timed? ?out|network|fetch failed|socket|connection reset|unknown outcome/i.test(row.error_message || "");
+}
+function providerAuthFailure(row) {
+  return /AUTH|TOKEN|^190$/i.test(row.error_code || "") || /access token|credential|oauth|session has expired/i.test(row.error_message || "");
+}
+function retryBlock(p, row) {
+  if (!canApprove(p)) return "Publishing permission is required to retry. Ask an administrator or approver.";
+  if (row.status === "Posted") return "This destination is already published.";
+  if (uncertain(row)) return "Check the social account and reconcile the earlier outcome before retrying to prevent duplicate posts.";
+  if (row.status !== "Failed") return row.status === "Missed" ? "Choose a new schedule and obtain approval for a missed publication." : "Only a failed destination can be retried here.";
+  if (row.lock_execution_id || row.lock_stage) return "An earlier delivery is still locked. Wait for reconciliation.";
+  if (!approvalIsCurrent(row)) return "The current content version must be approved and the selected account active before retrying.";
+  const problem = credentialCheck(row);
+  if (problem) return problem;
+  const account = db.prepare("SELECT updated_at FROM social_accounts WHERE account_id=?").get(row.account_id);
+  if (providerAuthFailure(row) && !(Date.parse(account.updated_at) > Date.parse(row.updated_at))) return "The previous credential was rejected. Reconnect this account with a fresh credential, then refresh this report.";
+  let placements;
+  try {
+    placements = JSON.parse(row.placement || '["feed"]');
+  } catch {
+    return "Correct the invalid placement and submit the content for approval again.";
+  }
+  if (!Array.isArray(placements) || placements.length !== 1) return "Use one placement per post, then submit the corrected content for approval.";
+  const placement = placements[0];
+  if (!(row.platform === "facebook" && placement === "feed" && row.media_type === "image" || row.platform === "instagram" && ["feed", "story", "reels_shorts"].includes(placement) && ["image", "video"].includes(row.media_type) && (placement !== "reels_shorts" || row.media_type === "video"))) return "This media and placement are not supported. Edit the post and request approval again.";
+  return null;
+}
+function getDeliveryFailureReport(p, id) {
+  const post = scopedPost(p, id);
+  const targets = db.prepare("SELECT * FROM post_targets WHERE post_id=? ORDER BY created_at,target_id").all(id);
+  return { postId: id, title: post.title, postVersion: post.version, approvalStatus: post.approval_status, generatedAt: (/* @__PURE__ */ new Date()).toISOString(), destinations: targets.map((target) => {
+    const row = loadDelivery(target.target_id);
+    if (!row) return { targetId: target.target_id, targetVersion: target.version, accountName: "Unavailable account", platform: target.platform, status: target.status, errorCode: target.error_code, errorMessage: redactFailure(target.error_message), cause: "The selected social account is unavailable.", nextSteps: ["Restore or replace the selected account and review the post."], connection: "Unavailable", stage: "Account lookup", attempts: target.attempt_count, updatedAt: target.updated_at, canRetry: false, retryBlockedReason: "The selected account no longer exists.", history: [] };
+    const problem = credentialCheck(row), blocked = retryBlock(p, row);
+    const auth = providerAuthFailure(row) || !!problem;
+    const unknown2 = uncertain(row) && row.status !== "Posted";
+    const media = /MEDIA|FORMAT|PROCESSING|INVALID.*URL/i.test(row.error_code || "");
+    const cause = row.status === "Posted" ? "The provider confirmed this destination was published." : unknown2 ? "The earlier publication outcome needs verification." : auth ? "The social account credential is missing, expired, unreadable, or was rejected." : media ? "The provider could not accept or process the selected media." : row.error_message ? "The publishing request failed." : "No failure is recorded for this destination.";
+    const nextSteps = row.status === "Posted" ? ["Keep this successful delivery; it will not be retried."] : unknown2 ? ["Open the social account and check whether the post exists.", "Ask an administrator to reconcile the delivery before retrying."] : auth ? [problem || "Reconnect the selected account with a fresh credential in Social Accounts.", "Refresh this report after the connection is fixed, then retry the failed destination."] : media ? ["Review the media URL, format and placement.", "If content changes are needed, edit and submit it for approval again."] : ["Read the provider error and correct the reported problem.", "Retry only this failed destination using the approved content."];
+    const account = db.prepare("SELECT account_name,account_handle FROM social_accounts WHERE account_id=?").get(row.account_id);
+    const history = db.prepare("SELECT attempt_id,started_at,finished_at,result,error_code FROM publish_attempts WHERE target_id=? ORDER BY started_at DESC LIMIT 10").all(row.target_id);
+    const total = db.prepare("SELECT count(*) n FROM publish_attempts WHERE target_id=?").get(row.target_id);
+    return { targetId: row.target_id, targetVersion: row.version, accountName: account.account_name || account.account_handle || row.account_id, platform: row.platform, status: row.status, errorCode: redactFailure(row.error_code), errorMessage: redactFailure(row.error_message), cause, nextSteps, connection: problem || "Saved credential is readable; provider validity is checked during publishing.", stage: unknown2 ? "Publication confirmation" : auth ? "Account authentication" : media ? "Media processing" : "Publishing request", attempts: Math.max(row.attempt_count, total.n), updatedAt: row.updated_at, canRetry: !blocked, retryBlockedReason: blocked, history: history.map((a) => ({ id: a.attempt_id, startedAt: a.started_at, finishedAt: a.finished_at, result: a.result, errorCode: redactFailure(a.error_code) })) };
+  }) };
+}
+async function retryFailedDestination(p, postId, input2, adapter) {
+  scopedPost(p, postId);
+  if (!canApprove(p)) return fail2("Publishing permission is required to retry.", 403);
+  if (!Number.isInteger(input2.postVersion) || !Number.isInteger(input2.targetVersion)) return fail2("Refresh the failure report before retrying; both versions are required.", 428);
+  const row = loadDelivery(input2.targetId);
+  if (!row || row.post_id !== postId) return fail2("Destination not found.", 404);
+  if (row.post_version !== input2.postVersion || row.version !== input2.targetVersion) return fail2("This delivery changed. Refresh the failure report before retrying.");
+  const blocked = retryBlock(p, row);
+  if (blocked) return fail2(blocked);
+  const executionId = `retry-${crypto12.randomUUID()}`;
+  claimFailedTarget(input2.targetId, executionId, input2.postVersion, input2.targetVersion, p.email);
+  const result = await publishDelivery(input2.targetId, executionId, adapter, { allowAutomaticRetry: false });
+  return { result, report: getDeliveryFailureReport(p, postId) };
+}
+
+// server/src/services/metaConnection.ts
+import crypto13 from "node:crypto";
+var fail3 = (message, status = 400) => {
+  throw Object.assign(new Error(message), { status });
+};
+async function refreshLinkedInstagram(principal, account, fetcher) {
+  if (account.platform !== "instagram") return null;
+  const pages = db.prepare("SELECT * FROM social_accounts WHERE client_id=? AND brand_id=? AND platform='facebook' AND status='active' ORDER BY last_checked_at DESC LIMIT 5").all(account.client_id, account.brand_id);
+  const version2 = /^v\d+\.\d+$/.test(process.env.META_GRAPH_VERSION || "") ? process.env.META_GRAPH_VERSION : "v21.0";
+  for (const page of pages) {
+    if (!/^\d+$/.test(page.external_id) || !page.last_checked_at || Date.parse(page.last_checked_at) < Date.now() - 864e5) continue;
+    try {
+      const token = decryptToken({ ciphertext: page.token_ciphertext, iv: page.token_iv, tag: page.token_tag, version: page.token_version });
+      const options = { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }, signal: AbortSignal.timeout(1e4), redirect: "error" };
+      const linkedResponse = await fetcher(`https://graph.facebook.com/${version2}/${page.external_id}?fields=instagram_business_account`, options);
+      const linked = await linkedResponse.json();
+      if (!linkedResponse.ok || linked.error || String(linked.instagram_business_account?.id) !== account.external_id) continue;
+      const verifiedResponse = await fetcher(`https://graph.facebook.com/${version2}/${account.external_id}?fields=id,username`, options);
+      const verified = await verifiedResponse.json();
+      if (!verifiedResponse.ok || verified.error || String(verified.id) !== account.external_id) continue;
+      const encrypted = encryptToken(token), now2 = (/* @__PURE__ */ new Date()).toISOString();
+      db.prepare("UPDATE social_accounts SET token_ciphertext=?,token_iv=?,token_tag=?,token_version=?,token_expires_at=NULL,status='active',last_checked_at=?,updated_at=?,version=version+1 WHERE account_id=? AND client_id=? AND brand_id=?").run(encrypted.ciphertext, encrypted.iv, encrypted.tag, encrypted.version, now2, now2, account.account_id, account.client_id, account.brand_id);
+      audit(principal, "social_account", account.account_id, "refresh_verified_linked_meta", { pageAccountId: page.account_id });
+      sseManager.emit("account.updated", account.client_id, { accountId: account.account_id });
+      return { verified: true, accountId: account.account_id, platform: "instagram", checkedAt: now2, message: "Meta verified the linked Instagram account and refreshed its saved Page credential." };
+    } catch {
+    }
+  }
+  return null;
+}
+async function checkMetaAccount(principal, accountId, fetcher = fetch) {
+  if (!isAdmin(principal)) return fail3("Only administrators can check account credentials.", 403);
+  const account = db.prepare("SELECT * FROM social_accounts WHERE account_id=?").get(accountId);
+  if (!account || !principal.global && account.client_id !== principal.clientId) return fail3("Account not found.", 404);
+  if (!["facebook", "instagram"].includes(account.platform)) return fail3("This verification checks Facebook and Instagram accounts.");
+  const now2 = (/* @__PURE__ */ new Date()).toISOString();
+  const reject = (message) => {
+    db.prepare("UPDATE social_accounts SET status='needs_reauth',updated_at=?,version=version+1 WHERE account_id=?").run(now2, accountId);
+    sseManager.emit("account.updated", account.client_id, { accountId });
+    return fail3(message);
+  };
+  let token;
+  try {
+    token = decryptToken({ ciphertext: account.token_ciphertext, iv: account.token_iv, tag: account.token_tag, version: account.token_version });
+  } catch {
+    const refreshed = await refreshLinkedInstagram(principal, account, fetcher);
+    if (refreshed) return refreshed;
+    return reject("The saved credential cannot be read. Reconnect this account with a fresh token.");
+  }
+  if (!token.trim() || !/^\d+$/.test(account.external_id)) return reject("The account identity or saved credential is incomplete. Reconnect it.");
+  const version2 = /^v\d+\.\d+$/.test(process.env.META_GRAPH_VERSION || "") ? process.env.META_GRAPH_VERSION : "v21.0";
+  let response;
+  try {
+    response = await fetcher(`https://graph.facebook.com/${version2}/${account.external_id}?fields=id,${account.platform === "instagram" ? "username" : "name"}`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }, signal: AbortSignal.timeout(15e3), redirect: "error" });
+  } catch {
+    return fail3("Meta is temporarily unreachable. Please try the connection check again.", 502);
+  }
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    return fail3("Meta returned an unreadable response. Please try again.", 502);
+  }
+  if (response.status === 429 || response.status >= 500) return fail3("Meta is temporarily busy. Please try again later.", 502);
+  if (!response.ok || data.error || String(data.id) !== account.external_id) {
+    const refreshed = await refreshLinkedInstagram(principal, account, fetcher);
+    if (refreshed) return refreshed;
+    return reject(data.error?.code === 190 ? "Meta rejected the saved token. Reconnect Meta with Instagram permissions and confirm the Instagram account is linked to the selected Page." : "Meta could not verify this account. Check token permissions and the linked Facebook Page / Instagram account.");
+  }
+  db.prepare("UPDATE social_accounts SET status='active',last_checked_at=?,updated_at=?,version=version+1 WHERE account_id=?").run(now2, now2, accountId);
+  audit(principal, "social_account", accountId, "verify_meta_identity", { platform: account.platform });
+  sseManager.emit("account.updated", account.client_id, { accountId });
+  return { verified: true, accountId, platform: account.platform, checkedAt: now2, message: "Meta verified the saved account identity. Publishing permissions are checked when content is sent." };
+}
+async function connectMetaAccount(principal, brand, input2, fetcher = fetch) {
+  if (!isAdmin(principal)) return fail3("Only administrators can connect social accounts.", 403);
+  if (!brand || !principal.global && brand.client_id !== principal.clientId) return fail3("Brand not found.", 404);
+  const token = typeof input2.token === "string" ? input2.token.trim() : "";
+  if (token.length < 20 || token.length > 12e3) return fail3("Enter a complete Meta access token.");
+  const pageId = String(input2.pageId || "").trim();
+  if (pageId && !/^\d{5,30}$/.test(pageId)) return fail3("Enter the numeric Facebook Page ID.");
+  const version2 = /^v\d+\.\d+$/.test(process.env.META_GRAPH_VERSION || "") ? process.env.META_GRAPH_VERSION : "v21.0";
+  const graph = async (resource, credential) => {
+    let response;
+    try {
+      response = await fetcher(`https://graph.facebook.com/${version2}/${resource}`, { headers: { Authorization: `Bearer ${credential}`, Accept: "application/json" }, signal: AbortSignal.timeout(2e4), redirect: "error" });
+    } catch {
+      return fail3("Meta could not be reached. Check the connection and try again.", 502);
+    }
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      return fail3("Meta returned an unreadable response. Please try again.", 502);
+    }
+    return { ok: response.ok && !data.error, data };
+  };
+  const discovered = await graph("me/accounts?fields=id,name,access_token,instagram_business_account{id,username}", token);
+  let pages = Array.isArray(discovered.data.data) ? discovered.data.data : [];
+  if (!pages.length) {
+    const direct = await graph("me?fields=id,name,instagram_business_account{id,username}", token);
+    if (direct.ok && direct.data.id && direct.data.name && !Array.isArray(direct.data.data)) {
+      const identity = await graph(`${encodeURIComponent(direct.data.id)}?fields=id,name,category,instagram_business_account{id,username}`, token);
+      if (identity.ok && identity.data.category) pages = [{ ...identity.data, access_token: token }];
+    }
+  }
+  if (!pages.length) return fail3(discovered.data.error?.code === 190 ? "Meta rejected this token. Generate a fresh token and reconnect the selected Page." : "No accessible Facebook Page was found. Check the Page assignment and token permissions.");
+  const cleanPageId = pageId.trim();
+  let candidates = cleanPageId ? pages.filter((page2) => String(page2.id).trim() === cleanPageId || page2.name && page2.name.trim().toLowerCase() === cleanPageId.toLowerCase()) : pages;
+  if (!cleanPageId && candidates.length > 1) {
+    const brandMatch = candidates.filter((p) => p.name && p.name.trim().toLowerCase() === brand.brand_name.trim().toLowerCase());
+    if (brandMatch.length === 1) candidates = brandMatch;
+  }
+  if (candidates.length !== 1) {
+    const accessible = pages.map((p) => `"${p.name || "Facebook Page"}" (ID: ${p.id})`).join(", ");
+    if (cleanPageId) return fail3(`The token does not grant access to that Facebook Page (ID: ${cleanPageId}). Accessible Pages with this token: ${accessible || "None"}. Please select this Page in Meta Graph API Explorer or verify the Page ID.`, 409);
+    return fail3(`This token covers multiple Pages: ${accessible}. Enter the Facebook Page ID for ${brand.brand_name}.`, 409);
+  }
+  const page = candidates[0], pageToken = typeof page.access_token === "string" ? page.access_token : token;
+  if (!/^\d+$/.test(String(page.id))) return fail3("Meta did not return a valid Page identity.", 502);
+  const targets = [{ platform: "facebook", externalId: String(page.id), name: String(page.name || "Facebook Page"), handle: "" }];
+  if (page.instagram_business_account?.id) targets.push({ platform: "instagram", externalId: String(page.instagram_business_account.id), name: String(page.name || "Facebook Page") + " (Instagram)", handle: page.instagram_business_account.username ? "@" + page.instagram_business_account.username : "" });
+  const now2 = (/* @__PURE__ */ new Date()).toISOString();
+  const channels = [];
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    for (const target of targets) {
+      const foreign = db.prepare("SELECT account_id, client_id, brand_id FROM social_accounts WHERE platform=? AND external_id=? AND (client_id!=? OR brand_id!=?)").get(target.platform, target.externalId, brand.client_id, brand.brand_id);
+      if (foreign) {
+        if (foreign.client_id === brand.client_id && isAdmin(principal)) {
+          db.prepare("UPDATE social_accounts SET brand_id=?, updated_at=?, version=version+1 WHERE account_id=?").run(brand.brand_id, now2, foreign.account_id);
+        } else {
+          return fail3("This Page or Instagram account is already assigned to another brand. Ask an administrator to review its assignment.", 409);
+        }
+      }
+      const existing = db.prepare("SELECT account_id FROM social_accounts WHERE client_id=? AND brand_id=? AND platform=? AND external_id=?").get(brand.client_id, brand.brand_id, target.platform, target.externalId);
+      const enc = encryptToken(pageToken), id = existing?.account_id || (foreign?.client_id === brand.client_id ? foreign.account_id : "ACC-" + crypto13.randomUUID());
+      if (existing || foreign && foreign.client_id === brand.client_id) db.prepare(`UPDATE social_accounts SET token_ciphertext=?,token_iv=?,token_tag=?,token_version=?,token_expires_at=NULL,account_name=?,account_handle=?,status='active',last_checked_at=?,updated_at=?,version=version+1 WHERE account_id=?`).run(enc.ciphertext, enc.iv, enc.tag, enc.version, target.name, target.handle, now2, now2, id);
+      else db.prepare(`INSERT INTO social_accounts (account_id,client_id,brand_id,platform,account_name,account_handle,external_id,token_ciphertext,token_iv,token_tag,token_version,status,last_checked_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,'active',?,?,?)`).run(id, brand.client_id, brand.brand_id, target.platform, target.name, target.handle, target.externalId, enc.ciphertext, enc.iv, enc.tag, enc.version, now2, now2, now2);
+      channels.push({ accountId: id, platform: target.platform, name: target.name });
+    }
+    audit(principal, "social_account", brand.brand_id, "connect_meta", { accountIds: channels.map((channel) => channel.accountId) });
+    db.exec("COMMIT");
+  } catch (error62) {
+    db.exec("ROLLBACK");
+    throw error62;
+  }
+  sseManager.emit("account.updated", brand.client_id, { brandId: brand.brand_id });
+  return { success: true, message: `Verified and connected ${channels.length} Meta channel(s) to ${brand.brand_name}.`, channels };
+}
+
 // server/src/routes/enterpriseRoutes.ts
 var enterpriseRouter = (0, import_express4.Router)();
 var wrap = (fn) => (req, res) => Promise.resolve().then(() => fn(req, res)).catch((error62) => res.status(error62.status || 400).json({ error: error62.status === 500 ? "The operation could not be completed." : error62.message }));
-var fail2 = (message, status = 400) => {
+var fail4 = (message, status = 400) => {
   throw Object.assign(new Error(message), { status });
 };
 var tx = (fn) => {
@@ -132747,11 +133004,26 @@ var json3 = (value, fallback) => {
     return fallback;
   }
 };
+enterpriseRouter.post("/social-accounts/:id/check", wrap(async (req, res) => res.json(await checkMetaAccount(req.principal, String(req.params.id)))));
+enterpriseRouter.post("/social-accounts/connect", (req, res, next) => {
+  if (String(req.body?.platform || "meta").toLowerCase() !== "meta") return next();
+  return wrap(async (req2, res2) => {
+    if (!isAdmin(req2.principal)) return fail4("Only administrators can connect social accounts.", 403);
+    if (!req2.body?.brandId) return fail4("Select the brand before connecting an account.");
+    res2.json(await connectMetaAccount(req2.principal, ownBrand(req2, req2.body.brandId), req2.body));
+  })(req, res);
+});
 var postById = (req) => {
   const post = db.prepare("SELECT * FROM posts WHERE post_id = ? AND deleted_at IS NULL").get(req.params.id);
-  if (!post || !req.principal.global && post.client_id !== req.principal.clientId) fail2("Post not found.", 404);
+  if (!post || !req.principal.global && post.client_id !== req.principal.clientId) fail4("Post not found.", 404);
   return post;
 };
+enterpriseRouter.get("/posts/:id/failure-report", wrap((req, res) => res.json(getDeliveryFailureReport(req.principal, String(req.params.id)))));
+enterpriseRouter.post("/posts/:id/retry", wrap(async (req, res) => {
+  const id = String(req.params.id);
+  const result = await retryFailedDestination(req.principal, id, req.body || {});
+  res.json({ ...result, post: formatPost(id) });
+}));
 function formatPost(id) {
   const data = getFormattedPostById(id);
   if (!data) return null;
@@ -132794,17 +133066,17 @@ function remember(post, actor) {
 function schedule(input2, timezone, optional2) {
   let dt;
   if (input2.scheduledAt) {
-    if (!/(Z|[+-]\d\d:\d\d)$/.test(input2.scheduledAt)) fail2("Scheduled time must include its UTC offset.");
+    if (!/(Z|[+-]\d\d:\d\d)$/.test(input2.scheduledAt)) fail4("Scheduled time must include its UTC offset.");
     dt = DateTime.fromISO(input2.scheduledAt, { setZone: true }).setZone(timezone);
   } else if (input2.scheduleDate && input2.scheduleTime) {
     const time3 = String(input2.scheduleTime).length === 5 ? `${input2.scheduleTime}:00` : input2.scheduleTime;
     const local = `${input2.scheduleDate}T${time3}`;
     dt = DateTime.fromISO(local, { zone: timezone });
-    if (dt.toFormat("yyyy-MM-dd'T'HH:mm:ss") !== local || dt.getPossibleOffsets().length > 1) fail2("Choose an unambiguous local time; the clocks change at this time.");
+    if (dt.toFormat("yyyy-MM-dd'T'HH:mm:ss") !== local || dt.getPossibleOffsets().length > 1) fail4("Choose an unambiguous local time; the clocks change at this time.");
   } else if (optional2) dt = DateTime.now().setZone(timezone);
-  else return fail2("Select a publication date and time.");
-  if (!dt.isValid) fail2("Invalid date, time, or timezone.");
-  if (!optional2 && dt.toMillis() <= Date.now()) fail2("Choose a future publication time.");
+  else return fail4("Select a publication date and time.");
+  if (!dt.isValid) fail4("Invalid date, time, or timezone.");
+  if (!optional2 && dt.toMillis() <= Date.now()) fail4("Choose a future publication time.");
   return { utc: dt.toUTC().toISO(), date: dt.toISODate(), time: dt.toFormat("HH:mm:ss"), unscheduled: !input2.scheduledAt && !input2.scheduleDate };
 }
 enterpriseRouter.get("/brands", wrap((req, res) => res.json({ data: tenantBrands(req.principal).map((b) => ({
@@ -132826,13 +133098,13 @@ enterpriseRouter.get("/brands", wrap((req, res) => res.json({ data: tenantBrands
 enterpriseRouter.get("/clients", wrap((req, res) => res.json({ data: req.principal.global ? db.prepare("SELECT * FROM clients").all() : db.prepare("SELECT * FROM clients WHERE client_id = ?").all(req.principal.clientId) })));
 enterpriseRouter.post("/brands", wrap((req, res) => {
   const name = String(req.body.name || "").trim();
-  if (!name) fail2("Brand name is required.");
+  if (!name) fail4("Brand name is required.");
   const clientId = req.principal.global ? req.body.clientId || req.principal.clientId : req.principal.clientId;
-  if (!db.prepare("SELECT 1 FROM clients WHERE client_id = ?").get(clientId)) fail2("Workspace not found.");
+  if (!db.prepare("SELECT 1 FROM clients WHERE client_id = ?").get(clientId)) fail4("Workspace not found.");
   const zone = req.body.timezone || "Asia/Kolkata";
-  if (!DateTime.now().setZone(zone).isValid) fail2("Invalid timezone.");
+  if (!DateTime.now().setZone(zone).isValid) fail4("Invalid timezone.");
   const now2 = (/* @__PURE__ */ new Date()).toISOString();
-  const id = `BR-${crypto12.randomUUID()}`;
+  const id = `BR-${crypto14.randomUUID()}`;
   db.prepare("INSERT INTO brands (brand_id, client_id, brand_name, default_timezone, country, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(id, clientId, name, zone, req.body.country || "", now2, now2);
   audit(req.principal, "brand", id, "create");
   res.status(201).json({ id: resolveBrand(id).ui_id, brandId: id, name });
@@ -132840,14 +133112,14 @@ enterpriseRouter.post("/brands", wrap((req, res) => {
 enterpriseRouter.put("/brands/:id", wrap((req, res) => {
   const b = ownBrand(req, req.params.id);
   const input2 = req.body;
-  if (input2.tokens && Object.values(input2.tokens).some(Boolean)) fail2("Connect accounts through Connections. Credentials cannot be saved in a brand profile.");
+  if (input2.tokens && Object.values(input2.tokens).some(Boolean)) fail4("Connect accounts through Connections. Credentials cannot be saved in a brand profile.");
   const zone = input2.timezone || b.default_timezone;
-  if (!DateTime.now().setZone(zone).isValid) fail2("Invalid timezone.");
+  if (!DateTime.now().setZone(zone).isValid) fail4("Invalid timezone.");
   db.prepare("UPDATE brands SET brand_name = ?, default_timezone = ?, country = ?, primary_color = ?, secondary_color = ?, default_hashtags = ?, default_keywords = ?, version = version + 1, updated_at = ? WHERE brand_id = ?").run(input2.name || b.brand_name, zone, input2.country ?? b.country, input2.primaryColor || b.primary_color, input2.secondaryColor || b.secondary_color, input2.defaultHashtags ?? b.default_hashtags, input2.defaultKeywords ?? b.default_keywords, (/* @__PURE__ */ new Date()).toISOString(), b.brand_id);
   audit(req.principal, "brand", b.brand_id, "update");
   res.json({ ...input2, id: b.ui_id, brandId: b.brand_id });
 }));
-enterpriseRouter.delete("/brands/:id", wrap(() => fail2("Archive the brand after resolving its posts and accounts. Permanent brand deletion is not available from this release.", 409)));
+enterpriseRouter.delete("/brands/:id", wrap(() => fail4("Archive the brand after resolving its posts and accounts. Permanent brand deletion is not available from this release.", 409)));
 var accounts = wrap((req, res) => {
   const brands = tenantBrands(req.principal);
   const ids = brands.map((b) => b.brand_id);
@@ -132900,28 +133172,28 @@ enterpriseRouter.post("/posts", wrap((req, res) => {
   const submit = input2.submitForApproval === true;
   const title = String(input2.title || "").trim();
   const caption = String(input2.masterCaption ?? input2.caption ?? "");
-  if (!title || title.length > 255 || !caption.trim() || caption.length > 5e3) fail2("Enter a title and a caption of up to 5,000 characters.");
+  if (!title || title.length > 255 || !caption.trim() || caption.length > 5e3) fail4("Enter a title and a caption of up to 5,000 characters.");
   const date5 = schedule(input2, input2.timezone || brand.default_timezone, !submit);
   const media = Array.isArray(input2.media) ? input2.media : (input2.mediaUrls || []).map((fileUrl) => ({ fileUrl }));
-  if (media.some((m2) => typeof m2.fileUrl !== "string" || !/^https:\/\//i.test(m2.fileUrl) && !/^\/uploads\/[a-zA-Z0-9._-]+$/.test(m2.fileUrl))) fail2("Use HTTPS media URLs or uploaded files.");
+  if (media.some((m2) => typeof m2.fileUrl !== "string" || !/^https:\/\//i.test(m2.fileUrl) && !/^\/uploads\/[a-zA-Z0-9._-]+$/.test(m2.fileUrl))) fail4("Use HTTPS media URLs or uploaded files.");
   const placements = input2.placements || (Array.isArray(input2.placement) ? input2.placement : [input2.placement || "feed"]);
-  if (placements.length !== 1 || !["feed", "story", "reels_shorts"].includes(placements[0])) fail2("Choose one supported placement per post.");
+  if (placements.length !== 1 || !["feed", "story", "reels_shorts"].includes(placements[0])) fail4("Choose one supported placement per post.");
   const platforms = Array.isArray(input2.platforms) ? input2.platforms.map((p) => typeof p === "string" ? { platform: p } : p) : [];
   const selected = [];
   if (input2.accountIds?.length) {
     for (const id2 of new Set(input2.accountIds)) {
       const account = db.prepare("SELECT * FROM social_accounts WHERE account_id = ? AND brand_id = ? AND client_id = ?").get(id2, brand.brand_id, brand.client_id);
-      if (!account) fail2("A selected account is not available for this brand.");
+      if (!account) fail4("A selected account is not available for this brand.");
       selected.push(account);
     }
   } else for (const platform of new Set(platforms.map((p) => p.platform))) {
     const matches = db.prepare("SELECT * FROM social_accounts WHERE brand_id = ? AND client_id = ? AND platform = ? AND status = 'active'").all(brand.brand_id, brand.client_id, String(platform));
-    if (matches.length !== 1) fail2("Select an unambiguous connected account for each channel.");
+    if (matches.length !== 1) fail4("Select an unambiguous connected account for each channel.");
     selected.push(matches[0]);
   }
-  if (submit && !selected.length) fail2("Select a connected account before submitting.");
-  if (submit && selected.some((a) => a.status !== "active" || !["facebook", "instagram"].includes(a.platform))) fail2("This release publishes to eligible Facebook and Instagram accounts only.");
-  if (submit && (media.length !== 1 || selected.some((a) => a.platform === "facebook") && ((input2.mediaType || media[0]?.mediaType) !== "image" || placements[0] !== "feed"))) fail2("Use one image for Facebook feed. Instagram supports one image or video in a supported placement.");
+  if (submit && !selected.length) fail4("Select a connected account before submitting.");
+  if (submit && selected.some((a) => a.status !== "active" || !["facebook", "instagram"].includes(a.platform))) fail4("This release publishes to eligible Facebook and Instagram accounts only.");
+  if (submit && (media.length !== 1 || selected.some((a) => a.platform === "facebook") && ((input2.mediaType || media[0]?.mediaType) !== "image" || placements[0] !== "feed"))) fail4("Use one image for Facebook feed. Instagram supports one image or video in a supported placement.");
   const now2 = (/* @__PURE__ */ new Date()).toISOString();
   const id = generatePostId();
   tx(() => {
@@ -132946,17 +133218,17 @@ enterpriseRouter.patch("/posts/:id", wrap((req, res) => {
     return res.json(formatPost(post.post_id));
   }
   const expected = Number(req.headers["if-match"] || input2.versionNumber || input2.version);
-  if (!Number.isInteger(expected)) fail2("Refresh the post before editing; its version is required.", 428);
-  if (expected !== post.version) fail2("Another user changed this post. Refresh before editing.", 409);
+  if (!Number.isInteger(expected)) fail4("Refresh the post before editing; its version is required.", 428);
+  if (expected !== post.version) fail4("Another user changed this post. Refresh before editing.", 409);
   const inFlight = db.prepare("SELECT 1 FROM post_targets WHERE post_id = ? AND status IN ('Processing', 'NeedsVerification', 'Posted')").get(post.post_id);
-  if (inFlight) fail2("Published, publishing, or uncertain content cannot be edited. Create a new draft instead.", 409);
+  if (inFlight) fail4("Published, publishing, or uncertain content cannot be edited. Create a new draft instead.", 409);
   const revision = json3(post.revision_data, {});
   const changesSchedule = ["scheduledAt", "scheduleDate", "scheduleTime", "timezone"].some((key) => Object.hasOwn(input2, key));
   const date5 = changesSchedule ? schedule({ scheduledAt: input2.scheduledAt, scheduleDate: input2.scheduleDate || post.schedule_local_date, scheduleTime: input2.scheduleTime || post.schedule_local_time }, input2.timezone || post.timezone, false) : { utc: post.scheduled_utc, date: post.schedule_local_date, time: post.schedule_local_time, unscheduled: !!revision.unscheduled };
   revision.unscheduled = date5.unscheduled;
   const title = input2.title ?? post.title;
   const caption = input2.masterCaption ?? input2.caption ?? post.caption;
-  if (typeof title !== "string" || !title.trim() || title.length > 255 || typeof caption !== "string" || !caption.trim() || caption.length > 5e3) fail2("A valid title and caption are required.");
+  if (typeof title !== "string" || !title.trim() || title.length > 255 || typeof caption !== "string" || !caption.trim() || caption.length > 5e3) fail4("A valid title and caption are required.");
   const now2 = (/* @__PURE__ */ new Date()).toISOString();
   tx(() => {
     remember(post, req.principal.email);
@@ -132970,7 +133242,7 @@ enterpriseRouter.patch("/posts/:id", wrap((req, res) => {
 }));
 enterpriseRouter.delete("/posts/:id", wrap((req, res) => {
   const post = postById(req);
-  if (db.prepare("SELECT 1 FROM post_targets WHERE post_id = ? AND status IN ('Processing', 'NeedsVerification')").get(post.post_id)) fail2("Wait for in-flight publication to be reconciled before archiving.", 409);
+  if (db.prepare("SELECT 1 FROM post_targets WHERE post_id = ? AND status IN ('Processing', 'NeedsVerification')").get(post.post_id)) fail4("Wait for in-flight publication to be reconciled before archiving.", 409);
   const now2 = (/* @__PURE__ */ new Date()).toISOString();
   tx(() => {
     db.prepare("UPDATE posts SET deleted_at = ?, updated_at = ?, approved_version = NULL WHERE post_id = ?").run(now2, now2, post.post_id);
@@ -132986,7 +133258,7 @@ for (const action of ["submit", "approve", "reject", "request-revision"]) enterp
   if (video) {
     if (action === "submit") {
       const row = db.prepare("SELECT input_json FROM antigravity_video_jobs WHERE id=?").get(video.id);
-      if (JSON.parse(row.input_json).workflow !== "creator") return fail2("Use the Video approvals dashboard to review or recreate this video.", 409);
+      if (JSON.parse(row.input_json).workflow !== "creator") return fail4("Use the Video approvals dashboard to review or recreate this video.", 409);
       submitCreatorForApproval(req.principal, video.id, Number(req.headers["if-match"] || req.body?.versionNumber));
       return res.json(formatPost(post.post_id));
     }
@@ -132997,17 +133269,17 @@ for (const action of ["submit", "approve", "reject", "request-revision"]) enterp
     });
     return res.json(formatPost(post.post_id));
   }
-  if (db.prepare("SELECT 1 FROM post_targets WHERE post_id = ? AND status IN ('Processing', 'NeedsVerification', 'Posted')").get(post.post_id)) fail2("This post has publishing activity and cannot change approval state.", 409);
+  if (db.prepare("SELECT 1 FROM post_targets WHERE post_id = ? AND status IN ('Processing', 'NeedsVerification', 'Posted')").get(post.post_id)) fail4("This post has publishing activity and cannot change approval state.", 409);
   const expected = Number(req.headers["if-match"] || req.body?.versionNumber);
-  if (!Number.isInteger(expected)) fail2("Refresh the post before reviewing; its version is required.", 428);
-  if (expected !== post.version) fail2("The post changed. Review its current version.", 409);
+  if (!Number.isInteger(expected)) fail4("Refresh the post before reviewing; its version is required.", 428);
+  if (expected !== post.version) fail4("The post changed. Review its current version.", 409);
   if (action === "approve") {
-    if (!canApprove(req.principal)) fail2("Approval permission is required.", 403);
-    if (post.approval_status !== "PendingApproval") fail2("Submit this post for review before approving it.", 409);
-    if (post.created_by_user_id === req.principal.id && process.env.ALLOW_SELF_APPROVAL !== "true") fail2("A different approver must review this post.");
-    if (json3(post.revision_data, {}).unscheduled || Date.parse(post.scheduled_utc) <= Date.now()) fail2("Set a future publication time before approval.");
+    if (!canApprove(req.principal)) fail4("Approval permission is required.", 403);
+    if (post.approval_status !== "PendingApproval") fail4("Submit this post for review before approving it.", 409);
+    if (post.created_by_user_id === req.principal.id && process.env.ALLOW_SELF_APPROVAL !== "true") fail4("A different approver must review this post.");
+    if (json3(post.revision_data, {}).unscheduled || Date.parse(post.scheduled_utc) <= Date.now()) fail4("Set a future publication time before approval.");
     const targets = db.prepare("SELECT t.*, a.status AS account_status, a.token_expires_at FROM post_targets t JOIN social_accounts a ON a.account_id = t.account_id WHERE t.post_id = ?").all(post.post_id);
-    if (!targets.length || targets.some((t2) => t2.account_status !== "active" || t2.token_expires_at && Date.parse(t2.token_expires_at) <= Date.now())) fail2("Reconnect the selected accounts before approval.");
+    if (!targets.length || targets.some((t2) => t2.account_status !== "active" || t2.token_expires_at && Date.parse(t2.token_expires_at) <= Date.now())) fail4("Reconnect the selected accounts before approval.");
   }
   const status = action === "approve" ? "Approved" : action === "submit" ? "PendingApproval" : action === "reject" ? "Rejected" : "ChangesRequested";
   tx(() => {
@@ -133020,10 +133292,10 @@ for (const action of ["submit", "approve", "reject", "request-revision"]) enterp
 }));
 var publishNow = wrap(async (req, res) => {
   const post = postById(req);
-  if (post.approval_status !== "Approved" || post.approved_version !== post.version) fail2("The current revision must be approved before publishing.", 409);
+  if (post.approval_status !== "Approved" || post.approved_version !== post.version) fail4("The current revision must be approved before publishing.", 409);
   const targets = db.prepare("SELECT * FROM post_targets WHERE post_id = ? AND status IN ('Scheduled','Retrying','Failed','Missed')").all(post.post_id);
-  if (!targets.length) fail2("No destinations are eligible. Published or uncertain destinations will not be submitted again.", 409);
-  const executionId = `EXEC-${crypto12.randomUUID()}`;
+  if (!targets.length) fail4("No destinations are eligible. Published or uncertain destinations will not be submitted again.", 409);
+  const executionId = `EXEC-${crypto14.randomUUID()}`;
   const now2 = (/* @__PURE__ */ new Date()).toISOString();
   tx(() => {
     db.prepare("UPDATE posts SET scheduled_utc = ?, updated_at = ? WHERE post_id = ?").run(now2, now2, post.post_id);
@@ -133039,12 +133311,12 @@ var publishNow = wrap(async (req, res) => {
 });
 enterpriseRouter.post("/posts/:id/publish-now", publishNow);
 enterpriseRouter.post("/posts/:id/publish", publishNow);
-enterpriseRouter.post("/posts/multi-brand-publish", wrap(() => fail2("Create and approve a scheduled post for each brand. Immediate cross-brand broadcast is disabled to preserve approvals.", 409)));
+enterpriseRouter.post("/posts/multi-brand-publish", wrap(() => fail4("Create and approve a scheduled post for each brand. Immediate cross-brand broadcast is disabled to preserve approvals.", 409)));
 enterpriseRouter.post("/posts/:id/comments", wrap((req, res) => {
   const post = postById(req);
   const p = req.principal;
   const text = String(req.body.commentText || "").trim();
-  if (!text || text.length > 5e3) fail2("Enter a comment of up to 5,000 characters.");
+  if (!text || text.length > 5e3) fail4("Enter a comment of up to 5,000 characters.");
   const now2 = (/* @__PURE__ */ new Date()).toISOString();
   const result = db.prepare("INSERT INTO post_comments (post_id, user_id, user_full_name, user_role, comment_text, created_at) VALUES (?, ?, ?, ?, ?, ?)").run(post.post_id, p.id, p.fullName, p.role, text, now2);
   res.status(201).json({ id: Number(result.lastInsertRowid), postId: post.post_id, userId: p.id, userFullName: p.fullName, userRole: p.role, commentText: text, isSystemMessage: false, isEdited: false, createdAt: now2 });
@@ -133056,26 +133328,26 @@ enterpriseRouter.post("/notifications/:id/read", wrap((req, res) => {
 }));
 enterpriseRouter.get("/users", wrap((req, res) => res.json({ data: (req.principal.global ? db.prepare("SELECT * FROM users").all() : db.prepare("SELECT * FROM users WHERE client_id = ?").all(req.principal.clientId)).map(safeUser) })));
 enterpriseRouter.get("/users/workspaces", wrap((req, res) => {
-  if (!isAdmin(req.principal)) fail2("Team management permission is required.", 403);
+  if (!isAdmin(req.principal)) fail4("Team management permission is required.", 403);
   const rows = req.principal.global ? db.prepare("SELECT client_id AS clientId,name FROM clients WHERE status='active' ORDER BY name").all() : db.prepare("SELECT client_id AS clientId,name FROM clients WHERE client_id=? AND status='active'").all(req.principal.clientId);
   res.json({ data: rows.map((row) => ({ ...row, brands: db.prepare("SELECT brand_name FROM brands WHERE client_id=? ORDER BY brand_name").all(row.clientId).map((b) => b.brand_name) })) });
 }));
 enterpriseRouter.post("/users", wrap((req, res) => {
-  if (!isAdmin(req.principal)) fail2("Team management permission is required.", 403);
+  if (!isAdmin(req.principal)) fail4("Team management permission is required.", 403);
   const input2 = req.body || {};
   const email3 = typeof input2.email === "string" ? input2.email.trim().toLowerCase() : "";
   const fullName = typeof input2.fullName === "string" ? input2.fullName.trim() : "";
-  if (!roles.has(input2.role)) fail2("Choose Admin, Content Manager, Approver, Analyst, or Client.");
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email3) || email3.length > 254 || !fullName || fullName.length > 200) fail2("Enter a valid email and a name of up to 200 characters.");
-  if (typeof input2.password !== "string" || input2.password.length < 12 || input2.password.length > 128) fail2("Use a login password of 12\u2013128 characters.");
-  if (input2.isActive !== void 0 && typeof input2.isActive !== "boolean") fail2("Account activation must be true or false.");
-  if (input2.avatarUrl !== void 0 && (typeof input2.avatarUrl !== "string" || input2.avatarUrl.length > 262144)) fail2("Choose a smaller profile image.");
+  if (!roles.has(input2.role)) fail4("Choose Admin, Content Manager, Approver, Analyst, or Client.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email3) || email3.length > 254 || !fullName || fullName.length > 200) fail4("Enter a valid email and a name of up to 200 characters.");
+  if (typeof input2.password !== "string" || input2.password.length < 12 || input2.password.length > 128) fail4("Use a login password of 12\u2013128 characters.");
+  if (input2.isActive !== void 0 && typeof input2.isActive !== "boolean") fail4("Account activation must be true or false.");
+  if (input2.avatarUrl !== void 0 && (typeof input2.avatarUrl !== "string" || input2.avatarUrl.length > 262144)) fail4("Choose a smaller profile image.");
   const requestedClient = typeof input2.clientId === "string" ? input2.clientId.trim() : "";
-  if (!req.principal.global && requestedClient && requestedClient !== req.principal.clientId) fail2("You can add members only to your own workspace.", 403);
+  if (!req.principal.global && requestedClient && requestedClient !== req.principal.clientId) fail4("You can add members only to your own workspace.", 403);
   const clientId = req.principal.global ? requestedClient : req.principal.clientId;
   const workspace = db.prepare("SELECT client_id,name FROM clients WHERE client_id=? AND status='active'").get(clientId);
-  if (!workspace) fail2("Select an active workspace for this member.");
-  if (db.prepare("SELECT 1 FROM users WHERE LOWER(email)=?").get(email3)) fail2("A member with this email already exists. Edit or reactivate that member.", 409);
+  if (!workspace) fail4("Select an active workspace for this member.");
+  if (db.prepare("SELECT 1 FROM users WHERE LOWER(email)=?").get(email3)) fail4("A member with this email already exists. Edit or reactivate that member.", 409);
   const created = tx(() => {
     const result = db.prepare("INSERT INTO users (email,full_name,role,tenant_scope,client_id,password,is_active,avatar_url,created_at) VALUES (?,?,?,?,?,?,?,?,?)").run(email3, fullName, input2.role, workspace.name, clientId, hashSync(input2.password, 12), input2.isActive === false ? 0 : 1, input2.avatarUrl || null, (/* @__PURE__ */ new Date()).toISOString());
     audit(req.principal, "user", String(result.lastInsertRowid), "create", { clientId, role: input2.role, active: input2.isActive !== false });
@@ -133085,21 +133357,21 @@ enterpriseRouter.post("/users", wrap((req, res) => {
 }));
 enterpriseRouter.patch("/users/:id", wrap((req, res) => {
   const user = db.prepare("SELECT * FROM users WHERE user_id = ?").get(req.params.id);
-  if (!user) fail2("User not found.", 404);
+  if (!user) fail4("User not found.", 404);
   const input2 = req.body;
   const admin = isAdmin(req.principal);
-  if (!admin && Number(req.params.id) !== req.principal.id) fail2("Permission denied.", 403);
-  if (input2.password && (!input2.currentPassword || !compareSync(String(input2.currentPassword), user.password))) fail2("Enter the current password to change it.", 403);
-  if (input2.password && (input2.password.length < 12 || input2.password.length > 128)) fail2("Use a password of 12\u2013128 characters.");
-  if (input2.role && !roles.has(input2.role) && !(req.principal.global && input2.role === "Super Admin")) fail2("Invalid role.");
-  if (Number(req.params.id) === req.principal.id && (input2.isActive === false || input2.role && input2.role !== user.role)) fail2("Another administrator must change your own access.");
+  if (!admin && Number(req.params.id) !== req.principal.id) fail4("Permission denied.", 403);
+  if (input2.password && (!input2.currentPassword || !compareSync(String(input2.currentPassword), user.password))) fail4("Enter the current password to change it.", 403);
+  if (input2.password && (input2.password.length < 12 || input2.password.length > 128)) fail4("Use a password of 12\u2013128 characters.");
+  if (input2.role && !roles.has(input2.role) && !(req.principal.global && input2.role === "Super Admin")) fail4("Invalid role.");
+  if (Number(req.params.id) === req.principal.id && (input2.isActive === false || input2.role && input2.role !== user.role)) fail4("Another administrator must change your own access.");
   db.prepare("UPDATE users SET full_name = ?, avatar_url = ?, role = ?, is_active = ?, password = ? WHERE user_id = ?").run(input2.fullName || user.full_name, input2.avatarUrl ?? user.avatar_url, admin ? input2.role || user.role : user.role, admin && input2.isActive !== void 0 ? Number(input2.isActive) : user.is_active, input2.password ? hashSync(input2.password, 12) : user.password, user.user_id);
   if (input2.password || input2.role || input2.isActive === false) db.prepare("DELETE FROM auth_sessions WHERE user_id = ?").run(user.user_id);
   audit(req.principal, "user", String(user.user_id), "update", { role: input2.role, active: input2.isActive });
   res.json(safeUser(db.prepare("SELECT * FROM users WHERE user_id = ?").get(user.user_id)));
 }));
 enterpriseRouter.delete("/users/:id", wrap((req, res) => {
-  if (Number(req.params.id) === req.principal.id) fail2("You cannot deactivate your own account.");
+  if (Number(req.params.id) === req.principal.id) fail4("You cannot deactivate your own account.");
   db.prepare("UPDATE users SET is_active = 0 WHERE user_id = ?").run(req.params.id);
   db.prepare("DELETE FROM auth_sessions WHERE user_id = ?").run(req.params.id);
   audit(req.principal, "user", String(req.params.id), "deactivate");
@@ -133141,7 +133413,7 @@ enterpriseRouter.get("/analytics/overview", wrap((req, res) => {
   });
 }));
 enterpriseRouter.get("/events", wrap((req, res) => sseManager.addClient(req.principal.clientId, res, req.headers["last-event-id"] ? Number(req.headers["last-event-id"]) : void 0)));
-for (const route of ["/n8n/auto-import", "/n8n/reset-owner"]) enterpriseRouter.post(route, wrap(() => fail2("Configure and verify this operation through your n8n administrator.", 501)));
+for (const route of ["/n8n/auto-import", "/n8n/reset-owner"]) enterpriseRouter.post(route, wrap(() => fail4("Configure and verify this operation through your n8n administrator.", 501)));
 
 // server/src/routes/aiStudioRoutes.ts
 var import_express5 = __toESM(require_express2(), 1);
@@ -133312,7 +133584,7 @@ aiStudioRouter.post("/generate", async (req, res) => {
 
 // server/src/routes/antigravityVideoRoutes.ts
 var import_express6 = __toESM(require_express2(), 1);
-import crypto13 from "node:crypto";
+import crypto15 from "node:crypto";
 import path7 from "node:path";
 import { promises as fs8 } from "node:fs";
 var videoDashboardRouter = (0, import_express6.Router)();
@@ -133328,7 +133600,7 @@ var keyAuth = (environment, header) => (req, res, next) => {
   const expected = process.env[environment] || "";
   const supplied = req.get(header) || "";
   if (expected.length < 32) return res.status(503).json({ error: "Video automation machine credentials are not configured." });
-  if (expected.length !== supplied.length || !crypto13.timingSafeEqual(Buffer.from(expected), Buffer.from(supplied))) return res.status(401).json({ error: "Invalid automation credential." });
+  if (expected.length !== supplied.length || !crypto15.timingSafeEqual(Buffer.from(expected), Buffer.from(supplied))) return res.status(401).json({ error: "Invalid automation credential." });
   next();
 };
 var automationAuth = keyAuth("ANTIGRAVITY_N8N_KEY", "X-Automation-Key");
@@ -133461,7 +133733,7 @@ videoMachineRouter.post("/worker/discover", workerAuth, wrap2((req, res) => {
   if (row?.file_sha256) return res.json({ job: formatVideoJob(row), alreadyStored: true });
   if (!row) row = createVideoJob(principal, { ...defaults, requestId, topic: `Video generated in Antigravity: ${filename}`, title: filename.replace(/\.mp4$/i, "").replace(/[_-]+/g, " "), caption: filename.replace(/\.mp4$/i, "").replace(/[_-]+/g, " ") }, true);
   else videoAccounts(principal, row.brand_id, JSON.parse(row.input_json).accountIds);
-  const leaseToken = row.lease_token || crypto13.randomBytes(32).toString("hex");
+  const leaseToken = row.lease_token || crypto15.randomBytes(32).toString("hex");
   if (!["QUEUED", "GENERATING", "NEEDS_ATTENTION"].includes(row.status)) return videoError("This local video requires attention in AI Studio.", 409);
   db.prepare("UPDATE antigravity_video_jobs SET status='GENERATING',dispatched=1,lease_token=?,lease_until=?,updated_at=? WHERE id=?").run(leaseToken, new Date(Date.now() + 12e4).toISOString(), (/* @__PURE__ */ new Date()).toISOString(), row.id);
   res.json({ job: formatVideoJob({ ...row, status: "GENERATING" }), leaseToken });
@@ -133483,14 +133755,14 @@ videoMachineRouter.put("/worker/upload/:id", workerAuth, wrap2(async (req, res) 
   const base = new URL(process.env.PUBLIC_BASE_URL || process.env.APP_URL || "https://360.webtrionix.com");
   if (base.protocol !== "https:" && process.env.NODE_ENV !== "test") return videoError("Configure an HTTPS public dashboard URL.", 503);
   activeUploads.add(row.id);
-  const temporary = path7.join(uploadRoot(), `${row.id}.${crypto13.randomUUID()}.part`);
+  const temporary = path7.join(uploadRoot(), `${row.id}.${crypto15.randomUUID()}.part`);
   const extension2 = image ? "png" : "mp4";
   const target = path7.join(uploadRoot(), `${row.id}.${extension2}`);
   let complete = false;
   try {
     await fs8.mkdir(uploadRoot(), { recursive: true });
     const handle = await fs8.open(temporary, "wx", 384);
-    const hash2 = crypto13.createHash("sha256");
+    const hash2 = crypto15.createHash("sha256");
     let received = 0;
     let prefix = Buffer.alloc(0);
     try {
@@ -133590,6 +133862,124 @@ if (process.env.ENABLE_BACKGROUND_WORKERS === "true") {
   scheduledPublisher.startService(15);
 }
 logger.info({ backgroundWorkers: process.env.ENABLE_BACKGROUND_WORKERS === "true" }, "Webtrionix 360 initialized");
+
+// server/src/web/frontend.ts
+var import_express8 = __toESM(require_express2(), 1);
+import path9 from "node:path";
+import fs10 from "node:fs";
+
+// src/utils/navigation.ts
+var navigationRoutes = {
+  overview: { path: "/", title: "Overview" },
+  "ai-studio": { path: "/automation-studio", title: "Automation Studio" },
+  creator: { path: "/creator-studio", title: "Creator Studio" },
+  "social-desk": { path: "/social-media-desk", title: "Social Media Desk" },
+  content: { path: "/content", title: "Content Management" },
+  calendar: { path: "/content-calendar", title: "Content Calendar" },
+  create: { path: "/create-post", title: "Create Post" },
+  approvals: { path: "/approvals", title: "Approval Queue" },
+  "video-approvals": { path: "/creator-approvals", title: "Creator Approvals" },
+  published: { path: "/published-posts", title: "Published Posts" },
+  brands: { path: "/brands", title: "Brands" },
+  accounts: { path: "/social-accounts", title: "Social Accounts" },
+  automations: { path: "/automations", title: "Automations" },
+  "n8n-login": { path: "/n8n-login", title: "n8n Login" },
+  executions: { path: "/workflow-executions", title: "Workflow Executions" },
+  analytics: { path: "/analytics", title: "Analytics & Reports" },
+  sheets: { path: "/google-sheets", title: "Google Sheets Sync" },
+  team: { path: "/team", title: "Team & Access" },
+  audit: { path: "/audit-logs", title: "Audit Logs" },
+  settings: { path: "/settings", title: "Settings" },
+  register: { path: "/register", title: "Register Brand" }
+};
+var aliases = {
+  ai: "ai-studio",
+  studio: "ai-studio",
+  neural: "ai-studio",
+  social: "accounts",
+  "social-accounts": "accounts",
+  brand: "brands",
+  workflow: "automations",
+  workflows: "automations",
+  canvas: "automations",
+  execution: "executions",
+  login: "n8n-login",
+  n8n: "n8n-login",
+  post: "content",
+  posts: "content",
+  compose: "create",
+  approval: "approvals",
+  queue: "approvals",
+  report: "analytics",
+  reports: "analytics",
+  sheet: "sheets",
+  "google-sheets": "sheets",
+  users: "team",
+  rbac: "team",
+  logs: "audit",
+  "audit-logs": "audit",
+  setting: "settings",
+  onboarding: "register",
+  onboard: "register",
+  join: "register"
+};
+function resolveSegment(value) {
+  let segment;
+  try {
+    segment = decodeURIComponent(value).replace(/^\/+|\/+$/g, "").trim().toLowerCase();
+  } catch {
+    return null;
+  }
+  if (!segment) return "overview";
+  const match3 = Object.entries(navigationRoutes).find(([, route]) => route.path.slice(1) === segment);
+  if (match3) return match3[0];
+  if (Object.hasOwn(navigationRoutes, segment)) return segment;
+  return Object.hasOwn(aliases, segment) ? aliases[segment] : null;
+}
+function resolveNavigation(location) {
+  const query = new URLSearchParams(location.search || "");
+  if (["register", "onboard", "onboarding", "join"].includes(query.get("page") || "") || query.has("register") || query.has("onboard")) return "register";
+  if (location.hash) {
+    const legacy = resolveSegment(location.hash.replace(/^#/, "").split("?")[0]);
+    if (legacy) return legacy;
+  }
+  return resolveSegment(location.pathname);
+}
+var navigationPath = (tab) => navigationRoutes[tab].path;
+
+// server/src/web/frontend.ts
+function mountFrontend(app2, distPath) {
+  const indexPath = path9.join(distPath, "index.html");
+  if (!fs10.existsSync(indexPath) || !fs10.existsSync(path9.join(distPath, "assets"))) throw new Error("The built dashboard files are missing. Build the client before starting production.");
+  const noStore = (res) => {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+    res.setHeader("CDN-Cache-Control", "no-store");
+  };
+  app2.get("/favicon.ico", (_req, res) => {
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    res.redirect(308, "/assets/webtrionix-logo.webp");
+  });
+  app2.use(import_express8.default.static(distPath, { index: false, dotfiles: "deny", setHeaders: (res, file2) => {
+    if (file2.endsWith(".html")) noStore(res);
+    else if (/[\\/]assets[\\/]index-[\w-]+\.(js|css)$/.test(file2)) res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    else res.setHeader("Cache-Control", "public, max-age=3600");
+  } }));
+  app2.get("*", (req, res) => {
+    const route = resolveNavigation({ pathname: req.path });
+    if (route) {
+      const canonical = navigationPath(route);
+      if (req.path !== canonical && req.path !== "/") {
+        noStore(res);
+        return res.redirect(308, canonical);
+      }
+      noStore(res);
+      return res.sendFile(indexPath);
+    }
+    noStore(res);
+    if (/^\/(api|internal|uploads|assets)(\/|$)/.test(req.path) || path9.extname(req.path)) return res.status(404).json({ error: "Resource not found." });
+    return res.status(404).type("html").send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Page not found | Webtrionix 360</title><style>body{margin:0;background:#f6f8fc;color:#101828;font:16px system-ui,sans-serif;display:grid;place-items:center;min-height:100vh}main{max-width:480px;margin:24px;padding:40px;border:1px solid #e4e7ec;border-radius:24px;background:white}small{color:#1336e8;font-weight:700}h1{font-size:30px}p{color:#667085;line-height:1.6}a{display:inline-block;margin-top:16px;padding:12px 18px;border-radius:12px;background:#1336e8;color:white;text-decoration:none}</style></head><body><main><small>WEBTRIONIX 360</small><h1>We couldn't find that page</h1><p>The link may have changed. Open Automation Studio to continue creating, scheduling and reviewing your content.</p><a href="/automation-studio">Open Automation Studio</a></main></body></html>`);
+  });
+}
 
 // server/src/db/mysqlSync.ts
 var MySQLSyncService = class {
@@ -133824,31 +134214,22 @@ var mySQLSyncService = new MySQLSyncService();
 
 // server.ts
 try {
-  if (fs10.existsSync(path9.resolve(process.cwd(), ".env"))) {
-    process.loadEnvFile(path9.resolve(process.cwd(), ".env"));
+  if (fs11.existsSync(path10.resolve(process.cwd(), ".env"))) {
+    process.loadEnvFile(path10.resolve(process.cwd(), ".env"));
   }
 } catch {
 }
 var PORT = Number(process.env.PORT) || 3e3;
 async function startServer() {
   const possibleDistPaths = [
-    path9.resolve(process.cwd(), "dist"),
-    path9.resolve(process.cwd(), "server", "dist", "public"),
-    path9.resolve(process.cwd(), "public_html"),
-    path9.resolve(process.cwd())
+    path10.resolve(process.cwd(), "dist"),
+    path10.resolve(process.cwd(), "server", "dist", "public"),
+    path10.resolve(process.cwd(), "public_html"),
+    path10.resolve(process.cwd())
   ];
-  const distPath = possibleDistPaths.find((p) => fs10.existsSync(path9.join(p, "index.html")) && fs10.existsSync(path9.join(p, "assets"))) || possibleDistPaths.find((p) => fs10.existsSync(path9.join(p, "index.html"))) || possibleDistPaths[0];
-  const hasDist = fs10.existsSync(path9.join(distPath, "index.html"));
+  const distPath = possibleDistPaths.find((p) => fs11.existsSync(path10.join(p, "index.html")) && fs11.existsSync(path10.join(p, "assets"))) || possibleDistPaths.find((p) => fs11.existsSync(path10.join(p, "index.html"))) || possibleDistPaths[0];
+  const hasDist = fs11.existsSync(path10.join(distPath, "index.html"));
   const isProd = process.env.NODE_ENV === "production" || hasDist;
-  const staticOptions = {
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith(".js") || filePath.endsWith(".mjs")) {
-        res.setHeader("Content-Type", "application/javascript; charset=UTF-8");
-      } else if (filePath.endsWith(".css")) {
-        res.setHeader("Content-Type", "text/css; charset=UTF-8");
-      }
-    }
-  };
   if (!isProd) {
     try {
       const { createServer: createViteServer } = await import("vite");
@@ -133858,18 +134239,10 @@ async function startServer() {
       });
       app.use(vite.middlewares);
     } catch {
-      if (hasDist) {
-        app.use(import_express8.default.static(distPath, staticOptions));
-        app.get("*", (req, res) => {
-          res.sendFile(path9.join(distPath, "index.html"));
-        });
-      }
+      if (hasDist) mountFrontend(app, distPath);
     }
   } else {
-    app.use(import_express8.default.static(distPath, staticOptions));
-    app.get("*", (req, res) => {
-      res.sendFile(path9.join(distPath, "index.html"));
-    });
+    mountFrontend(app, distPath);
   }
   const server = createServer(app);
   server.listen(PORT, "0.0.0.0", () => {
