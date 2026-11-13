@@ -128,7 +128,7 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
     try {
       const selected=brands?.find(b=>String(b.id)===connectionBrandId);
       if(!selected)throw new Error('Select the brand for this connection.');
-      let payload: any = { platform: selectedPlatform,brandId:(selected as any).brandId||selected.id };
+      let payload: any = { platform: selectedPlatform, brandId: (selected as any).brandId || selected.id, reassign: true };
       if(metaPageId.trim())payload.pageId=metaPageId.trim();
 
       if (selectedPlatform === 'meta' || selectedPlatform === 'instagram') {

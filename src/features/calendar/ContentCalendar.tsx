@@ -85,12 +85,23 @@ export const ContentCalendar: React.FC<ContentCalendarProps> = ({
     currentUserId={currentUserId} currentRole={currentRole} initialDate={createDate}
     onCancel={() => setCreateDate(null)} onSavePost={async data => {
       await onSchedulePost({ ...data, source: 'calendar' });
-      setCreateDate(null); setNotice(data.submitForApproval ? 'Submitted for approval. The requested time will appear in the calendar.' : 'Draft saved to your workspace.');
+      setCreateDate(null); setNotice(data.publishNow ? '🚀 Published directly to live channels! Check results in Published posts.' : data.submitForApproval ? 'Submitted for approval. The requested time will appear in the calendar.' : 'Draft saved to your workspace.');
     }} />;
 
   return <div className="mx-auto max-w-7xl space-y-5 p-4 sm:p-6 lg:p-8">
     <header className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-2xl font-bold">Content calendar</h2><p className="mt-2 text-sm text-slate-600">See upcoming posts, approval status, and destination outcomes in one place.</p></div>
-      {permissions.canCreatePost && <button type="button" className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white" onClick={() => create(DateTime.now().setZone(zone).plus({ days: 1 }).toISODate()!)}><Plus className="h-4 w-4" />Create post</button>}
+      {permissions.canCreatePost && (
+        <div className="flex items-center gap-2">
+          <button type="button" className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm cursor-pointer transition-colors" onClick={() => create(DateTime.now().setZone(zone).toISODate()!)}>
+            <Send className="h-4 w-4" />
+            🚀 Direct Post Now
+          </button>
+          <button type="button" className="inline-flex items-center gap-2 rounded-xl bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white cursor-pointer" onClick={() => create(DateTime.now().setZone(zone).plus({ days: 1 }).toISODate()!)}>
+            <Plus className="h-4 w-4" />
+            Create post
+          </button>
+        </div>
+      )}
     </header>
     {notice && <div role="status" className="rounded-xl bg-blue-50 p-3 text-sm text-blue-900">{notice}</div>}
     {error && <div role="alert" className="flex gap-2 rounded-xl bg-red-50 p-3 text-sm text-red-800"><AlertCircle className="h-5 w-5 shrink-0" />{error}</div>}

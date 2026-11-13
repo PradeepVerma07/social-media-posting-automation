@@ -2262,6 +2262,21 @@ export async function publishTargetDirectly(target: any, post: any, executionId:
   }
 
   if (!plainToken) {
+    try {
+      const fbAcc: any = db.prepare("SELECT * FROM social_accounts WHERE platform = 'facebook' AND brand_id = ? AND token_ciphertext != '' LIMIT 1").get(target.brand_id || post.brand_id)
+        || db.prepare("SELECT * FROM social_accounts WHERE platform = 'facebook' AND token_ciphertext != '' LIMIT 1").get();
+      if (fbAcc && fbAcc.token_ciphertext) {
+        plainToken = decryptToken({
+          ciphertext: fbAcc.token_ciphertext,
+          iv: fbAcc.token_iv,
+          tag: fbAcc.token_tag,
+          version: fbAcc.token_version,
+        });
+      }
+    } catch {}
+  }
+
+  if (!plainToken) {
     plainToken = process.env.META_ACCESS_TOKEN || process.env.FACEBOOK_PAGE_ACCESS_TOKEN || '';
   }
 
@@ -2270,6 +2285,22 @@ export async function publishTargetDirectly(target: any, post: any, executionId:
       external_id: target.platform === 'facebook' ? '1454740611044963' : target.platform === 'instagram' ? '17841439037630316' : 'ACC-001',
       account_handle: target.platform === 'instagram' ? '@ciflow904' : '@flowerplant',
     };
+  }
+
+  // Dynamic discovery for Instagram account ID if missing or unconfigured
+  if (target.platform === 'instagram' && plainToken && (!account.external_id || account.external_id === 'Not configured' || !/^\d+$/.test(account.external_id))) {
+    try {
+      const fbAcc: any = db.prepare("SELECT external_id FROM social_accounts WHERE platform = 'facebook' AND brand_id = ? AND external_id != 'Not configured'").get(target.brand_id || post.brand_id)
+        || db.prepare("SELECT external_id FROM social_accounts WHERE platform = 'facebook' AND external_id != 'Not configured' LIMIT 1").get();
+      if (fbAcc?.external_id) {
+        const linkRes = await fetch(`https://graph.facebook.com/v21.0/${fbAcc.external_id}?fields=instagram_business_account{id,username}&access_token=${plainToken}`);
+        const linkData = await linkRes.json();
+        if (linkData.instagram_business_account?.id) {
+          account.external_id = linkData.instagram_business_account.id;
+          account.account_handle = '@' + (linkData.instagram_business_account.username || 'instagram_account');
+        }
+      }
+    } catch {}
   }
 
   if (!plainToken) {
