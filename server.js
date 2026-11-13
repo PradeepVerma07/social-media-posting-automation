@@ -19004,14 +19004,14 @@ var require_etag = __commonJS({
   "node_modules/etag/index.js"(exports, module) {
     "use strict";
     module.exports = etag;
-    var crypto16 = __require("crypto");
+    var crypto17 = __require("crypto");
     var Stats = __require("fs").Stats;
     var toString = Object.prototype.toString;
     function entitytag(entity) {
       if (entity.length === 0) {
         return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"';
       }
-      var hash2 = crypto16.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
+      var hash2 = crypto17.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
       var len = typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length;
       return '"' + len.toString(16) + "-" + hash2 + '"';
     }
@@ -21920,11 +21920,11 @@ var require_request = __commonJS({
 // node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
   "node_modules/cookie-signature/index.js"(exports) {
-    var crypto16 = __require("crypto");
+    var crypto17 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" !== typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
-      return val + "." + crypto16.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto17.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports.unsign = function(val, secret) {
       if ("string" !== typeof val) throw new TypeError("Signed cookie string must be provided.");
@@ -21933,7 +21933,7 @@ var require_cookie_signature = __commonJS({
       return sha1(mac3) == sha1(val) ? str : false;
     };
     function sha1(str) {
-      return crypto16.createHash("sha1").update(str).digest("hex");
+      return crypto17.createHash("sha1").update(str).digest("hex");
     }
   }
 });
@@ -39194,9 +39194,9 @@ var require_client = __commonJS({
 var require_auth_41 = __commonJS({
   "node_modules/mysql2/lib/auth_41.js"(exports) {
     "use strict";
-    var crypto16 = __require("crypto");
+    var crypto17 = __require("crypto");
     function sha1(msg, msg1, msg2) {
-      const hash2 = crypto16.createHash("sha1");
+      const hash2 = crypto17.createHash("sha1");
       hash2.update(msg);
       if (msg1) {
         hash2.update(msg1);
@@ -41622,7 +41622,7 @@ var require_sha256_password = __commonJS({
   "node_modules/mysql2/lib/auth_plugins/sha256_password.js"(exports, module) {
     "use strict";
     var PLUGIN_NAME = "sha256_password";
-    var crypto16 = __require("crypto");
+    var crypto17 = __require("crypto");
     var { xorRotating } = require_auth_41();
     var Tls = __require("tls");
     var REQUEST_SERVER_KEY_PACKET = Buffer.from([1]);
@@ -41631,7 +41631,7 @@ var require_sha256_password = __commonJS({
     var STATE_FINAL = -1;
     function encrypt(password, scramble, key) {
       const stage1 = xorRotating(Buffer.from(`${password}\0`, "utf8"), scramble);
-      return crypto16.publicEncrypt(
+      return crypto17.publicEncrypt(
         {
           key,
           oaepHash: "sha1"
@@ -41683,7 +41683,7 @@ var require_caching_sha2_password = __commonJS({
   "node_modules/mysql2/lib/auth_plugins/caching_sha2_password.js"(exports, module) {
     "use strict";
     var PLUGIN_NAME = "caching_sha2_password";
-    var crypto16 = __require("crypto");
+    var crypto17 = __require("crypto");
     var { xor: xor2, xorRotating } = require_auth_41();
     var REQUEST_SERVER_KEY_PACKET = Buffer.from([2]);
     var FAST_AUTH_SUCCESS_PACKET = Buffer.from([3]);
@@ -41693,7 +41693,7 @@ var require_caching_sha2_password = __commonJS({
     var STATE_WAIT_SERVER_KEY = 2;
     var STATE_FINAL = -1;
     function sha256(msg) {
-      const hash2 = crypto16.createHash("sha256");
+      const hash2 = crypto17.createHash("sha256");
       hash2.update(msg);
       return hash2.digest();
     }
@@ -41708,11 +41708,11 @@ var require_caching_sha2_password = __commonJS({
     }
     function encrypt(password, scramble, key) {
       const stage1 = xorRotating(Buffer.from(`${password}\0`, "utf8"), scramble);
-      return crypto16.publicEncrypt(
+      return crypto17.publicEncrypt(
         {
           key,
           oaepHash: "sha1",
-          padding: crypto16.constants.RSA_PKCS1_OAEP_PADDING
+          padding: crypto17.constants.RSA_PKCS1_OAEP_PADDING
         },
         stage1
       );
@@ -59831,22 +59831,22 @@ var require_crypto2 = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.NodeCrypto = void 0;
-    var crypto16 = __require("crypto");
+    var crypto17 = __require("crypto");
     var NodeCrypto = class {
       async sha256DigestBase64(str) {
-        return crypto16.createHash("sha256").update(str).digest("base64");
+        return crypto17.createHash("sha256").update(str).digest("base64");
       }
       randomBytesBase64(count) {
-        return crypto16.randomBytes(count).toString("base64");
+        return crypto17.randomBytes(count).toString("base64");
       }
       async verify(pubkey, data, signature) {
-        const verifier = crypto16.createVerify("RSA-SHA256");
+        const verifier = crypto17.createVerify("RSA-SHA256");
         verifier.update(data);
         verifier.end();
         return verifier.verify(pubkey, signature, "base64");
       }
       async sign(privateKey, data) {
-        const signer = crypto16.createSign("RSA-SHA256");
+        const signer = crypto17.createSign("RSA-SHA256");
         signer.update(data);
         signer.end();
         return signer.sign(privateKey, "base64");
@@ -59864,7 +59864,7 @@ var require_crypto2 = __commonJS({
        *   string in hexadecimal encoding.
        */
       async sha256DigestHex(str) {
-        return crypto16.createHash("sha256").update(str).digest("hex");
+        return crypto17.createHash("sha256").update(str).digest("hex");
       }
       /**
        * Computes the HMAC hash of a message using the provided crypto key and the
@@ -59876,7 +59876,7 @@ var require_crypto2 = __commonJS({
        */
       async signWithHmacSha256(key, msg) {
         const cryptoKey = typeof key === "string" ? key : toBuffer(key);
-        return toArrayBuffer(crypto16.createHmac("sha256", cryptoKey).update(msg).digest());
+        return toArrayBuffer(crypto17.createHmac("sha256", cryptoKey).update(msg).digest());
       }
     };
     exports.NodeCrypto = NodeCrypto;
@@ -60731,10 +60731,10 @@ var require_oauth2client = __commonJS({
        * https://github.com/googleapis/google-auth-library-nodejs/blob/main/samples/oauth2-codeVerifier.js
        */
       async generateCodeVerifierAsync() {
-        const crypto16 = (0, crypto_1.createCrypto)();
-        const randomString2 = crypto16.randomBytesBase64(96);
+        const crypto17 = (0, crypto_1.createCrypto)();
+        const randomString2 = crypto17.randomBytesBase64(96);
         const codeVerifier = randomString2.replace(/\+/g, "~").replace(/=/g, "_").replace(/\//g, "-");
-        const unencodedCodeChallenge = await crypto16.sha256DigestBase64(codeVerifier);
+        const unencodedCodeChallenge = await crypto17.sha256DigestBase64(codeVerifier);
         const codeChallenge = unencodedCodeChallenge.split("=")[0].replace(/\+/g, "-").replace(/\//g, "_");
         return { codeVerifier, codeChallenge };
       }
@@ -61175,7 +61175,7 @@ var require_oauth2client = __commonJS({
        * @return Returns a promise resolving to LoginTicket on verification.
        */
       async verifySignedJwtWithCertsAsync(jwt2, certs, requiredAudience, issuers, maxExpiry) {
-        const crypto16 = (0, crypto_1.createCrypto)();
+        const crypto17 = (0, crypto_1.createCrypto)();
         if (!maxExpiry) {
           maxExpiry = _OAuth2Client.DEFAULT_MAX_TOKEN_LIFETIME_SECS_;
         }
@@ -61188,7 +61188,7 @@ var require_oauth2client = __commonJS({
         let envelope;
         let payload;
         try {
-          envelope = JSON.parse(crypto16.decodeBase64StringUtf8(segments[0]));
+          envelope = JSON.parse(crypto17.decodeBase64StringUtf8(segments[0]));
         } catch (err) {
           if (err instanceof Error) {
             err.message = `Can't parse token envelope: ${segments[0]}': ${err.message}`;
@@ -61199,7 +61199,7 @@ var require_oauth2client = __commonJS({
           throw new Error("Can't parse token envelope: " + segments[0]);
         }
         try {
-          payload = JSON.parse(crypto16.decodeBase64StringUtf8(segments[1]));
+          payload = JSON.parse(crypto17.decodeBase64StringUtf8(segments[1]));
         } catch (err) {
           if (err instanceof Error) {
             err.message = `Can't parse token payload '${segments[0]}`;
@@ -61216,7 +61216,7 @@ var require_oauth2client = __commonJS({
         if (envelope.alg === "ES256") {
           signature = formatEcdsa.joseToDer(signature, "ES256").toString("base64");
         }
-        const verified = await crypto16.verify(cert, signed, signature);
+        const verified = await crypto17.verify(cert, signed, signature);
         if (!verified) {
           throw new Error("Invalid token signature: " + jwt2);
         }
@@ -61591,14 +61591,14 @@ var require_buffer_equal_constant_time = __commonJS({
 var require_jwa = __commonJS({
   "node_modules/jwa/index.js"(exports, module) {
     var Buffer4 = require_safe_buffer().Buffer;
-    var crypto16 = __require("crypto");
+    var crypto17 = __require("crypto");
     var formatEcdsa = require_ecdsa_sig_formatter();
     var util = __require("util");
     var MSG_INVALID_ALGORITHM = '"%s" is not a valid algorithm.\n  Supported algorithms are:\n  "HS256", "HS384", "HS512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512", "ES256", "ES384", "ES512" and "none".';
     var MSG_INVALID_SECRET = "secret must be a string or buffer";
     var MSG_INVALID_VERIFIER_KEY = "key must be a string or a buffer";
     var MSG_INVALID_SIGNER_KEY = "key must be a string, a buffer or an object";
-    var supportsKeyObjects = typeof crypto16.createPublicKey === "function";
+    var supportsKeyObjects = typeof crypto17.createPublicKey === "function";
     if (supportsKeyObjects) {
       MSG_INVALID_VERIFIER_KEY += " or a KeyObject";
       MSG_INVALID_SECRET += "or a KeyObject";
@@ -61688,17 +61688,17 @@ var require_jwa = __commonJS({
       return function sign(thing, secret) {
         checkIsSecretKey(secret);
         thing = normalizeInput(thing);
-        var hmac = crypto16.createHmac("sha" + bits, secret);
+        var hmac = crypto17.createHmac("sha" + bits, secret);
         var sig = (hmac.update(thing), hmac.digest("base64"));
         return fromBase64(sig);
       };
     }
     var bufferEqual;
-    var timingSafeEqual2 = "timingSafeEqual" in crypto16 ? function timingSafeEqual3(a, b) {
+    var timingSafeEqual2 = "timingSafeEqual" in crypto17 ? function timingSafeEqual3(a, b) {
       if (a.byteLength !== b.byteLength) {
         return false;
       }
-      return crypto16.timingSafeEqual(a, b);
+      return crypto17.timingSafeEqual(a, b);
     } : function timingSafeEqual3(a, b) {
       if (!bufferEqual) {
         bufferEqual = require_buffer_equal_constant_time();
@@ -61715,7 +61715,7 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto16.createSign("RSA-SHA" + bits);
+        var signer = crypto17.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign(privateKey, "base64"));
         return fromBase64(sig);
       };
@@ -61725,7 +61725,7 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto16.createVerify("RSA-SHA" + bits);
+        var verifier = crypto17.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify(publicKey, signature, "base64");
       };
@@ -61734,11 +61734,11 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto16.createSign("RSA-SHA" + bits);
+        var signer = crypto17.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign({
           key: privateKey,
-          padding: crypto16.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto16.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto17.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto17.constants.RSA_PSS_SALTLEN_DIGEST
         }, "base64"));
         return fromBase64(sig);
       };
@@ -61748,12 +61748,12 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto16.createVerify("RSA-SHA" + bits);
+        var verifier = crypto17.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify({
           key: publicKey,
-          padding: crypto16.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto16.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto17.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto17.constants.RSA_PSS_SALTLEN_DIGEST
         }, signature, "base64");
       };
     }
@@ -64329,14 +64329,14 @@ var require_awsrequestsigner = __commonJS({
       }
     };
     exports.AwsRequestSigner = AwsRequestSigner;
-    async function sign(crypto16, key, msg) {
-      return await crypto16.signWithHmacSha256(key, msg);
+    async function sign(crypto17, key, msg) {
+      return await crypto17.signWithHmacSha256(key, msg);
     }
-    async function getSigningKey(crypto16, key, dateStamp, region, serviceName) {
-      const kDate = await sign(crypto16, `AWS4${key}`, dateStamp);
-      const kRegion = await sign(crypto16, kDate, region);
-      const kService = await sign(crypto16, kRegion, serviceName);
-      const kSigning = await sign(crypto16, kService, "aws4_request");
+    async function getSigningKey(crypto17, key, dateStamp, region, serviceName) {
+      const kDate = await sign(crypto17, `AWS4${key}`, dateStamp);
+      const kRegion = await sign(crypto17, kDate, region);
+      const kService = await sign(crypto17, kRegion, serviceName);
+      const kSigning = await sign(crypto17, kService, "aws4_request");
       return kSigning;
     }
     async function generateAuthenticationHeaderMap(options) {
@@ -65302,7 +65302,7 @@ var require_gdchclient = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.GdchClient = exports.GDCH_SERVICE_ACCOUNT_TYPE = void 0;
-    var crypto16 = __require("crypto");
+    var crypto17 = __require("crypto");
     var fs12 = __require("fs");
     var https4 = __require("https");
     var oauth2client_1 = require_oauth2client();
@@ -65493,7 +65493,7 @@ var require_gdchclient = __commonJS({
         const encodedHeader = this.base64UrlEncode(JSON.stringify(header));
         const encodedPayload = this.base64UrlEncode(JSON.stringify(payload));
         const signingInput = `${encodedHeader}.${encodedPayload}`;
-        const signature = crypto16.sign("sha256", Buffer.from(signingInput), {
+        const signature = crypto17.sign("sha256", Buffer.from(signingInput), {
           key: this.privateKey,
           dsaEncoding: "ieee-p1363"
         });
@@ -66356,24 +66356,24 @@ var require_googleauth = __commonJS({
           const signed = await client.sign(data);
           return signed.signedBlob;
         }
-        const crypto16 = (0, crypto_1.createCrypto)();
+        const crypto17 = (0, crypto_1.createCrypto)();
         if (client instanceof jwtclient_1.JWT && client.key) {
-          const sign = await crypto16.sign(client.key, data);
+          const sign = await crypto17.sign(client.key, data);
           return sign;
         }
         const creds = await this.getCredentials();
         if (!creds.client_email) {
           throw new Error("Cannot sign data without `client_email`.");
         }
-        return this.signBlob(crypto16, creds.client_email, data, endpoint);
+        return this.signBlob(crypto17, creds.client_email, data, endpoint);
       }
-      async signBlob(crypto16, emailOrUniqueId, data, endpoint) {
+      async signBlob(crypto17, emailOrUniqueId, data, endpoint) {
         const url2 = new URL(endpoint + `${emailOrUniqueId}:signBlob`);
         const res = await this.request({
           method: "POST",
           url: url2.href,
           data: {
-            payload: crypto16.encodeBase64StringUtf8(data)
+            payload: crypto17.encodeBase64StringUtf8(data)
           },
           retry: true,
           retryConfig: {
@@ -72146,6 +72146,9 @@ function migrateEnterprise(db2) {
         notes TEXT NOT NULL, reviewer_id INTEGER NOT NULL REFERENCES users(user_id),
         reviewer_name TEXT NOT NULL, created_at TEXT NOT NULL,
         replacement_job_id TEXT REFERENCES antigravity_video_jobs(id));`);
+    add("antigravity_video_jobs", "deleted_at", "TEXT");
+    add("antigravity_video_jobs", "progress_json", "TEXT NOT NULL DEFAULT '{}'");
+    add("antigravity_video_jobs", "retry_job_id", "TEXT");
     db2.exec(`UPDATE users SET client_id = (
       SELECT MIN(client_id) FROM brands WHERE brand_name = users.tenant_scope
       HAVING COUNT(DISTINCT client_id) = 1
@@ -132484,6 +132487,11 @@ function formatVideoJob(row) {
     revisionNotes: input2.revisionNotes || "",
     revisionHistory: input2.revisionHistory || [],
     review: ["SCHEDULED", "REJECTED", "CHANGES_REQUESTED"].includes(row.status) ? review || null : null,
+    deletedAt: row.deleted_at || null,
+    updatedAt: row.updated_at,
+    progress: JSON.parse(row.progress_json || "{}"),
+    retryJobId: row.retry_job_id || null,
+    durationSeconds: input2.durationSeconds,
     postVersion: post?.version,
     approvalStatus: post?.approval_status,
     authorId: row.user_id,
@@ -132550,8 +132558,8 @@ function claimVideoJob(workerId) {
   const now2 = (/* @__PURE__ */ new Date()).toISOString();
   setVideoSetting("worker", { workerId: workerId.slice(0, 100), lastSeenAt: now2 });
   return videoTx(() => {
-    db.prepare("UPDATE antigravity_video_jobs SET status='NEEDS_ATTENTION',error='Worker lease expired. Inspect the local output before retrying.',updated_at=? WHERE status='GENERATING' AND lease_until < ?").run(now2, now2);
-    const row = db.prepare("SELECT * FROM antigravity_video_jobs WHERE status='QUEUED' AND dispatched=1 ORDER BY created_at LIMIT 1").get();
+    db.prepare("UPDATE antigravity_video_jobs SET status='NEEDS_ATTENTION',error='Worker lease expired. Inspect the local output before retrying.',updated_at=? WHERE deleted_at IS NULL AND status='GENERATING' AND lease_until < ?").run(now2, now2);
+    const row = db.prepare("SELECT * FROM antigravity_video_jobs WHERE deleted_at IS NULL AND status='QUEUED' AND dispatched=1 ORDER BY created_at LIMIT 1").get();
     if (!row) return { job: null };
     const leaseToken = crypto9.randomBytes(32).toString("hex");
     db.prepare("UPDATE antigravity_video_jobs SET status='GENERATING',lease_token=?,lease_until=?,updated_at=? WHERE id=? AND status='QUEUED'").run(leaseToken, new Date(Date.now() + 12e4).toISOString(), now2, row.id);
@@ -132561,13 +132569,13 @@ function claimVideoJob(workerId) {
 function leasedVideoJob(jobId, leaseToken) {
   if (!/^[a-f0-9-]{36}$/.test(String(jobId))) return videoError("Invalid job ID.");
   const row = db.prepare("SELECT * FROM antigravity_video_jobs WHERE id = ?").get(jobId);
-  if (!row?.lease_token || !/^[a-f0-9]{64}$/.test(String(leaseToken)) || !crypto9.timingSafeEqual(Buffer.from(row.lease_token), Buffer.from(leaseToken))) return videoError("The video upload lease is invalid.", 403);
+  if (row?.deleted_at || !row?.lease_token || !/^[a-f0-9]{64}$/.test(String(leaseToken)) || !crypto9.timingSafeEqual(Buffer.from(row.lease_token), Buffer.from(leaseToken))) return videoError("The video upload lease is invalid.", 403);
   return row;
 }
 function scheduleNextVideo() {
   let tenant;
   const result = videoTx(() => {
-    const row = db.prepare("SELECT * FROM antigravity_video_jobs WHERE status='READY' ORDER BY ready_at LIMIT 1").get();
+    const row = db.prepare("SELECT * FROM antigravity_video_jobs WHERE deleted_at IS NULL AND status='READY' ORDER BY ready_at LIMIT 1").get();
     if (!row) return { job: null };
     try {
       const principal = videoPrincipal(row.user_id);
@@ -133852,9 +133860,134 @@ aiStudioRouter.post("/generate", async (req, res) => {
   }
 });
 
+// server/src/services/creatorJobs.ts
+import crypto15 from "node:crypto";
+var CREATION_STAGES = {
+  preparing: "Preparing the creative brief",
+  inspecting: "Checking project assets",
+  generating: "Creating scenes and artwork",
+  narrating: "Producing narration",
+  rendering: "Rendering the media",
+  validating: "Checking the finished files",
+  uploading: "Uploading the finished media",
+  upload_wait: "Waiting to retry the upload",
+  ready: "Preparing the scheduling draft"
+};
+var CREATION_ACTIVITIES = {
+  started: "Antigravity started",
+  reading: "Reading project files",
+  writing: "Updating the creative files",
+  image: "Generating artwork",
+  command: "Running a production step",
+  narration: "Creating the voiceover",
+  render: "Rendering the output",
+  checking: "Checking file completeness",
+  upload: "Uploading media",
+  copy: "Saving the generated caption",
+  waiting: "Waiting for the file to finish"
+};
+function recordCreationProgress(jobId, lease, raw) {
+  const row = leasedVideoJob(jobId, lease);
+  if (row.deleted_at || !["GENERATING", "NEEDS_ATTENTION"].includes(row.status)) return videoError("This generation is no longer active.", 409);
+  if (!Object.hasOwn(CREATION_STAGES, raw.stage) || !Object.hasOwn(CREATION_ACTIVITIES, raw.activity)) return videoError("Unsupported creation progress.");
+  const previous = JSON.parse(row.progress_json || "{}"), now2 = (/* @__PURE__ */ new Date()).toISOString();
+  const count = Number.isSafeInteger(raw.completedSteps) ? Math.min(1e5, Math.max(previous.completedSteps || 0, raw.completedSteps)) : previous.completedSteps || 0;
+  const history = Array.isArray(previous.history) ? previous.history.slice(-19) : [];
+  const last = history.at(-1);
+  if (last?.stage !== raw.stage || last?.activity !== raw.activity) history.push({ stage: raw.stage, activity: raw.activity, at: now2 });
+  const progress = {
+    stage: raw.stage,
+    label: CREATION_STAGES[raw.stage],
+    activity: CREATION_ACTIVITIES[raw.activity],
+    completedSteps: count,
+    startedAt: previous.startedAt || now2,
+    updatedAt: now2,
+    history
+  };
+  db.prepare("UPDATE antigravity_video_jobs SET progress_json=?,updated_at=?,lease_until=? WHERE id=?").run(JSON.stringify(progress), now2, new Date(Date.now() + 12e4).toISOString(), jobId);
+  return { ok: true };
+}
+function creatorRow(principal, id, includeDeleted = false) {
+  if (!canEdit(principal)) return videoError("Content editing permission is required.", 403);
+  const row = db.prepare("SELECT * FROM antigravity_video_jobs WHERE id=?").get(id);
+  if (!row || !includeDeleted && row.deleted_at || !canAccessBrand(principal, resolveBrand(row.brand_id)) || JSON.parse(row.input_json).workflow !== "creator") return videoError("Creation not found.", 404);
+  return row;
+}
+function retryCreation(principal, id) {
+  let tenant = "";
+  const result = videoTx(() => {
+    const row = creatorRow(principal, id);
+    if (row.retry_job_id) {
+      const retry2 = db.prepare("SELECT * FROM antigravity_video_jobs WHERE id=?").get(row.retry_job_id);
+      if (retry2?.deleted_at) return videoError("The retry is in Trash. Restore it before continuing.", 409);
+      return { job: formatVideoJob(retry2), alreadyQueued: true };
+    }
+    if (!["FAILED", "NEEDS_ATTENTION"].includes(row.status) || row.post_id || row.file_sha256) return videoError("Only a failed generation without completed media can be retried.", 409);
+    if (row.lease_until && Date.parse(row.lease_until) > Date.now() && row.status !== "FAILED") return videoError("The worker is still active. Wait for it to finish before retrying.", 409);
+    const input2 = JSON.parse(row.input_json);
+    videoAccounts(principal, row.brand_id, input2.accountIds, input2.kind);
+    const count = db.prepare("SELECT COUNT(*) n FROM antigravity_video_jobs WHERE client_id=? AND created_at>?").get(row.client_id, new Date(Date.now() - 864e5).toISOString());
+    if (count.n >= 100) return videoError("The workspace daily creation limit has been reached.", 429);
+    const now2 = (/* @__PURE__ */ new Date()).toISOString(), retryId = crypto15.randomUUID();
+    const { generatedResult, ...brief } = input2;
+    db.prepare("INSERT INTO antigravity_video_jobs (id,request_id,input_json,client_id,brand_id,user_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)").run(retryId, "retry:" + row.id, JSON.stringify({ ...brief, autoPublish: false, retryOfJobId: row.id }), row.client_id, row.brand_id, principal.id, now2, now2);
+    db.prepare("UPDATE antigravity_video_jobs SET retry_job_id=?,updated_at=? WHERE id=?").run(retryId, now2, id);
+    audit(principal, "antigravity_video", id, "retry_generation", { replacementJobId: retryId });
+    tenant = row.client_id;
+    return { job: formatVideoJob(db.prepare("SELECT * FROM antigravity_video_jobs WHERE id=?").get(retryId)), alreadyQueued: false };
+  });
+  if (tenant) sseManager.emit("creation.updated", tenant, { jobId: result.job?.id });
+  return result;
+}
+function trashCreation(principal, id, version2) {
+  let tenant = "";
+  const result = videoTx(() => {
+    const row = creatorRow(principal, id, true);
+    if (row.deleted_at) return { job: formatVideoJob(row) };
+    if (row.status === "GENERATING" || row.status === "NEEDS_ATTENTION" && row.lease_until && Date.parse(row.lease_until) > Date.now()) return videoError("Wait for the running generation to finish before deleting.", 409);
+    if (!["QUEUED", "FAILED", "NEEDS_ATTENTION", "READY_FOR_SCHEDULING", "REJECTED", "CHANGES_REQUESTED"].includes(row.status)) return videoError("Content awaiting approval or publication cannot be deleted here.", 409);
+    const post = row.post_id && db.prepare("SELECT * FROM posts WHERE post_id=?").get(row.post_id);
+    const now2 = (/* @__PURE__ */ new Date()).toISOString();
+    if (post) {
+      if (post.deleted_at) return videoError("This draft was already archived in Content Management.", 409);
+      if (!Number.isInteger(version2) || version2 !== post.version) return videoError("The draft changed. Refresh before deleting.", 409);
+      if (!["Draft", "Rejected", "ChangesRequested"].includes(post.approval_status)) return videoError("Withdraw the content from approval before deleting.", 409);
+      if (db.prepare("SELECT 1 FROM post_targets WHERE post_id=? AND status IN ('Processing','NeedsVerification','Posted')").get(post.post_id)) return videoError("Publishing activity must be reconciled before deleting.", 409);
+      db.prepare("UPDATE posts SET deleted_at=?,approved_version=NULL,version=version+1,updated_at=? WHERE post_id=?").run(now2, now2, post.post_id);
+      db.prepare("UPDATE post_targets SET status='Cancelled',version=version+1,updated_at=? WHERE post_id=?").run(now2, post.post_id);
+    }
+    db.prepare("UPDATE antigravity_video_jobs SET deleted_at=?,updated_at=? WHERE id=?").run(now2, now2, id);
+    audit(principal, "antigravity_video", id, "trash", { postId: row.post_id });
+    tenant = row.client_id;
+    return { job: formatVideoJob(db.prepare("SELECT * FROM antigravity_video_jobs WHERE id=?").get(id)) };
+  });
+  if (tenant) sseManager.emit("creation.updated", tenant, { jobId: id });
+  return result;
+}
+function restoreCreation(principal, id) {
+  let tenant = "";
+  const result = videoTx(() => {
+    const row = creatorRow(principal, id, true);
+    if (!row.deleted_at) return { job: formatVideoJob(row) };
+    const post = row.post_id && db.prepare("SELECT * FROM posts WHERE post_id=?").get(row.post_id);
+    const now2 = (/* @__PURE__ */ new Date()).toISOString();
+    if (post) {
+      if (post.deleted_at !== row.deleted_at) return videoError("The linked post changed after deletion. Review it in Content Management.", 409);
+      const revision = { ...JSON.parse(post.revision_data || "{}"), unscheduled: true };
+      db.prepare("UPDATE posts SET deleted_at=NULL,approval_status='Draft',approved_by=NULL,approved_at=NULL,approved_version=NULL,revision_data=?,version=version+1,updated_at=? WHERE post_id=?").run(JSON.stringify(revision), now2, post.post_id);
+    }
+    db.prepare("UPDATE antigravity_video_jobs SET deleted_at=NULL,status=?,publish_at=?,updated_at=? WHERE id=?").run(post ? "READY_FOR_SCHEDULING" : row.status, post ? null : row.publish_at, now2, id);
+    audit(principal, "antigravity_video", id, "restore", { postId: row.post_id });
+    tenant = row.client_id;
+    return { job: formatVideoJob(db.prepare("SELECT * FROM antigravity_video_jobs WHERE id=?").get(id)) };
+  });
+  if (tenant) sseManager.emit("creation.updated", tenant, { jobId: id });
+  return result;
+}
+
 // server/src/routes/antigravityVideoRoutes.ts
 var import_express6 = __toESM(require_express2(), 1);
-import crypto15 from "node:crypto";
+import crypto16 from "node:crypto";
 import path7 from "node:path";
 import { promises as fs8 } from "node:fs";
 var videoDashboardRouter = (0, import_express6.Router)();
@@ -133870,7 +134003,7 @@ var keyAuth = (environment, header) => (req, res, next) => {
   const expected = process.env[environment] || "";
   const supplied = req.get(header) || "";
   if (expected.length < 32) return res.status(503).json({ error: "Video automation machine credentials are not configured." });
-  if (expected.length !== supplied.length || !crypto15.timingSafeEqual(Buffer.from(expected), Buffer.from(supplied))) return res.status(401).json({ error: "Invalid automation credential." });
+  if (expected.length !== supplied.length || !crypto16.timingSafeEqual(Buffer.from(expected), Buffer.from(supplied))) return res.status(401).json({ error: "Invalid automation credential." });
   next();
 };
 var automationAuth = keyAuth("ANTIGRAVITY_N8N_KEY", "X-Automation-Key");
@@ -133896,12 +134029,13 @@ videoDashboardRouter.get("/status", (req, res) => {
 });
 videoDashboardRouter.get("/jobs", (req, res) => {
   const principal = req.principal;
-  const rows = principal.global ? db.prepare("SELECT * FROM antigravity_video_jobs ORDER BY created_at DESC LIMIT 50").all() : db.prepare("SELECT * FROM antigravity_video_jobs WHERE client_id=? ORDER BY created_at DESC LIMIT 50").all(principal.clientId);
+  const filter = req.query.trash === "true" ? "deleted_at IS NOT NULL" : "deleted_at IS NULL";
+  const rows = principal.global ? db.prepare(`SELECT * FROM antigravity_video_jobs WHERE ${filter} ORDER BY created_at DESC LIMIT 100`).all() : db.prepare(`SELECT * FROM antigravity_video_jobs WHERE ${filter} AND client_id=? ORDER BY created_at DESC LIMIT 100`).all(principal.clientId);
   res.json({ jobs: rows.map(formatVideoJob) });
 });
 videoDashboardRouter.get("/desk", wrap2((req, res) => {
   if (!canEdit(req.principal) && !canApprove(req.principal)) return videoError("Content workspace access is required.", 403);
-  const query = "SELECT * FROM antigravity_video_jobs WHERE json_extract(input_json,'$.workflow')='creator' AND post_id IS NOT NULL";
+  const query = "SELECT * FROM antigravity_video_jobs WHERE deleted_at IS NULL AND json_extract(input_json,'$.workflow')='creator' AND post_id IS NOT NULL";
   const rows = req.principal.global ? db.prepare(query + " ORDER BY created_at DESC LIMIT 200").all() : db.prepare(query + " AND client_id=? ORDER BY created_at DESC LIMIT 200").all(req.principal.clientId);
   res.json({ jobs: rows.map(formatVideoJob) });
 }));
@@ -133910,9 +134044,9 @@ videoDashboardRouter.post("/jobs/:id/submit", wrap2((req, res) => res.json(submi
 videoDashboardRouter.get("/reviews", wrap2((req, res) => {
   if (!canApprove(req.principal)) return videoError("Approval permission is required.", 403);
   const query = `SELECT j.*,b.brand_name,u.full_name AS author_name FROM antigravity_video_jobs j
-    JOIN brands b ON b.brand_id=j.brand_id JOIN users u ON u.user_id=j.user_id`;
+    JOIN brands b ON b.brand_id=j.brand_id JOIN users u ON u.user_id=j.user_id WHERE j.deleted_at IS NULL`;
   const order = " ORDER BY CASE WHEN j.status='AWAITING_APPROVAL' THEN 0 ELSE 1 END,j.created_at DESC LIMIT 200";
-  const rows = req.principal.global ? db.prepare(query + order).all() : db.prepare(query + " WHERE j.client_id=?" + order).all(req.principal.clientId);
+  const rows = req.principal.global ? db.prepare(query + order).all() : db.prepare(query + " AND j.client_id=?" + order).all(req.principal.clientId);
   res.json({ jobs: rows.map((row) => ({
     ...formatVideoJob(row),
     brandName: row.brand_name,
@@ -133923,6 +134057,9 @@ videoDashboardRouter.get("/reviews", wrap2((req, res) => {
     })
   })) });
 }));
+videoDashboardRouter.delete("/jobs/:id", wrap2((req, res) => res.json(trashCreation(req.principal, String(req.params.id), req.body.versionNumber))));
+videoDashboardRouter.post("/jobs/:id/restore", wrap2((req, res) => res.json(restoreCreation(req.principal, String(req.params.id)))));
+videoDashboardRouter.post("/jobs/:id/retry", wrap2((req, res) => res.status(202).json(retryCreation(req.principal, String(req.params.id)))));
 videoDashboardRouter.post("/jobs/:id/review", wrap2((req, res) => res.json(reviewVideoJob(req.principal, String(req.params.id), req.body))));
 videoDashboardRouter.post("/jobs", wrap2(async (req, res) => {
   if (!configured()) return videoError("An administrator must configure the local video worker connection first.", 503);
@@ -133966,11 +134103,11 @@ videoDashboardRouter.post("/manual-defaults", wrap2((req, res) => {
   res.json(value);
 }));
 videoMachineRouter.post("/dispatch", automationAuth, wrap2((req, res) => {
-  const result = db.prepare("UPDATE antigravity_video_jobs SET dispatched=1,updated_at=? WHERE id=? AND status='QUEUED'").run((/* @__PURE__ */ new Date()).toISOString(), String(req.body.jobId || ""));
+  const result = db.prepare("UPDATE antigravity_video_jobs SET dispatched=1,updated_at=? WHERE deleted_at IS NULL AND id=? AND status='QUEUED'").run((/* @__PURE__ */ new Date()).toISOString(), String(req.body.jobId || ""));
   res.json({ accepted: true, updated: Number(result.changes) });
 }));
 videoMachineRouter.post("/dispatch-pending", automationAuth, wrap2((_req, res) => {
-  const result = db.prepare("UPDATE antigravity_video_jobs SET dispatched=1,updated_at=? WHERE dispatched=0 AND status='QUEUED'").run((/* @__PURE__ */ new Date()).toISOString());
+  const result = db.prepare("UPDATE antigravity_video_jobs SET dispatched=1,updated_at=? WHERE deleted_at IS NULL AND dispatched=0 AND status='QUEUED'").run((/* @__PURE__ */ new Date()).toISOString());
   res.json({ released: Number(result.changes) });
 }));
 videoMachineRouter.post("/schedule-next", automationAuth, wrap2((_req, res) => res.json(scheduleNextVideo())));
@@ -133979,6 +134116,7 @@ videoMachineRouter.post("/worker/ping", workerAuth, wrap2((req, res) => {
   res.json({ ok: true });
 }));
 videoMachineRouter.post("/worker/claim", workerAuth, wrap2((req, res) => res.json(claimVideoJob(String(req.body.workerId || "")))));
+videoMachineRouter.post("/worker/progress", workerAuth, wrap2((req, res) => res.json(recordCreationProgress(String(req.body.jobId || ""), String(req.body.leaseToken || ""), req.body))));
 videoMachineRouter.post("/worker/heartbeat", workerAuth, wrap2((req, res) => {
   const row = leasedVideoJob(String(req.body.jobId || ""), String(req.body.leaseToken || ""));
   if (!["GENERATING", "NEEDS_ATTENTION"].includes(row.status)) return videoError("This generation is no longer active.", 409);
@@ -134003,7 +134141,7 @@ videoMachineRouter.post("/worker/discover", workerAuth, wrap2((req, res) => {
   if (row?.file_sha256) return res.json({ job: formatVideoJob(row), alreadyStored: true });
   if (!row) row = createVideoJob(principal, { ...defaults, requestId, topic: `Video generated in Antigravity: ${filename}`, title: filename.replace(/\.mp4$/i, "").replace(/[_-]+/g, " "), caption: filename.replace(/\.mp4$/i, "").replace(/[_-]+/g, " ") }, true);
   else videoAccounts(principal, row.brand_id, JSON.parse(row.input_json).accountIds);
-  const leaseToken = row.lease_token || crypto15.randomBytes(32).toString("hex");
+  const leaseToken = row.lease_token || crypto16.randomBytes(32).toString("hex");
   if (!["QUEUED", "GENERATING", "NEEDS_ATTENTION"].includes(row.status)) return videoError("This local video requires attention in AI Studio.", 409);
   db.prepare("UPDATE antigravity_video_jobs SET status='GENERATING',dispatched=1,lease_token=?,lease_until=?,updated_at=? WHERE id=?").run(leaseToken, new Date(Date.now() + 12e4).toISOString(), (/* @__PURE__ */ new Date()).toISOString(), row.id);
   res.json({ job: formatVideoJob({ ...row, status: "GENERATING" }), leaseToken });
@@ -134025,14 +134163,14 @@ videoMachineRouter.put("/worker/upload/:id", workerAuth, wrap2(async (req, res) 
   const base = new URL(process.env.PUBLIC_BASE_URL || process.env.APP_URL || "https://360.webtrionix.com");
   if (base.protocol !== "https:" && process.env.NODE_ENV !== "test") return videoError("Configure an HTTPS public dashboard URL.", 503);
   activeUploads.add(row.id);
-  const temporary = path7.join(uploadRoot(), `${row.id}.${crypto15.randomUUID()}.part`);
+  const temporary = path7.join(uploadRoot(), `${row.id}.${crypto16.randomUUID()}.part`);
   const extension2 = image ? "png" : "mp4";
   const target = path7.join(uploadRoot(), `${row.id}.${extension2}`);
   let complete = false;
   try {
     await fs8.mkdir(uploadRoot(), { recursive: true });
     const handle = await fs8.open(temporary, "wx", 384);
-    const hash2 = crypto15.createHash("sha256");
+    const hash2 = crypto16.createHash("sha256");
     let received = 0;
     let prefix = Buffer.alloc(0);
     try {
