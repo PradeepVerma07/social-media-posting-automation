@@ -270,12 +270,17 @@ export const api = {
     const res = await request<{ data: User[] }>('/users');
     return res.data;
   },
+  async getTeamWorkspaces(): Promise<Array<{clientId:string;name:string;brands:string[]}>> {
+    const res=await request<{data:Array<{clientId:string;name:string;brands:string[]}>}>('/users/workspaces');
+    return res.data;
+  },
 
   async createUser(userData: {
     fullName: string;
     email: string;
     role: string;
     tenantScope?: string;
+    clientId?: string;
     isActive?: boolean;
     avatarUrl?: string;
     password?: string;

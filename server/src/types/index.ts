@@ -14,6 +14,7 @@ export interface User {
   phone?: string;
   role: RoleName;
   tenantScope?: string;
+  clientId?: string;
   isActive: boolean;
   twoFactorEnabled?: boolean;
   password?: string;

@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { api } from '../../api/client';
 import {
   Users,
   UserPlus,
@@ -37,6 +38,7 @@ interface TeamPageProps {
     email: string;
     role: RoleName;
     tenantScope: string;
+    clientId: string;
     isActive: boolean;
     avatarUrl?: string;
     password?: string;
@@ -127,13 +129,6 @@ const ROLE_OPTIONS: { role: RoleName; label: string; desc: string; badgeClass: s
   },
 ];
 
-const TENANT_OPTIONS = [
-  'Global (All Brands)',
-  'Nexus & Starlight',
-  'Nexus Enterprise Cloud Only',
-  'Starlight Consumer Tech Only',
-];
-
 export const TeamPage: React.FC<TeamPageProps> = ({
   users,
   currentRole,
@@ -162,13 +157,30 @@ export const TeamPage: React.FC<TeamPageProps> = ({
     fullName: '',
     email: '',
     role: 'Content Manager' as RoleName,
-    tenantScope: 'Global (All Brands)',
+    tenantScope: '',
+    clientId: '',
     isActive: true,
     avatarUrl: '',
     password: '',
   });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [workspaces,setWorkspaces]=useState<Array<{clientId:string;name:string;brands:string[]}>>([]);
+  const [workspaceLoading,setWorkspaceLoading]=useState(false);
+  const [notice,setNotice]=useState('');
+  const formErrorRef=useRef<HTMLDivElement>(null);
+  useEffect(()=>{
+    if (!isAddModalOpen) return;
+    let active=true;setWorkspaceLoading(true);setWorkspaces([]);
+    api.getTeamWorkspaces().then(rows=>{
+      if (!active) return;setWorkspaces(rows);
+      if (rows.length===1) setFormData(current=>({...current,clientId:rows[0].clientId}));
+    }).catch(error=>{if(active)setFormError(error.message || 'Workspaces could not be loaded. Reopen the form to retry.');})
+      .finally(()=>{if(active)setWorkspaceLoading(false);});
+    return()=>{active=false;};
+  },[isAddModalOpen]);
+  useEffect(()=>{if(formError)formErrorRef.current?.scrollIntoView({block:'nearest'});},[formError]);
+
 
   // Hidden File input refs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -249,13 +261,15 @@ export const TeamPage: React.FC<TeamPageProps> = ({
       fullName: '',
       email: '',
       role: 'Content Manager',
-      tenantScope: 'Global (All Brands)',
+      tenantScope: '',
+    clientId: '',
       isActive: true,
-      avatarUrl: PRESET_AVATARS[0].url,
-      password: 'Admin@123',
+      avatarUrl: '',
+      password: '',
     });
     setShowPassword(false);
     setFormError('');
+    setNotice('');
     setIsAddModalOpen(true);
   };
 
@@ -265,7 +279,8 @@ export const TeamPage: React.FC<TeamPageProps> = ({
       fullName: user.fullName,
       email: user.email,
       role: user.role,
-      tenantScope: user.tenantScope || 'Global (All Brands)',
+      tenantScope: user.tenantScope || '',
+      clientId: user.clientId || '',
       isActive: user.isActive,
       avatarUrl: user.avatarUrl || '',
       password: '',
@@ -344,10 +359,17 @@ export const TeamPage: React.FC<TeamPageProps> = ({
       return;
     }
 
+    if (formData.password.length<12 || formData.password.length>128) {
+      setFormError('Use a login password of 12–128 characters.');return;
+    }
+    const workspace=workspaces.find(row=>row.clientId===formData.clientId);
+    if (!workspace || workspaceLoading) { setFormError('Select an active workspace for this member.');return; }
+    if (formData.role==='Super Admin') {setFormError('Choose one of the supported team member roles.');return;}
     setIsSubmitting(true);
     setFormError('');
     try {
-      await onAddUser(formData);
+      await onAddUser({...formData,fullName:formData.fullName.trim(),email:formData.email.trim().toLowerCase(),tenantScope:workspace.name});
+      setNotice('Member created. Share their login details privately; no invitation email is sent.');
       setIsAddModalOpen(false);
     } catch (err: any) {
       setFormError(err.message || 'Failed to add team member.');
@@ -451,14 +473,14 @@ export const TeamPage: React.FC<TeamPageProps> = ({
         <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-[#EAECF0] shadow-sm">
           <div className="text-[11px] font-semibold text-[#667085]">Tenant Scopes</div>
           <div className="text-lg sm:text-2xl font-bold text-[#1336E8] mt-1">Multi-Tenant</div>
-          <div className="text-[10px] text-[#667085] mt-0.5">Brand-level isolation</div>
+          <div className="text-[10px] text-[#667085] mt-0.5">Workspace isolation</div>
         </div>
         <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-[#EAECF0] shadow-sm">
           <div className="text-[11px] font-semibold text-[#667085]">Current Session</div>
           <div className="text-lg sm:text-2xl font-bold text-[#101828] truncate mt-1">
             {currentRole}
           </div>
-          <div className="text-[10px] text-[#12B76A] font-medium mt-0.5">Full simulation</div>
+          <div className="text-[10px] text-[#12B76A] font-medium mt-0.5">Signed-in permissions</div>
         </div>
       </div>
 
@@ -742,6 +764,8 @@ export const TeamPage: React.FC<TeamPageProps> = ({
         )}
       </div>
 
+      {notice&&<p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}
+
       {/* Role Permission Reference Card */}
       <div className="bg-[#F8F9FC] rounded-2xl border border-[#EAECF0] p-4 sm:p-5 space-y-3">
         <div className="flex items-center gap-2">
@@ -985,16 +1009,16 @@ export const TeamPage: React.FC<TeamPageProps> = ({
       {/* --- ADD MEMBER MODAL --- */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-[#EAECF0] overflow-hidden max-h-[90vh] flex flex-col">
+          <div role="dialog" aria-modal="true" aria-labelledby="add-member-heading" className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-[#EAECF0] overflow-hidden max-h-[90vh] flex flex-col">
             <div className="px-6 py-4 border-b border-[#EAECF0] flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-[#EFF8FF] text-[#1336E8] flex items-center justify-center font-bold">
                   <UserPlus className="w-4 h-4" />
                 </div>
-                <h3 className="text-base font-bold text-[#101828]">Add Team Member</h3>
+                <h3 id="add-member-heading" className="text-base font-bold text-[#101828]">Add Team Member</h3>
               </div>
               <button
-                onClick={() => setIsAddModalOpen(false)}
+                disabled={isSubmitting} onClick={() => setIsAddModalOpen(false)}
                 className="p-1 rounded-lg text-[#667085] hover:bg-[#F2F4F7] cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -1003,7 +1027,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
 
             <form onSubmit={handleSaveAdd} className="p-6 space-y-4 text-xs overflow-y-auto">
               {formError && (
-                <div className="p-3 rounded-xl bg-[#FEF3F2] border border-[#FECDCA] text-[#B42318] flex items-center gap-2">
+                <div ref={formErrorRef} role="alert" className="p-3 rounded-xl bg-[#FEF3F2] border border-[#FECDCA] text-[#B42318] flex items-center gap-2">
                   <XCircle className="w-4 h-4 shrink-0" />
                   <span>{formError}</span>
                 </div>
@@ -1074,9 +1098,9 @@ export const TeamPage: React.FC<TeamPageProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Full Name</label>
+                <label htmlFor="team-member-name" className="block text-xs font-semibold text-[#344054] mb-1">Full Name</label>
                 <input
-                  type="text"
+                  id="team-member-name" type="text" maxLength={200} autoComplete="name"
                   placeholder="e.g. Rachel Adams"
                   value={formData.fullName}
                   onChange={e => setFormData({ ...formData, fullName: e.target.value })}
@@ -1086,9 +1110,9 @@ export const TeamPage: React.FC<TeamPageProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Email Address</label>
+                <label htmlFor="team-member-email" className="block text-xs font-semibold text-[#344054] mb-1">Email Address</label>
                 <input
-                  type="email"
+                  id="team-member-email" type="email" maxLength={254} autoComplete="email"
                   placeholder="e.g. rachel@ci360.internal"
                   value={formData.email}
                   onChange={e => setFormData({ ...formData, email: e.target.value })}
@@ -1098,38 +1122,38 @@ export const TeamPage: React.FC<TeamPageProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">
+                <label htmlFor="team-member-password" className="block text-xs font-semibold text-[#344054] mb-1">
                   Login Password
                 </label>
                 <div className="relative">
                   <input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="e.g. Admin@123"
+                    id="team-member-password" type={showPassword ? 'text' : 'password'} required minLength={12} maxLength={128} autoComplete="new-password"
+                    placeholder="12–128 characters"
                     value={formData.password}
                     onChange={e => setFormData({ ...formData, password: e.target.value })}
                     className="w-full h-10 pl-3 pr-10 bg-[#F9FAFB] border border-[#D0D5DD] rounded-xl text-xs text-[#101828] focus:outline-none focus:border-[#1336E8] focus:bg-white"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword?'Hide password':'Show password'} onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-3 text-[#667085] hover:text-[#101828]"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
                 <span className="text-[10px] text-[#667085] mt-1 block">
-                  Default credential for new member login: <code className="font-mono font-bold text-[#1336E8]">Admin@123</code>
+                  Set a unique password of 12–128 characters for this member.
                 </span>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Assigned Role</label>
+                <label htmlFor="team-member-role" className="block text-xs font-semibold text-[#344054] mb-1">Assigned Role</label>
                 <select
-                  value={formData.role}
+                  id="team-member-role" value={formData.role}
                   onChange={e => setFormData({ ...formData, role: e.target.value as RoleName })}
                   className="w-full h-10 px-3 bg-[#F9FAFB] border border-[#D0D5DD] rounded-xl text-xs text-[#101828] focus:outline-none focus:border-[#1336E8] cursor-pointer"
                 >
-                  {ROLE_OPTIONS.map(r => (
+                  {ROLE_OPTIONS.filter(r=>r.role!=='Super Admin').map(r => (
                     <option key={r.role} value={r.role}>
                       {r.label}
                     </option>
@@ -1141,18 +1165,15 @@ export const TeamPage: React.FC<TeamPageProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Tenant Scope</label>
-                <select
-                  value={formData.tenantScope}
-                  onChange={e => setFormData({ ...formData, tenantScope: e.target.value })}
-                  className="w-full h-10 px-3 bg-[#F9FAFB] border border-[#D0D5DD] rounded-xl text-xs text-[#101828] focus:outline-none focus:border-[#1336E8] cursor-pointer"
-                >
-                  {TENANT_OPTIONS.map(t => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
+                <label htmlFor="team-member-workspace" className="mb-1 block text-xs font-semibold text-[#344054]">Workspace</label>
+                <select id="team-member-workspace" required disabled={workspaceLoading||isSubmitting}
+                  value={formData.clientId} onChange={e=>setFormData({...formData,clientId:e.target.value})}
+                  className="h-10 w-full cursor-pointer rounded-xl border border-[#D0D5DD] bg-[#F9FAFB] px-3 text-xs text-[#101828] focus:border-[#1336E8] focus:outline-none">
+                  <option value="" disabled>{workspaceLoading?'Loading workspaces…':'Select a workspace'}</option>
+                  {workspaces.map(workspace=><option key={workspace.clientId} value={workspace.clientId}>{workspace.name}{workspace.brands.length?` — ${workspace.brands.join(', ')}`:''}</option>)}
                 </select>
+                <p className="mt-1 text-[11px] text-[#667085]">The member can access brands in this workspace according to their role.</p>
+                {!workspaceLoading&&!workspaces.length&&<p className="mt-1 text-xs text-[#B42318]">No active workspaces are available. Reopen the form to retry loading them.</p>}
               </div>
 
               <div className="flex items-center gap-2 pt-1">
@@ -1164,21 +1185,21 @@ export const TeamPage: React.FC<TeamPageProps> = ({
                   className="w-4 h-4 rounded text-[#1336E8] focus:ring-[#1336E8]"
                 />
                 <label htmlFor="add-is-active" className="text-xs font-medium text-[#344054] cursor-pointer">
-                  Activate account immediately (send invite credential email)
+                  Activate account immediately
                 </label>
               </div>
 
               <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-[#EAECF0]">
                 <button
                   type="button"
-                  onClick={() => setIsAddModalOpen(false)}
+                  disabled={isSubmitting} onClick={() => setIsAddModalOpen(false)}
                   className="px-4 py-2 rounded-xl border border-[#D0D5DD] text-xs font-semibold text-[#344054] hover:bg-[#F2F4F7] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting||workspaceLoading||!formData.clientId}
                   className="px-4 py-2 rounded-xl bg-[#1336E8] hover:bg-[#0E27B3] text-white text-xs font-semibold shadow-sm transition-colors cursor-pointer"
                 >
                   {isSubmitting ? 'Saving...' : 'Create Member'}
@@ -1342,20 +1363,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({
                 </span>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Tenant Scope</label>
-                <select
-                  value={formData.tenantScope}
-                  onChange={e => setFormData({ ...formData, tenantScope: e.target.value })}
-                  className="w-full h-10 px-3 bg-[#F9FAFB] border border-[#D0D5DD] rounded-xl text-xs text-[#101828] focus:outline-none focus:border-[#1336E8] cursor-pointer"
-                >
-                  {TENANT_OPTIONS.map(t => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <div><span className="mb-1 block text-xs font-semibold text-[#344054]">Workspace</span><p className="text-xs text-[#667085]">{editingUser.tenantScope || editingUser.clientId || 'Unassigned'}</p></div>
 
               <div className="flex items-center gap-2 pt-1">
                 <input

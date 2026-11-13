@@ -244,12 +244,36 @@ enterpriseRouter.post('/posts/:id/comments', wrap((req, res) => {
 enterpriseRouter.get('/notifications', wrap((req, res) => res.json({ data: (db.prepare('SELECT * FROM notifications WHERE user_id = ? ORDER BY id DESC LIMIT 50').all(req.principal.id) as any[]).map(n => ({ id: n.id, userId: n.user_id, title: n.title, message: n.message, eventType: n.event_type, linkUrl: n.link_url, isRead: !!n.is_read, createdAt: n.created_at })) })));
 enterpriseRouter.post('/notifications/:id/read', wrap((req, res) => { db.prepare('UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?').run(req.params.id, req.principal.id); res.json({ success: true }); }));
 enterpriseRouter.get('/users', wrap((req, res) => res.json({ data: (req.principal.global ? db.prepare('SELECT * FROM users').all() : db.prepare('SELECT * FROM users WHERE client_id = ?').all(req.principal.clientId)).map(safeUser) })));
+enterpriseRouter.get('/users/workspaces', wrap((req, res) => {
+  if (!isAdmin(req.principal)) fail('Team management permission is required.',403);
+  const rows:any[]=req.principal.global
+    ? db.prepare("SELECT client_id AS clientId,name FROM clients WHERE status='active' ORDER BY name").all()
+    : db.prepare("SELECT client_id AS clientId,name FROM clients WHERE client_id=? AND status='active'").all(req.principal.clientId);
+  res.json({data:rows.map(row=>({...row,brands:(db.prepare('SELECT brand_name FROM brands WHERE client_id=? ORDER BY brand_name').all(row.clientId) as any[]).map(b=>b.brand_name)}))});
+}));
 enterpriseRouter.post('/users', wrap((req, res) => {
-  const input = req.body; const clientId = req.principal.global ? (input.clientId || req.principal.clientId) : req.principal.clientId;
-  if (!roles.has(input.role) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email || '') || !input.fullName?.trim() || typeof input.password !== 'string' || input.password.length < 12 || input.password.length > 128) fail('Provide a valid role, email, name, and password of 12–128 characters.');
-  if (!db.prepare('SELECT 1 FROM clients WHERE client_id = ?').get(clientId)) fail('Workspace not found.');
-  const result = db.prepare('INSERT INTO users (email, full_name, role, tenant_scope, client_id, password, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(input.email.toLowerCase().trim(), input.fullName.trim(), input.role, input.tenantScope || clientId, clientId, hashSync(input.password, 12), new Date().toISOString());
-  audit(req.principal, 'user', String(result.lastInsertRowid), 'create'); res.status(201).json(safeUser(db.prepare('SELECT * FROM users WHERE user_id = ?').get(Number(result.lastInsertRowid))));
+  if (!isAdmin(req.principal)) fail('Team management permission is required.',403);
+  const input=req.body || {};
+  const email=typeof input.email==='string'?input.email.trim().toLowerCase():'';
+  const fullName=typeof input.fullName==='string'?input.fullName.trim():'';
+  if (!roles.has(input.role)) fail('Choose Admin, Content Manager, Approver, Analyst, or Client.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length>254 || !fullName || fullName.length>200) fail('Enter a valid email and a name of up to 200 characters.');
+  if (typeof input.password!=='string' || input.password.length<12 || input.password.length>128) fail('Use a login password of 12–128 characters.');
+  if (input.isActive!==undefined && typeof input.isActive!=='boolean') fail('Account activation must be true or false.');
+  if (input.avatarUrl!==undefined && (typeof input.avatarUrl!=='string' || input.avatarUrl.length>262144)) fail('Choose a smaller profile image.');
+  const requestedClient=typeof input.clientId==='string'?input.clientId.trim():'';
+  if (!req.principal.global && requestedClient && requestedClient!==req.principal.clientId) fail('You can add members only to your own workspace.',403);
+  const clientId=req.principal.global?requestedClient:req.principal.clientId;
+  const workspace:any=db.prepare("SELECT client_id,name FROM clients WHERE client_id=? AND status='active'").get(clientId);
+  if (!workspace) fail('Select an active workspace for this member.');
+  if (db.prepare('SELECT 1 FROM users WHERE LOWER(email)=?').get(email)) fail('A member with this email already exists. Edit or reactivate that member.',409);
+  const created=tx(()=>{
+    const result=db.prepare('INSERT INTO users (email,full_name,role,tenant_scope,client_id,password,is_active,avatar_url,created_at) VALUES (?,?,?,?,?,?,?,?,?)')
+      .run(email,fullName,input.role,workspace.name,clientId,hashSync(input.password,12),input.isActive===false?0:1,input.avatarUrl || null,new Date().toISOString());
+    audit(req.principal,'user',String(result.lastInsertRowid),'create',{clientId,role:input.role,active:input.isActive!==false});
+    return safeUser(db.prepare('SELECT * FROM users WHERE user_id=?').get(Number(result.lastInsertRowid)));
+  });
+  res.status(201).json(created);
 }));
 enterpriseRouter.patch('/users/:id', wrap((req, res) => {
   const user: any = db.prepare('SELECT * FROM users WHERE user_id = ?').get(req.params.id); if (!user) fail('User not found.', 404);

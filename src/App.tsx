@@ -647,6 +647,8 @@ export default function App() {
     tenantScope: string;
     isActive: boolean;
     avatarUrl?: string;
+    clientId?: string;
+    password?: string;
   }) => {
     const newUser = await api.createUser(userData);
     setUsers(prev => [...prev, newUser]);
