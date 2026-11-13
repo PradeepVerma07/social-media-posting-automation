@@ -154,7 +154,8 @@ enterpriseRouter.get('/posts/:id', wrap((req, res) => { const post = postById(re
 enterpriseRouter.post('/posts', wrap(async (req, res) => {
   const input = req.body; const brand = ownBrand(req, input.brandId);
   const publishImmediately = input.publishNow === true || input.publishImmediately === true;
-  const submit = input.submitForApproval === true || publishImmediately;
+  const isDirectSchedule = (input.directSchedule === true || input.autoApprove === true || input.skipApproval === true) && !publishImmediately;
+  const submit = input.submitForApproval === true || publishImmediately || isDirectSchedule;
   const title = String(input.title || '').trim(); const caption = String(input.masterCaption ?? input.caption ?? '');
   if (!title || title.length > 255 || !caption.trim() || caption.length > 5000) fail('Enter a title and a caption of up to 5,000 characters.');
   const date = schedule(input, input.timezone || brand.default_timezone, !submit || publishImmediately);
@@ -177,16 +178,16 @@ enterpriseRouter.post('/posts', wrap(async (req, res) => {
   if (submit && selected.some(a => a.status !== 'active' || !['facebook', 'instagram'].includes(a.platform))) fail('This release publishes to eligible Facebook and Instagram accounts only.');
   if (submit && (media.length < 1 || media.length > 10 || (selected.some(a => a.platform === 'facebook') && !['image', 'video', 'carousel'].includes(input.mediaType || media[0]?.mediaType)))) fail('Facebook supports image and video. Instagram supports image, video, and up to 10 carousel slides.');
   const now = new Date().toISOString(); const id = generatePostId();
-  const initialApproval = publishImmediately ? 'Approved' : (submit ? 'PendingApproval' : 'Draft');
-  const initialApprovedBy = publishImmediately ? req.principal.email : null;
-  const initialApprovedAt = publishImmediately ? now : null;
-  const initialApprovedVersion = publishImmediately ? 1 : null;
-  const initialTargetStatus = publishImmediately ? 'Scheduled' : 'Draft';
+  const initialApproval = (publishImmediately || isDirectSchedule) ? 'Approved' : (submit ? 'PendingApproval' : 'Draft');
+  const initialApprovedBy = (publishImmediately || isDirectSchedule) ? req.principal.email : null;
+  const initialApprovedAt = (publishImmediately || isDirectSchedule) ? now : null;
+  const initialApprovedVersion = (publishImmediately || isDirectSchedule) ? 1 : null;
+  const initialTargetStatus = (publishImmediately || isDirectSchedule) ? 'Scheduled' : 'Draft';
   tx(() => {
     db.prepare(`INSERT INTO posts (post_id, client_id, brand_id, title, caption, hashtags, media_type, media_urls, link_url, schedule_local_date, schedule_local_time, timezone, scheduled_utc, approval_status, approved_by, approved_at, approved_version, source, placement, created_by_user_id, revision_data, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'dashboard', ?, ?, ?, ?, ?)`).run(id, brand.client_id, brand.brand_id, title, caption, Array.isArray(input.hashtags) ? input.hashtags.join(' ') : String(input.hashtags || ''), input.mediaType || (media.length > 1 ? 'carousel' : media[0]?.mediaType || 'image'), JSON.stringify(media.map((m: any) => m.fileUrl)), input.targetUrl || input.linkUrl || '', date.date, date.time, input.timezone || brand.default_timezone, date.utc, initialApproval, initialApprovedBy, initialApprovedAt, initialApprovedVersion, JSON.stringify(placements), req.principal.id, JSON.stringify({ platforms, media, campaignName: input.campaignName, firstComment: input.firstComment, taggedUsers: input.taggedUsers || input.tagged_users, unscheduled: date.unscheduled }), now, now);
     for (const account of selected) { const target = generateTargetId(); db.prepare("INSERT INTO post_targets (target_id, post_id, account_id, platform, status, idempotency_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(target, id, account.account_id, account.platform, initialTargetStatus, computeIdempotencyKey(target, date.utc, 1), now, now); }
-    remember(db.prepare('SELECT * FROM posts WHERE post_id = ?').get(id), req.principal.email); audit(req.principal, 'post', id, publishImmediately ? 'publish_now' : (submit ? 'submit' : 'create'));
+    remember(db.prepare('SELECT * FROM posts WHERE post_id = ?').get(id), req.principal.email); audit(req.principal, 'post', id, publishImmediately ? 'publish_now' : (isDirectSchedule ? 'direct_schedule' : (submit ? 'submit' : 'create')));
   });
 
   if (publishImmediately) {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { DateTime } from 'luxon';
 import {
   Zap,
   Building2,
@@ -21,7 +22,9 @@ import {
   Smile,
   Layers,
   ArrowRight,
-  Info
+  Info,
+  Calendar,
+  Clock
 } from 'lucide-react';
 import { Brand, SocialAccount, RoleName } from '../../../server/src/types';
 import { NavigationTab } from '../../components/layout/Sidebar';
@@ -73,6 +76,14 @@ export const InstantBrandPublisher: React.FC<InstantBrandPublisherProps> = ({
   const [publishError, setPublishError] = useState<string | null>(null);
   const [publishResult, setPublishResult] = useState<any | null>(null);
 
+  // Timing & Direct Schedule Mode
+  const [timingMode, setTimingMode] = useState<'now' | 'schedule'>('now');
+  const [scheduleDate, setScheduleDate] = useState(() => {
+    return DateTime.now().setZone('Asia/Kolkata').plus({ days: 1 }).toISODate() || '';
+  });
+  const [scheduleTime, setScheduleTime] = useState('10:00');
+  const [timezone, setTimezone] = useState(preferredBrand?.timezone || 'Asia/Kolkata');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const carouselInputRef = useRef<HTMLInputElement>(null);
 
@@ -94,6 +105,24 @@ export const InstantBrandPublisher: React.FC<InstantBrandPublisherProps> = ({
       setPublishError(null);
     }
   }, [selectedBrandId, socialAccounts]);
+
+  useEffect(() => {
+    if (currentBrand?.timezone) {
+      setTimezone(currentBrand.timezone);
+    }
+  }, [selectedBrandId, currentBrand]);
+
+  const applySchedulePreset = (daysOffset: number, fixedHour?: number) => {
+    const tz = timezone || 'Asia/Kolkata';
+    let target = DateTime.now().setZone(tz);
+    if (fixedHour !== undefined) {
+      target = target.plus({ days: daysOffset }).set({ hour: fixedHour, minute: 0, second: 0, millisecond: 0 });
+    } else {
+      target = target.plus({ hours: daysOffset });
+    }
+    setScheduleDate(target.toISODate() || '');
+    setScheduleTime(target.toFormat('HH:mm'));
+  };
 
   // Quick Emoji helpers
   const emojis = ['🔥', '✨', '🚀', '💡', '🌿', '🎯', '📢', '💬', '🌟', '📈', '👏', '⚡'];
@@ -265,11 +294,32 @@ export const InstantBrandPublisher: React.FC<InstantBrandPublisherProps> = ({
       return;
     }
 
+    let scheduledUtc: string | undefined;
+    if (timingMode === 'schedule') {
+      if (!scheduleDate || !scheduleTime) {
+        setPublishError('Please choose both a schedule date and time for your direct post.');
+        return;
+      }
+      const localTime = scheduleTime.length === 5 ? `${scheduleTime}:00` : scheduleTime;
+      const localValue = `${scheduleDate}T${localTime}`;
+      const due = DateTime.fromISO(localValue, { zone: timezone });
+      if (!due.isValid) {
+        setPublishError('Please choose a valid publication date, time, and timezone.');
+        return;
+      }
+      if (due.toMillis() <= Date.now() + 60000) {
+        setPublishError('Direct schedule time must be at least 2 minutes in the future.');
+        return;
+      }
+      scheduledUtc = due.toUTC().toISO() || undefined;
+    }
+
     setIsPublishing(true);
 
     try {
       const isCarousel = placement === 'feed' && effectiveMediaUrls.length > 1;
       const effectiveMediaType = isCarousel ? 'carousel' : mediaType;
+      const isNow = timingMode === 'now';
 
       const payload = {
         brandId: selectedBrandId,
@@ -286,9 +336,16 @@ export const InstantBrandPublisher: React.FC<InstantBrandPublisherProps> = ({
         linkUrl: targetUrl.trim() || undefined,
         placement,
         placements: [placement],
-        publishNow: true,
-        publishImmediately: true,
+        publishNow: isNow,
+        publishImmediately: isNow,
+        directSchedule: !isNow,
+        autoApprove: !isNow,
+        skipApproval: !isNow,
         submitForApproval: false,
+        scheduledAt: scheduledUtc,
+        scheduleDate: !isNow ? scheduleDate : undefined,
+        scheduleTime: !isNow ? scheduleTime : undefined,
+        timezone,
         accountIds: selectedAccountIds,
         taggedUsers: taggedUsers ? taggedUsers.split(/[\s,]+/).filter(Boolean) : [],
       };
@@ -300,9 +357,9 @@ export const InstantBrandPublisher: React.FC<InstantBrandPublisherProps> = ({
         onPostPublished();
       }
     } catch (err: any) {
-      console.error('Instant publish failed:', err);
+      console.error('Instant/Direct publish failed:', err);
       setPublishError(
-        err.message || 'Failed to publish post immediately. Please verify account permissions.'
+        err.message || 'Failed to submit direct post. Please verify account permissions.'
       );
     } finally {
       setIsPublishing(false);
@@ -862,15 +919,17 @@ export const InstantBrandPublisher: React.FC<InstantBrandPublisherProps> = ({
             )}
           </div>
 
-          {/* Step 4: Publish Action Card */}
-          <div className="bg-gradient-to-br from-white to-blue-50/50 rounded-3xl border border-blue-200 p-6 shadow-md space-y-4">
+          {/* Step 4: Publish / Direct Schedule Action Card */}
+          <div className="bg-gradient-to-br from-white to-blue-50/50 rounded-3xl border border-blue-200 p-6 shadow-md space-y-5">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-base font-bold text-slate-900">
-                  Ready to Publish Instantly?
+                  {timingMode === 'now' ? 'Ready to Publish Instantly?' : 'Direct Schedule Your Post'}
                 </h3>
                 <p className="text-xs text-slate-600 mt-0.5">
-                  This action bypasses the review queue and pushes live content immediately to the {selectedAccountIds.length} connected channel(s) for <strong>{currentBrand?.name}</strong>.
+                  {timingMode === 'now'
+                    ? `This action bypasses the review queue and pushes live content immediately to the ${selectedAccountIds.length} connected channel(s) for ${currentBrand?.name || 'this brand'}.`
+                    : `Pre-approves and schedules your post for automated publishing on ${currentBrand?.name || 'this brand'} channels without any human approval bottleneck.`}
                 </p>
               </div>
 
@@ -880,11 +939,149 @@ export const InstantBrandPublisher: React.FC<InstantBrandPublisherProps> = ({
               </span>
             </div>
 
+            {/* Timing Mode Toggle */}
+            <div className="grid grid-cols-2 gap-3 p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setTimingMode('now')}
+                className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  timingMode === 'now'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Zap className="w-4 h-4 fill-yellow-400 text-yellow-500" />
+                🚀 Publish Instantly Now
+              </button>
+              <button
+                type="button"
+                onClick={() => setTimingMode('schedule')}
+                className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  timingMode === 'schedule'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Calendar className="w-4 h-4 text-blue-600" />
+                📅 Schedule Direct Post
+              </button>
+            </div>
+
+            {/* Direct Schedule Configuration Form */}
+            {timingMode === 'schedule' && (
+              <div className="space-y-3.5 p-4 rounded-2xl bg-white border border-blue-100 shadow-xs animate-in fade-in duration-150">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                    Target Publication Date &amp; Time
+                  </span>
+                  <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    Auto-Approve Enabled
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-slate-600">Release Date</label>
+                    <input
+                      type="date"
+                      value={scheduleDate}
+                      min={DateTime.now().setZone(timezone).toISODate() || ''}
+                      onChange={e => setScheduleDate(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl border border-slate-300 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-slate-600">Release Time</label>
+                    <input
+                      type="time"
+                      value={scheduleTime}
+                      onChange={e => setScheduleTime(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl border border-slate-300 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-slate-600">Timezone</label>
+                    <select
+                      value={timezone}
+                      onChange={e => setTimezone(e.target.value)}
+                      className="w-full h-10 px-2 rounded-xl border border-slate-300 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50"
+                    >
+                      {Array.from(
+                        new Set([
+                          timezone,
+                          currentBrand?.timezone || 'Asia/Kolkata',
+                          'Asia/Kolkata',
+                          'UTC',
+                          'America/New_York',
+                          'America/Los_Angeles',
+                          'Europe/London',
+                          'Europe/Paris',
+                          'Asia/Dubai',
+                          'Asia/Singapore',
+                        ])
+                      ).map(tz => (
+                        <option key={tz} value={tz}>
+                          {tz}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Quick Scheduling Presets:
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => applySchedulePreset(1)}
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-colors cursor-pointer"
+                    >
+                      +1 Hour
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applySchedulePreset(3)}
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-colors cursor-pointer"
+                    >
+                      +3 Hours
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applySchedulePreset(1, 10)}
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors cursor-pointer"
+                    >
+                      Tomorrow 10:00 AM
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applySchedulePreset(1, 18)}
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors cursor-pointer"
+                    >
+                      Tomorrow 06:00 PM
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applySchedulePreset(2, 10)}
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-colors cursor-pointer"
+                    >
+                      In 2 Days 10:00 AM
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {publishError && (
               <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
                 <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold">Publishing Notice</p>
+                  <p className="font-bold">Notice</p>
                   <p className="mt-0.5 leading-relaxed">{publishError}</p>
                 </div>
               </div>
@@ -894,18 +1091,33 @@ export const InstantBrandPublisher: React.FC<InstantBrandPublisherProps> = ({
               type="button"
               disabled={isPublishing || selectedAccountIds.length === 0}
               onClick={handleInstantPublish}
-              className="w-full h-14 rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-600 to-purple-700 hover:from-blue-800 hover:via-indigo-700 hover:to-purple-800 text-white font-extrabold text-sm shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`w-full h-14 rounded-2xl text-white font-extrabold text-sm shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                timingMode === 'now'
+                  ? 'bg-gradient-to-r from-blue-700 via-indigo-600 to-purple-700 hover:from-blue-800 hover:via-indigo-700 hover:to-purple-800'
+                  : 'bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-700 hover:from-emerald-700 hover:via-teal-700 hover:to-blue-800'
+              }`}
             >
               {isPublishing ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Publishing Live to Connected Brand Channels...</span>
+                  <span>
+                    {timingMode === 'now'
+                      ? 'Publishing Live to Connected Brand Channels...'
+                      : 'Scheduling Pre-Approved Direct Post...'}
+                  </span>
                 </>
-              ) : (
+              ) : timingMode === 'now' ? (
                 <>
                   <Zap className="w-5 h-5 fill-yellow-300 text-yellow-300" />
                   <span>
                     🚀 Publish Instantly to {currentBrand?.name || 'Selected Brand'} (No Approval Needed)
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Calendar className="w-5 h-5 text-white" />
+                  <span>
+                    📅 Schedule Direct Post for {scheduleDate} at {scheduleTime} (No Approval Needed)
                   </span>
                 </>
               )}
@@ -924,10 +1136,14 @@ export const InstantBrandPublisher: React.FC<InstantBrandPublisherProps> = ({
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">
-                    Post Published Successfully!
+                    {timingMode === 'schedule'
+                      ? '📅 Direct Post Scheduled Successfully!'
+                      : '🚀 Post Published Successfully!'}
                   </h3>
                   <p className="text-xs text-emerald-700 font-medium">
-                    Published without approval delay to {currentBrand?.name}
+                    {timingMode === 'schedule'
+                      ? `Pre-approved for automatic release on ${scheduleDate} at ${scheduleTime} (${timezone})`
+                      : `Published without approval delay to ${currentBrand?.name || 'Selected Brand'}`}
                   </p>
                 </div>
               </div>

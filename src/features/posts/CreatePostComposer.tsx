@@ -375,7 +375,7 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
     }
   };
 
-  const handleFinish = async (submitForApproval: boolean, publishNow = false) => {
+  const handleFinish = async (submitForApproval: boolean, publishNow = false, directSchedule = false) => {
     setSaveError('');
     if (!brands.some(brand => brand.id === brandId)) {
       setSaveError('Choose a brand from your workspace before saving.');
@@ -397,10 +397,10 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
     let scheduledAt: string | undefined;
     if (publishNow) {
       scheduledAt = new Date().toISOString();
-    } else if (publishTiming === 'scheduled') {
-      const localValue = `${scheduledDate}T${scheduledTime}`;
+    } else if (publishTiming === 'scheduled' || directSchedule) {
+      const localValue = `${scheduledDate}T${scheduledTime.length === 5 ? scheduledTime + ':00' : scheduledTime}`;
       const due = DateTime.fromISO(localValue, { zone: timezone });
-      if (!due.isValid || due.toFormat("yyyy-MM-dd'T'HH:mm") !== localValue) {
+      if (!due.isValid) {
         setSaveError('Choose a valid publication date and time in the selected timezone.');
         return;
       }
@@ -408,8 +408,8 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
         setSaveError('That local time occurs twice because of a clock change. Choose a different time.');
         return;
       }
-      if (due.toMillis() <= Date.now() - 120000) {
-        setSaveError('Choose a future publication time, or select Publish now.');
+      if (due.toMillis() <= Date.now() + 60000) {
+        setSaveError('Choose a future publication time (at least 2 minutes ahead), or select Publish now.');
         return;
       }
       scheduledAt = due.toUTC().toISO() || undefined;
@@ -436,8 +436,13 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
       country,
       timezone,
       scheduledAt,
+      scheduleDate: scheduledDate,
+      scheduleTime: scheduledTime,
       publishNow,
       publishImmediately: publishNow,
+      directSchedule,
+      autoApprove: directSchedule,
+      skipApproval: directSchedule,
       platforms: selectedPlatforms.map(p => ({
         platform: p,
         captionOverride: platformOverrides[p] || undefined,
@@ -455,7 +460,7 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
           }))
         : [],
       assignedApproverId,
-      submitForApproval: submitForApproval || publishNow,
+      submitForApproval: submitForApproval || publishNow || directSchedule,
       taggedUsers: instagramTaggedUsers,
     };
 
@@ -2030,10 +2035,98 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
                         : 'border-[#EAECF0] hover:bg-[#F9FAFB]'
                     }`}
                   >
-                    <div className="font-bold text-xs text-[#101828]">Publish Immediately Upon Approval</div>
-                    <div className="text-[11px] text-[#667085] mt-1">Triggers n8n webhook right away</div>
+                    <div className="font-bold text-xs text-[#101828]">Publish Immediately Upon Approval / Now</div>
+                    <div className="text-[11px] text-[#667085] mt-1">Triggers delivery webhook right away</div>
                   </div>
                 </div>
+
+                {publishTiming === 'scheduled' && (
+                  <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-blue-100 space-y-3 mt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <Calendar className="w-4 h-4 text-blue-600" />
+                        Configure Publication Schedule
+                      </span>
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                        ⚡ Direct Schedule Available
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-slate-600">Release Date</label>
+                        <input
+                          type="date"
+                          value={scheduledDate}
+                          min={DateTime.now().setZone(timezone).toISODate() || ''}
+                          onChange={e => setScheduledDate(e.target.value)}
+                          className="w-full h-10 px-3 bg-white border border-[#D0D5DD] rounded-xl text-xs font-semibold text-[#101828] focus:outline-none focus:border-[#1336E8]"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-slate-600">Release Time</label>
+                        <input
+                          type="time"
+                          value={scheduledTime}
+                          onChange={e => setScheduledTime(e.target.value)}
+                          className="w-full h-10 px-3 bg-white border border-[#D0D5DD] rounded-xl text-xs font-semibold text-[#101828] focus:outline-none focus:border-[#1336E8]"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-slate-600">Timezone</label>
+                        <select
+                          value={timezone}
+                          onChange={e => setTimezone(e.target.value)}
+                          className="w-full h-10 px-2 bg-white border border-[#D0D5DD] rounded-xl text-xs font-semibold text-[#101828] focus:outline-none focus:border-[#1336E8]"
+                        >
+                          {Array.from(new Set([timezone, 'Asia/Kolkata', 'UTC', 'America/New_York', 'America/Los_Angeles', 'Europe/London', 'Asia/Dubai', 'Asia/Singapore'])).map(tz => (
+                            <option key={tz} value={tz}>{tz}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Quick Presets */}
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Quick Presets:</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const t = DateTime.now().setZone(timezone).plus({ days: 1 }).set({ hour: 10, minute: 0 });
+                          setScheduledDate(t.toISODate() || '');
+                          setScheduledTime('10:00');
+                        }}
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:text-blue-700 hover:border-blue-300 transition-colors cursor-pointer"
+                      >
+                        Tomorrow 10:00 AM
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const t = DateTime.now().setZone(timezone).plus({ days: 1 }).set({ hour: 18, minute: 0 });
+                          setScheduledDate(t.toISODate() || '');
+                          setScheduledTime('18:00');
+                        }}
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:text-blue-700 hover:border-blue-300 transition-colors cursor-pointer"
+                      >
+                        Tomorrow 06:00 PM
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const t = DateTime.now().setZone(timezone).plus({ days: 2 }).set({ hour: 10, minute: 0 });
+                          setScheduledDate(t.toISODate() || '');
+                          setScheduledTime('10:00');
+                        }}
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:text-blue-700 hover:border-blue-300 transition-colors cursor-pointer"
+                      >
+                        In 2 Days 10:00 AM
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -2091,6 +2184,17 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
                   <Send className="w-3.5 h-3.5" />
                   <span>{isSubmitting ? 'Publishing Live…' : '🚀 Direct Post Now'}</span>
                 </button>
+                {currentStep === 5 && publishTiming === 'scheduled' && (
+                  <button
+                    type="button"
+                    onClick={() => handleFinish(false, false, true)}
+                    disabled={isSubmitting || !title.trim() || !masterCaption.trim() || selectedPlatforms.length === 0}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-600/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>📅 Schedule Direct Post (No Approval)</span>
+                  </button>
+                )}
                 {currentStep < 6 ? (
                   <button
                     type="button"
@@ -2112,12 +2216,20 @@ export const CreatePostComposer: React.FC<CreatePostComposerProps> = ({
                     </button>
                     <button
                       type="button"
+                      onClick={() => handleFinish(false, false, true)}
+                      disabled={isSubmitting || !title.trim() || !masterCaption.trim() || selectedPlatforms.length === 0}
+                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-600/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>📅 Schedule Direct Post (No Approval)</span>
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleFinish(true)}
                       disabled={isSubmitting}
                       className="px-5 py-2.5 bg-[#1336E8] hover:bg-[#0E27B3] text-white text-xs font-semibold rounded-xl shadow-md shadow-[#1336E8]/20 transition-all flex items-center gap-1.5"
                     >
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>Schedule Post</span>
+                      <span>Submit for Review</span>
                     </button>
                   </>
                 )}
