@@ -173,7 +173,7 @@ enterpriseRouter.post('/posts', wrap((req, res) => {
   }
   if (submit && !selected.length) fail('Select a connected account before submitting.');
   if (submit && selected.some(a => a.status !== 'active' || !['facebook', 'instagram'].includes(a.platform))) fail('This release publishes to eligible Facebook and Instagram accounts only.');
-  if (submit && (media.length !== 1 || (selected.some(a => a.platform === 'facebook') && ((input.mediaType || media[0]?.mediaType) !== 'image' || placements[0] !== 'feed')))) fail('Use one image for Facebook feed. Instagram supports one image or video in a supported placement.');
+  if (submit && (media.length !== 1 || (selected.some(a => a.platform === 'facebook') && !['image', 'video'].includes(input.mediaType || media[0]?.mediaType)))) fail('Facebook supports one image or video. Instagram supports one image or video in a supported placement.');
   const now = new Date().toISOString(); const id = generatePostId();
   tx(() => {
     db.prepare(`INSERT INTO posts (post_id, client_id, brand_id, title, caption, hashtags, media_type, media_urls, link_url, schedule_local_date, schedule_local_time, timezone, scheduled_utc, approval_status, source, placement, created_by_user_id, revision_data, created_at, updated_at)

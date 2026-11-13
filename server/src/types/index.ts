@@ -62,10 +62,12 @@ export type ContentPlacement = 'feed' | 'story' | 'reels_shorts';
 
 export interface SocialAccount {
   id: number;
+  accountId?: string;
   brandId: number;
   platform: SocialPlatform;
   accountName: string;
   accountHandle?: string;
+  externalId?: string;
   profileImageUrl?: string;
   connectionStatus: 'connected' | 'expired' | 'disconnected' | 'error';
   tokenExpiresAt?: string;

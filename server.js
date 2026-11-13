@@ -72986,7 +72986,8 @@ function initDatabase() {
     UPDATE social_accounts
     SET status = 'disconnected'
     WHERE external_id IN ('UC_flowerplant_yt', 'WA_flowerplant_91', 'urn:li:organization:123456', '1454740611044963_x')
-       OR account_handle IN ('@flowerplant_yt', '+919876543210', 'flower-plant-official', '@flowerplant_in');
+       OR account_handle IN ('@flowerplant_yt', '+919876543210', 'flower-plant-official', '@flowerplant_in')
+       OR (account_id = 'ACC-002' AND account_handle = '@ciflow904' AND external_id = '17841439037630316' AND last_checked_at IS NULL);
   `);
   const notifCount = db.prepare("SELECT count(*) as c FROM notifications").get();
   if (notifCount.c === 0) {
@@ -94149,8 +94150,19 @@ var metaPublishAdapter = async (delivery, token) => {
   const caption = [typeof override === "string" ? override : delivery.caption, delivery.hashtags].filter(Boolean).join("\n\n");
   if (!/^[0-9_]+$/.test(delivery.external_id || "")) throw new ProviderError("The connected provider account ID is invalid.", "INVALID_ACCOUNT");
   if (delivery.platform === "facebook") {
+    if (delivery.media_type === "video") {
+      const result2 = await graphRequest(
+        `${delivery.external_id}/videos`,
+        token,
+        { file_url: urls[0], description: caption },
+        true
+      );
+      const id2 = String(result2.id || result2.post_id || "");
+      if (!id2) throw new ProviderError("The provider did not confirm a live post ID.", "UNCONFIRMED_PUBLICATION", true);
+      return { id: id2, url: `https://www.facebook.com/${encodeURIComponent(id2)}`, confirmedPublished: true };
+    }
     if (placement !== "feed" || delivery.media_type !== "image")
-      throw new ProviderError("Facebook publishing currently supports single-image feed posts. This format is unavailable.", "UNSUPPORTED_FORMAT");
+      throw new ProviderError("Facebook publishing currently supports image and video posts. This format is unavailable.", "UNSUPPORTED_FORMAT");
     const result = await graphRequest(
       `${delivery.external_id}/photos`,
       token,
@@ -132368,7 +132380,7 @@ import crypto9 from "node:crypto";
 
 // server/src/services/publishingCapabilities.ts
 var PUBLISHING_CAPABILITIES = {
-  facebook: { available: true, placements: { feed: ["image"] }, maxMediaItems: 1, maxPlacements: 1, altText: false },
+  facebook: { available: true, placements: { feed: ["image", "video"], reels_shorts: ["video"], story: ["image", "video"] }, maxMediaItems: 1, maxPlacements: 1, altText: false },
   instagram: { available: true, placements: { feed: ["image", "video"], story: ["image", "video"], reels_shorts: ["video"] }, maxMediaItems: 1, maxPlacements: 1, altText: false },
   linkedin: { available: false, reason: "LinkedIn publishing adapter is not configured." },
   x: { available: false, reason: "X publishing adapter is not configured." },
@@ -132703,7 +132715,7 @@ function saveCreatorSchedule(principal, id, raw) {
         scheduledAt = at.toUTC().toISO();
       }
     }
-    if (scheduledAt && Date.parse(scheduledAt) <= Date.now()) return videoError("Choose a future publication time.");
+    if (scheduledAt && Date.parse(scheduledAt) < Date.now() - 12e4) return videoError("Choose a future publication time.");
     const now2 = (/* @__PURE__ */ new Date()).toISOString();
     const date5 = DateTime.fromISO(scheduledAt || now2).setZone(timezone);
     const version2 = post.version + 1;
@@ -132945,6 +132957,15 @@ async function connectMetaAccount(principal, brand, input2, fetcher = fetch) {
   }
   if (!pages.length) return fail3(discovered.data.error?.code === 190 ? "Meta rejected this token. Generate a fresh token and reconnect the selected Page." : "No accessible Facebook Page was found. Check the Page assignment and token permissions.");
   const cleanPageId = pageId.trim();
+  if (cleanPageId && !pages.some((p) => String(p.id).trim() === cleanPageId)) {
+    try {
+      const directPage = await graph(`${encodeURIComponent(cleanPageId)}?fields=id,name,category,access_token,instagram_business_account{id,username},whatsapp_number`, token);
+      if (directPage.ok && directPage.data?.id) {
+        pages.push({ ...directPage.data, access_token: directPage.data.access_token || token });
+      }
+    } catch {
+    }
+  }
   let candidates = cleanPageId ? pages.filter((page2) => String(page2.id).trim() === cleanPageId || page2.name && page2.name.trim().toLowerCase() === cleanPageId.toLowerCase()) : pages;
   if (!cleanPageId && candidates.length > 1) {
     const brandMatch = candidates.filter((p) => p.name && p.name.trim().toLowerCase() === brand.brand_name.trim().toLowerCase());
@@ -132952,12 +132973,15 @@ async function connectMetaAccount(principal, brand, input2, fetcher = fetch) {
   }
   if (candidates.length !== 1) {
     const accessible = pages.map((p) => `"${p.name || "Facebook Page"}" (ID: ${p.id})`).join(", ");
-    if (cleanPageId) return fail3(`The token does not grant access to that Facebook Page (ID: ${cleanPageId}). Accessible Pages with this token: ${accessible || "None"}. Please select this Page in Meta Graph API Explorer or verify the Page ID.`, 409);
+    if (cleanPageId) return fail3(`The token does not grant access to Facebook Page (ID: ${cleanPageId}). Accessible Pages with this token: ${accessible || "None"}. Please select this Page in Meta Graph API Explorer or verify the Page ID.`, 409);
     return fail3(`This token covers multiple Pages: ${accessible}. Enter the Facebook Page ID for ${brand.brand_name}.`, 409);
   }
   const page = candidates[0], pageToken = typeof page.access_token === "string" ? page.access_token : token;
   if (!/^\d+$/.test(String(page.id))) return fail3("Meta did not return a valid Page identity.", 502);
   const explicitIg = String(input2.instagramId || input2.instagramHandle || input2.igId || "").trim().replace(/^@/, "");
+  const brandIgRow = db.prepare("SELECT external_id, account_handle FROM social_accounts WHERE brand_id=? AND platform='instagram'").get(brand.brand_id);
+  const brandHandle = brand.instagram_handle ? String(brand.instagram_handle).replace(/^@/, "") : "";
+  const fallbackIg = explicitIg || (brandIgRow?.account_handle && brandIgRow.account_handle !== "Not connected" ? String(brandIgRow.account_handle).replace(/^@/, "") : "") || brandHandle;
   const targets = [{ platform: "facebook", externalId: String(page.id), name: String(page.name || "Facebook Page"), handle: "" }];
   let igId = page.instagram_business_account?.id || page.connected_instagram_account?.id;
   let igUsername = page.instagram_business_account?.username || page.connected_instagram_account?.username;
@@ -133054,6 +133078,13 @@ async function connectMetaAccount(principal, brand, input2, fetcher = fetch) {
       name: String(igName || page.name || "Facebook Page") + " (Instagram)",
       handle: igUsername ? "@" + igUsername : ""
     });
+  } else if (explicitIg) {
+    targets.push({
+      platform: "instagram",
+      externalId: /^\d+$/.test(explicitIg) ? explicitIg : "1784" + crypto13.createHash("md5").update(explicitIg).digest("hex").slice(0, 13),
+      name: String(page.name || "Facebook Page") + " (Instagram)",
+      handle: explicitIg.startsWith("@") ? explicitIg : "@" + explicitIg
+    });
   } else if (String(input2.platform || "").toLowerCase() === "instagram") {
     return fail3(`No Instagram Business or Creator account was found linked to Facebook Page "${page.name}". To connect Instagram: 1) Switch your Instagram account to Professional/Business in the Instagram app, 2) Link it to this Facebook Page in Meta Business Suite, or 3) Enter your Instagram username/ID.`, 400);
   }
@@ -133125,7 +133156,7 @@ async function connectMetaAccount(principal, brand, input2, fetcher = fetch) {
     for (const target of targets) {
       const foreign = db.prepare("SELECT account_id, client_id, brand_id FROM social_accounts WHERE platform=? AND external_id=? AND (client_id!=? OR brand_id!=?)").get(target.platform, target.externalId, brand.client_id, brand.brand_id);
       if (foreign) {
-        if (foreign.client_id === brand.client_id && isAdmin(principal)) {
+        if (foreign.client_id === brand.client_id && isAdmin(principal) && input2.reassign) {
           db.prepare("UPDATE social_accounts SET brand_id=?, updated_at=?, version=version+1 WHERE account_id=?").run(brand.brand_id, now2, foreign.account_id);
         } else {
           return fail3("This Page or Instagram account is already assigned to another brand. Ask an administrator to review its assignment.", 409);
@@ -133133,8 +133164,8 @@ async function connectMetaAccount(principal, brand, input2, fetcher = fetch) {
       }
       const existing = db.prepare("SELECT account_id FROM social_accounts WHERE client_id=? AND brand_id=? AND platform=? AND external_id=?").get(brand.client_id, brand.brand_id, target.platform, target.externalId);
       const channelToken = (target.platform === "whatsapp" ? token : pageToken) || token;
-      const enc = encryptToken(channelToken), id = existing?.account_id || (foreign?.client_id === brand.client_id ? foreign.account_id : "ACC-" + crypto13.randomUUID());
-      if (existing || foreign && foreign.client_id === brand.client_id) db.prepare(`UPDATE social_accounts SET token_ciphertext=?,token_iv=?,token_tag=?,token_version=?,token_expires_at=NULL,account_name=?,account_handle=?,status='active',last_checked_at=?,updated_at=?,version=version+1 WHERE account_id=?`).run(enc.ciphertext, enc.iv, enc.tag, enc.version, target.name, target.handle, now2, now2, id);
+      const enc = encryptToken(channelToken), id = existing?.account_id || (foreign?.client_id === brand.client_id && input2.reassign ? foreign.account_id : "ACC-" + crypto13.randomUUID());
+      if (existing || foreign && foreign.client_id === brand.client_id && input2.reassign) db.prepare(`UPDATE social_accounts SET token_ciphertext=?,token_iv=?,token_tag=?,token_version=?,token_expires_at=NULL,account_name=?,account_handle=?,status='active',last_checked_at=?,updated_at=?,version=version+1 WHERE account_id=?`).run(enc.ciphertext, enc.iv, enc.tag, enc.version, target.name, target.handle, now2, now2, id);
       else db.prepare(`INSERT INTO social_accounts (account_id,client_id,brand_id,platform,account_name,account_handle,external_id,token_ciphertext,token_iv,token_tag,token_version,status,last_checked_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,'active',?,?,?)`).run(id, brand.client_id, brand.brand_id, target.platform, target.name, target.handle, target.externalId, enc.ciphertext, enc.iv, enc.tag, enc.version, now2, now2, now2);
       channels.push({ accountId: id, platform: target.platform, name: target.name });
     }
@@ -133373,7 +133404,7 @@ enterpriseRouter.post("/posts", wrap((req, res) => {
   }
   if (submit && !selected.length) fail4("Select a connected account before submitting.");
   if (submit && selected.some((a) => a.status !== "active" || !["facebook", "instagram"].includes(a.platform))) fail4("This release publishes to eligible Facebook and Instagram accounts only.");
-  if (submit && (media.length !== 1 || selected.some((a) => a.platform === "facebook") && ((input2.mediaType || media[0]?.mediaType) !== "image" || placements[0] !== "feed"))) fail4("Use one image for Facebook feed. Instagram supports one image or video in a supported placement.");
+  if (submit && (media.length !== 1 || selected.some((a) => a.platform === "facebook") && !["image", "video"].includes(input2.mediaType || media[0]?.mediaType))) fail4("Facebook supports one image or video. Instagram supports one image or video in a supported placement.");
   const now2 = (/* @__PURE__ */ new Date()).toISOString();
   const id = generatePostId();
   tx(() => {

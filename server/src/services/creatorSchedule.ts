@@ -48,7 +48,7 @@ export function saveCreatorSchedule(principal:Principal,id:string,raw:any){
         scheduledAt=at.toUTC().toISO();
       }
     }
-    if(scheduledAt&&Date.parse(scheduledAt)<=Date.now())return videoError('Choose a future publication time.');
+    if(scheduledAt&&Date.parse(scheduledAt)<Date.now()-120000)return videoError('Choose a future publication time.');
     const now=new Date().toISOString();const date=DateTime.fromISO(scheduledAt||now).setZone(timezone);const version=post.version+1;
     const platforms=accounts.map(a=>({platform:a.platform,accountId:a.account_id}));
     const updatedRevision={...revision,unscheduled:!scheduledAt,platforms,creatorWorkflow:true};

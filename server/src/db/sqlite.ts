@@ -767,7 +767,8 @@ export function initDatabase() {
     UPDATE social_accounts
     SET status = 'disconnected'
     WHERE external_id IN ('UC_flowerplant_yt', 'WA_flowerplant_91', 'urn:li:organization:123456', '1454740611044963_x')
-       OR account_handle IN ('@flowerplant_yt', '+919876543210', 'flower-plant-official', '@flowerplant_in');
+       OR account_handle IN ('@flowerplant_yt', '+919876543210', 'flower-plant-official', '@flowerplant_in')
+       OR (account_id = 'ACC-002' AND account_handle = '@ciflow904' AND external_id = '17841439037630316' AND last_checked_at IS NULL);
   `);
 
   // Seed notifications if empty

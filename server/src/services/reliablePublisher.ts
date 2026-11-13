@@ -75,8 +75,15 @@ export const metaPublishAdapter: PublishAdapter = async (delivery, token) => {
   const caption = [typeof override === 'string' ? override : delivery.caption, delivery.hashtags].filter(Boolean).join('\n\n');
   if (!/^[0-9_]+$/.test(delivery.external_id || '')) throw new ProviderError('The connected provider account ID is invalid.', 'INVALID_ACCOUNT');
   if (delivery.platform === 'facebook') {
+    if (delivery.media_type === 'video') {
+      const result = await graphRequest(`${delivery.external_id}/videos`, token,
+        { file_url: urls[0], description: caption }, true);
+      const id = String(result.id || result.post_id || '');
+      if (!id) throw new ProviderError('The provider did not confirm a live post ID.', 'UNCONFIRMED_PUBLICATION', true);
+      return { id, url: `https://www.facebook.com/${encodeURIComponent(id)}`, confirmedPublished: true };
+    }
     if (placement !== 'feed' || delivery.media_type !== 'image')
-      throw new ProviderError('Facebook publishing currently supports single-image feed posts. This format is unavailable.', 'UNSUPPORTED_FORMAT');
+      throw new ProviderError('Facebook publishing currently supports image and video posts. This format is unavailable.', 'UNSUPPORTED_FORMAT');
     const result = await graphRequest(`${delivery.external_id}/photos`, token,
       { url: urls[0], caption, published: true }, true);
     // A photo/container ID alone is not evidence of a published feed post.

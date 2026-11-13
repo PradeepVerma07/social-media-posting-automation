@@ -94,7 +94,31 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
 
   const clearCredentials=()=>{setMetaToken('');setMetaPageId('');setMetaIgId('');setYtToken('');setLiToken('');setWaToken('');setXApiKey('');setXApiSecret('');setXAccessToken('');setXAccessSecret('');setXBearerToken('');};
   const closeModal=()=>{if(isLoading)return;clearCredentials();setModalOpen(false);setErrorMsg(null);};
-  useEffect(()=>{setErrorMsg(null);setMetaPageId('');setMetaIgId('');},[selectedPlatform,connectionBrandId]);
+  useEffect(() => {
+    setErrorMsg(null);
+    if (connectionBrandId) {
+      const selected = brands?.find(b => String(b.id) === connectionBrandId);
+      const brandIdVal = selected?.id ?? Number(connectionBrandId);
+      const brandAccounts = accounts.filter(a => a.brandId === brandIdVal);
+      const fbAcc = brandAccounts.find(a => a.platform === 'facebook');
+      const igAcc = brandAccounts.find(a => a.platform === 'instagram');
+      if (fbAcc?.externalId && fbAcc.externalId !== 'Not configured' && !fbAcc.externalId.startsWith('ACC-')) {
+        setMetaPageId(fbAcc.externalId);
+      } else {
+        setMetaPageId('');
+      }
+      if (igAcc?.accountHandle && igAcc.accountHandle !== 'Not connected') {
+        setMetaIgId(igAcc.accountHandle);
+      } else if (igAcc?.externalId && igAcc.externalId !== 'Not configured' && !igAcc.externalId.startsWith('ACC-')) {
+        setMetaIgId(igAcc.externalId);
+      } else {
+        setMetaIgId('');
+      }
+    } else {
+      setMetaPageId('');
+      setMetaIgId('');
+    }
+  }, [selectedPlatform, connectionBrandId, brands, accounts]);
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -592,9 +616,26 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
 
             {/* Error & Success Alerts */}
             {errorMsg && (
-              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{errorMsg}</span>
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 space-y-2">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span className="font-medium leading-relaxed">{errorMsg}</span>
+                </div>
+                {Array.from(errorMsg.matchAll(/"([^"]+)"\s*\(ID:\s*(\d+)\)/g)).length > 0 && (
+                  <div className="pt-1 flex flex-wrap gap-1.5 items-center">
+                    <span className="text-[11px] font-semibold text-rose-800">Click to use Page ID:</span>
+                    {Array.from(errorMsg.matchAll(/"([^"]+)"\s*\(ID:\s*(\d+)\)/g)).map((match, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setMetaPageId(match[2])}
+                        className="px-2 py-0.5 bg-white border border-rose-300 rounded-lg text-rose-900 font-bold hover:bg-rose-100 transition-colors cursor-pointer text-[11px]"
+                      >
+                        {match[1]} ({match[2]})
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -911,9 +952,26 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
 
               {/* Inline Bottom Alert for scrolled view */}
               {errorMsg && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <span className="font-medium leading-relaxed">{errorMsg}</span>
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span className="font-medium leading-relaxed">{errorMsg}</span>
+                  </div>
+                  {Array.from(errorMsg.matchAll(/"([^"]+)"\s*\(ID:\s*(\d+)\)/g)).length > 0 && (
+                    <div className="pt-1 flex flex-wrap gap-1.5 items-center">
+                      <span className="text-[11px] font-semibold text-rose-800">Click to use Page ID:</span>
+                      {Array.from(errorMsg.matchAll(/"([^"]+)"\s*\(ID:\s*(\d+)\)/g)).map((match, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setMetaPageId(match[2])}
+                          className="px-2 py-0.5 bg-white border border-rose-300 rounded-lg text-rose-900 font-bold hover:bg-rose-100 transition-colors cursor-pointer text-[11px]"
+                        >
+                          {match[1]} ({match[2]})
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               {successMsg && (
