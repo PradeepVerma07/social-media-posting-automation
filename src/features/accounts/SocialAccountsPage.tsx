@@ -21,7 +21,12 @@ import {
   HelpCircle,
   Check,
   Copy,
-  Trash2
+  Trash2,
+  Infinity,
+  Zap,
+  Eye,
+  EyeOff,
+  Loader2
 } from 'lucide-react';
 import { SocialAccount, Brand, RoleName } from '../../../server/src/types';
 import { formatISTDate, formatISTTime } from '../../utils/timezone';
@@ -43,6 +48,429 @@ interface BrandGroup {
 }
 
 type PlatformType = 'meta' | 'instagram' | 'youtube' | 'linkedin' | 'whatsapp' | 'x';
+
+interface MetaConnectedCardProps {
+  brandId: string;
+  brandName: string;
+  accounts: SocialAccount[];
+  onRefresh?: () => void;
+  canManage: boolean;
+  onOpenModal?: (platform: PlatformType) => void;
+}
+
+export const MetaConnectedCard: React.FC<MetaConnectedCardProps> = ({
+  brandId,
+  brandName,
+  accounts,
+  onRefresh,
+  canManage,
+  onOpenModal,
+}) => {
+  const fbAccount = accounts.find(a => a.platform === 'facebook');
+  const igAccount = accounts.find(a => a.platform === 'instagram');
+  const waAccount = accounts.find(a => a.platform === 'whatsapp');
+
+  const isConnected = (fbAccount && fbAccount.connectionStatus === 'connected') || 
+                      (igAccount && igAccount.connectionStatus === 'connected');
+
+  const [pageId, setPageId] = useState(
+    fbAccount?.externalId && !fbAccount.externalId.startsWith('ACC-') && fbAccount.externalId !== 'Not configured'
+      ? fbAccount.externalId
+      : ''
+  );
+  const [pageDisplayName, setPageDisplayName] = useState(fbAccount?.accountName || brandName || '');
+  const [token, setToken] = useState('');
+  const [igId, setIgId] = useState(
+    igAccount?.accountHandle?.replace(/^@/, '') || 
+    (igAccount?.externalId && !igAccount.externalId.startsWith('ACC-') && igAccount.externalId !== 'Not configured' ? igAccount.externalId : '')
+  );
+  const [waNumber, setWaNumber] = useState(waAccount?.accountHandle || '');
+  const [showToken, setShowToken] = useState(false);
+  const [showDevDetails, setShowDevDetails] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [copiedField, setCopiedField] = useState('');
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+
+  useEffect(() => {
+    if (fbAccount?.externalId && !fbAccount.externalId.startsWith('ACC-') && fbAccount.externalId !== 'Not configured') {
+      setPageId(fbAccount.externalId);
+    }
+    if (fbAccount?.accountName) {
+      setPageDisplayName(fbAccount.accountName);
+    }
+    if (igAccount?.accountHandle) {
+      setIgId(igAccount.accountHandle.replace(/^@/, ''));
+    } else if (igAccount?.externalId && !igAccount.externalId.startsWith('ACC-') && igAccount.externalId !== 'Not configured') {
+      setIgId(igAccount.externalId);
+    }
+    if (waAccount?.accountHandle) {
+      setWaNumber(waAccount.accountHandle);
+    }
+  }, [fbAccount, igAccount, waAccount, brandName]);
+
+  const copyToClipboard = (text: string, fieldName: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(''), 2000);
+  };
+
+  const handleTest = async () => {
+    const targetAcc = fbAccount || igAccount;
+    const targetId = targetAcc ? String((targetAcc as any).accountId || targetAcc.id) : null;
+    if (!targetId && !token.trim()) {
+      setFeedback({ type: 'error', message: 'Paste a Meta access token or connect the channel first to test.' });
+      return;
+    }
+    setIsTesting(true);
+    setFeedback(null);
+    try {
+      if (targetId) {
+        const res = await api.checkMetaAccount(targetId);
+        setFeedback({ type: 'success', message: res.message || 'Meta verified the connection successfully!' });
+      } else {
+        await api.connectSocialAccountToken({
+          platform: 'meta',
+          token: token.trim(),
+          pageId: pageId.trim() || undefined,
+          instagramId: igId.trim() || undefined,
+          reassign: true,
+        }, brandId);
+        setFeedback({ type: 'success', message: 'Token verified and Meta channels connected!' });
+        setToken('');
+        onRefresh?.();
+      }
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Meta Graph API verification failed.' });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!window.confirm(`Disconnect Meta accounts (Facebook & Instagram) for ${brandName}?`)) return;
+    setIsDisconnecting(true);
+    setFeedback(null);
+    try {
+      if (fbAccount) await api.disconnectSocialAccount(String((fbAccount as any).accountId || fbAccount.id));
+      if (igAccount) await api.disconnectSocialAccount(String((igAccount as any).accountId || igAccount.id));
+      setFeedback({ type: 'info', message: 'Meta channels disconnected.' });
+      onRefresh?.();
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Failed to disconnect account.' });
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
+  const handleConnect = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!token.trim()) {
+      setFeedback({ type: 'error', message: 'Please paste your Meta Access Token to connect.' });
+      return;
+    }
+    setIsConnecting(true);
+    setFeedback(null);
+    try {
+      let pageIdInput = pageId.trim();
+      let igIdInput = igId.trim();
+
+      if (pageIdInput.startsWith('1784') || (pageIdInput.length >= 16 && !igIdInput)) {
+        if (!igIdInput) igIdInput = pageIdInput;
+        if (fbAccount?.externalId && !fbAccount.externalId.startsWith('ACC-') && fbAccount.externalId !== 'Not configured') {
+          pageIdInput = fbAccount.externalId;
+        } else {
+          pageIdInput = '';
+        }
+      }
+
+      const res = await api.connectSocialAccountToken({
+        platform: 'meta',
+        token: token.trim(),
+        pageId: pageIdInput || undefined,
+        instagramId: igIdInput || undefined,
+        reassign: true,
+      }, brandId);
+      setFeedback({ type: 'success', message: res.message || 'Meta (Facebook & Instagram) connected successfully!' });
+      setToken('');
+      onRefresh?.();
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Failed to connect Meta account.' });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  return (
+    <div className="rounded-3xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-xs hover:shadow-sm transition-all space-y-4 w-full">
+      {/* Header matching screenshot */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200/90 flex items-center justify-center shrink-0 text-[#0081FB] shadow-xs">
+            <Infinity className="w-6 h-6" strokeWidth={2.4} />
+          </div>
+          <div>
+            <h4 className="text-base font-bold text-slate-900 leading-tight">
+              Instagram &amp; Facebook (Meta)
+            </h4>
+            <p className="text-xs text-slate-500 font-medium">
+              Graph API Publishing &amp; Feeds
+            </p>
+          </div>
+        </div>
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border shrink-0 ${
+          isConnected 
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+            : 'bg-slate-100 text-slate-500 border-slate-200'
+        }`}>
+          <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+          <span>{isConnected ? 'CONNECTED' : 'DISCONNECTED'}</span>
+        </span>
+      </div>
+
+      {/* Sub-channel pills matching screenshot */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Facebook Pill */}
+        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border ${
+          fbAccount?.connectionStatus === 'connected' 
+            ? 'bg-blue-50/80 text-blue-900 border-blue-200/90' 
+            : 'bg-slate-50 text-slate-500 border-slate-200'
+        }`}>
+          <Facebook className="w-3.5 h-3.5 text-[#1877F2]" />
+          <span className="truncate max-w-[120px]" title={fbAccount?.accountName || 'Facebook'}>
+            {fbAccount?.accountName ? (fbAccount.accountName.length > 12 ? fbAccount.accountName.slice(0, 10) + '...' : fbAccount.accountName) : 'Facebook'}
+          </span>
+        </div>
+
+        {/* Instagram Pill */}
+        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border ${
+          igAccount?.connectionStatus === 'connected' 
+            ? 'bg-pink-50/80 text-pink-900 border-pink-200/90' 
+            : 'bg-slate-50 text-slate-500 border-slate-200'
+        }`}>
+          <Instagram className="w-3.5 h-3.5 text-[#E4405F]" />
+          <span className="truncate max-w-[120px]" title={igAccount?.accountHandle || '@instagram'}>
+            {igAccount?.accountHandle ? (igAccount.accountHandle.length > 12 ? igAccount.accountHandle.slice(0, 10) + '...' : igAccount.accountHandle) : '@instagram'}
+          </span>
+        </div>
+
+        {/* WhatsApp Pill */}
+        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border ${
+          waAccount?.connectionStatus === 'connected' 
+            ? 'bg-emerald-50/80 text-emerald-900 border-emerald-200/90' 
+            : 'bg-slate-50 text-slate-500 border-slate-200'
+        }`}>
+          <MessageCircle className="w-3.5 h-3.5 text-[#25D366]" />
+          <span className="truncate max-w-[100px]">
+            {waAccount?.accountHandle ? waAccount.accountHandle : 'Optional'}
+          </span>
+        </div>
+      </div>
+
+      {/* Feedback Alert */}
+      {feedback && (
+        <div className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
+          feedback.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-900' :
+          feedback.type === 'error' ? 'bg-rose-50 border-rose-200 text-rose-900' :
+          'bg-blue-50 border-blue-200 text-blue-900'
+        }`}>
+          {feedback.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" /> : <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />}
+          <span className="leading-relaxed font-medium">{feedback.message}</span>
+        </div>
+      )}
+
+      {/* Inputs matching screenshot */}
+      <form onSubmit={handleConnect} className="space-y-3 pt-1">
+        {/* Facebook Page ID */}
+        <div>
+          <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+            <Facebook className="w-3.5 h-3.5 text-[#1877F2]" />
+            <span>FACEBOOK PAGE ID *</span>
+          </label>
+          <input
+            type="text"
+            inputMode="numeric"
+            disabled={!canManage || isConnecting}
+            value={pageId}
+            onChange={e => setPageId(e.target.value)}
+            placeholder="1411150458750239"
+            className="w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all disabled:opacity-60"
+          />
+        </div>
+
+        {/* Page Display Name */}
+        <div>
+          <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1.5">
+            PAGE DISPLAY NAME
+          </label>
+          <input
+            type="text"
+            disabled={!canManage || isConnecting}
+            value={pageDisplayName}
+            onChange={e => setPageDisplayName(e.target.value)}
+            placeholder="Webtrionix"
+            className="w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all disabled:opacity-60"
+          />
+        </div>
+
+        {/* Page Access Token */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+              PAGE ACCESS TOKEN *
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowToken(!showToken)}
+              className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 cursor-pointer"
+            >
+              {showToken ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              <span>{showToken ? 'Mask' : 'Reveal'}</span>
+            </button>
+          </div>
+          <input
+            type={showToken ? "text" : "password"}
+            autoComplete="off"
+            spellCheck={false}
+            disabled={!canManage || isConnecting}
+            value={token}
+            onChange={e => setToken(e.target.value)}
+            placeholder="EAAB... (Paste Page or User Access Token)"
+            className="w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all disabled:opacity-60"
+          />
+        </div>
+
+        {/* Instagram Business ID */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <Instagram className="w-3.5 h-3.5 text-[#E4405F]" />
+              <span>INSTAGRAM BUSINESS ID (OPTIONAL)</span>
+            </label>
+            {igAccount?.accountHandle && (
+              <span className="text-[11px] font-bold text-slate-600 font-mono">
+                {igAccount.accountHandle}
+              </span>
+            )}
+          </div>
+          <input
+            type="text"
+            disabled={!canManage || isConnecting}
+            value={igId}
+            onChange={e => setIgId(e.target.value)}
+            placeholder="17841499999999"
+            className="w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all disabled:opacity-60"
+          />
+        </div>
+
+        {/* WhatsApp Business */}
+        <div>
+          <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+            <MessageCircle className="w-3.5 h-3.5 text-[#25D366]" />
+            <span>WHATSAPP BUSINESS (OPTIONAL)</span>
+          </label>
+          <input
+            type="text"
+            disabled={!canManage || isConnecting}
+            value={waNumber}
+            onChange={e => setWaNumber(e.target.value)}
+            placeholder="e.g. +91 98765 43210 (Auto-detected from token)"
+            className="w-full h-11 px-3.5 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all disabled:opacity-60"
+          />
+        </div>
+
+        {/* Webhook & Developer Details */}
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={() => setShowDevDetails(!showDevDetails)}
+            className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-slate-900 transition-colors cursor-pointer"
+          >
+            <span className="text-[10px]">{showDevDetails ? '▼' : '▶'}</span>
+            <span>⚙️ Webhook &amp; Developer Details</span>
+          </button>
+          {showDevDetails && (
+            <div className="mt-2.5 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2.5">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                  Callback Webhook URL:
+                </span>
+                <div className="flex items-center justify-between gap-2 p-2 bg-white rounded-lg border border-slate-200 font-mono text-[11px]">
+                  <span className="truncate">https://360.webtrionix.com/api/v1/meta/webhook</span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('https://360.webtrionix.com/api/v1/meta/webhook', 'url')}
+                    className="p-1 text-slate-500 hover:text-slate-800"
+                    title="Copy URL"
+                  >
+                    {copiedField === 'url' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                  Verify Token:
+                </span>
+                <div className="flex items-center justify-between gap-2 p-2 bg-white rounded-lg border border-slate-200 font-mono text-[11px]">
+                  <span>ci360_meta_webhook_secret</span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('ci360_meta_webhook_secret', 'token')}
+                    className="p-1 text-slate-500 hover:text-slate-800"
+                    title="Copy Token"
+                  >
+                    {copiedField === 'token' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Generate token in <a href="https://developers.facebook.com/tools/explorer" target="_blank" rel="noreferrer" className="text-blue-600 underline font-semibold">Graph API Explorer ↗</a> with permissions: <code>pages_show_list, pages_read_engagement, pages_manage_posts, instagram_basic, instagram_content_publish</code>
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Action buttons matching screenshot */}
+        <div className="pt-2 flex items-center justify-between gap-2 border-t border-slate-100">
+          {/* Disconnect Button */}
+          <button
+            type="button"
+            disabled={!canManage || !isConnected || isDisconnecting}
+            onClick={handleDisconnect}
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-rose-200 bg-rose-50/70 hover:bg-rose-100 text-rose-700 font-semibold text-xs transition-colors cursor-pointer disabled:opacity-40"
+          >
+            <span>🔌</span>
+            <span>{isDisconnecting ? 'Disconnecting...' : 'Disconnect'}</span>
+          </button>
+
+          <div className="flex items-center gap-2">
+            {/* Test Button */}
+            <button
+              type="button"
+              disabled={isTesting || (!fbAccount && !token.trim())}
+              onClick={handleTest}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-amber-200 bg-amber-50/70 hover:bg-amber-100 text-amber-800 font-semibold text-xs transition-colors cursor-pointer disabled:opacity-40"
+            >
+              <Zap className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+              <span>{isTesting ? 'Testing...' : 'Test'}</span>
+            </button>
+
+            {/* Connect Button */}
+            <button
+              type="submit"
+              disabled={!canManage || isConnecting || (!token.trim() && !isConnected)}
+              className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <span>💾</span>
+              <span>{isConnecting ? 'Connecting...' : 'Connect'}</span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+};
 
 export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
   accounts,
@@ -427,148 +855,150 @@ export const SocialAccountsPage: React.FC<SocialAccountsPageProps> = ({
                   </div>
                 </div>
 
-                {/* Social Platforms Responsive Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4.5">
-                  {group.accounts.map(acc => {
-                    const meta = getPlatformMeta(acc.platform);
-                    const isConnected = acc.connectionStatus === 'connected';
+                {/* Brand Social Channels Layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  {/* Left: Unified Instagram & Facebook (Meta) Card matching screenshot */}
+                  <div className="lg:col-span-7">
+                    <MetaConnectedCard
+                      brandId={group.brandId}
+                      brandName={group.brandName}
+                      accounts={group.accounts}
+                      onRefresh={onRefreshAccounts}
+                      canManage={permissions.canManageAccounts}
+                      onOpenModal={(platform) => openConnectModal(platform, group.brandId)}
+                    />
+                  </div>
 
-                    return (
-                      <div
-                        key={acc.id}
-                        onClick={() => openConnectModal(meta.typeKey,group.brandId)}
-                        className={`group rounded-2xl border transition-all duration-200 p-4 flex flex-col justify-between space-y-3 cursor-pointer ${
-                          isConnected
-                            ? 'bg-slate-50/70 hover:bg-white border-slate-200/90 hover:border-indigo-300 hover:shadow-sm'
-                            : 'bg-white hover:bg-amber-50/20 border-dashed border-slate-300 hover:border-indigo-300'
-                        }`}
-                      >
-                        {/* Channel Top */}
-                        <div className="flex items-start justify-between gap-2">
-                          <div className={`w-10 h-10 rounded-xl ${meta.bg} ${meta.border} border flex items-center justify-center shrink-0 shadow-xs`}>
-                            {meta.icon}
-                          </div>
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border shrink-0 ${
-                            isConnected
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-slate-100 text-slate-500 border-slate-200'
-                          }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-600' : 'bg-slate-400'}`}></span>
-                            <span>{isConnected ? 'Active' : 'Disconnected'}</span>
-                          </span>
-                        </div>
+                  {/* Right: Other Social Channels (YouTube, LinkedIn, X, etc.) */}
+                  <div className="lg:col-span-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                        <Share2 className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Other Social Platforms</span>
+                      </h4>
+                      <span className="text-[11px] font-semibold text-slate-500">
+                        {group.accounts.filter(a => !['facebook', 'instagram', 'whatsapp'].includes(a.platform.toLowerCase()) && a.connectionStatus === 'connected').length} connected
+                      </span>
+                    </div>
 
-                        {/* Account Identity */}
-                        <div className="space-y-0.5">
-                          <h4 className="text-xs font-bold text-slate-900 truncate">
-                            {meta.name}
-                          </h4>
-                          <p className={`text-[11px] font-mono truncate ${isConnected ? 'text-slate-600 font-semibold' : 'text-slate-400 italic'}`}>
-                            {isConnected ? (acc.accountHandle || `@${acc.platform}`) : 'Not connected'}
-                          </p>
-                        </div>
+                    <div className="grid grid-cols-1 gap-3.5">
+                      {group.accounts
+                        .filter(acc => !['facebook', 'instagram', 'whatsapp'].includes(acc.platform.toLowerCase()))
+                        .map(acc => {
+                          const meta = getPlatformMeta(acc.platform);
+                          const isConnected = acc.connectionStatus === 'connected';
 
-                        {/* Details */}
-                        <div className="space-y-1.5 pt-2 border-t border-slate-200/60 text-[11px]">
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-slate-500">ID:</span>
-                            <span className="font-mono text-slate-800 font-semibold truncate max-w-[95px]" title={acc.socialMediaId || (acc as any).externalId}>
-                              {isConnected ? (acc.socialMediaId || (acc as any).externalId) : 'Not configured'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-slate-500">OAuth:</span>
-                            <span className={isConnected ? 'text-emerald-700 font-medium' : 'text-slate-400'}>
-                              {isConnected ? 'Active Token' : 'Unset'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-slate-500">Last check:</span>
-                            <span className="font-mono text-[10px] text-slate-500">
-                              {(acc as any).lastCheckedAt ? formatISTTime((acc as any).lastCheckedAt) : 'Not verified'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {permissions.canManageAccounts&&['facebook','instagram'].includes(acc.platform)&&<button type="button" disabled={!!checkingId} onClick={event=>{event.stopPropagation();void verifySaved(acc);}} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700 disabled:opacity-50">{checkingId===String((acc as any).accountId||acc.id)?'Checking with Meta…':'Check connection'}</button>}
-                        {/* Action */}
-                        <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-1">
-                          <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
-                            <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                            <span>AES-256</span>
-                          </span>
-                          <div className="flex items-center gap-1.5">
-                            {permissions.canManageAccounts && (
-                              <button
-                                type="button"
-                                title="Delete channel"
-                                disabled={deletingId === String((acc as any).accountId || acc.id)}
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  const id = String((acc as any).accountId || acc.id);
-                                  if (!window.confirm(`Permanently remove this ${meta.name} channel for ${group.brandName}?`)) return;
-                                  setDeletingId(id);
-                                  try {
-                                    await api.deleteSocialAccount(id);
-                                    setCheckNotice(`${meta.name} channel removed successfully.`);
-                                    setCheckFailed(false);
-                                    await onRefreshAccounts?.();
-                                  } catch (err: any) {
-                                    setCheckNotice(err.message || 'Failed to delete account');
-                                    setCheckFailed(true);
-                                  } finally {
-                                    setDeletingId('');
-                                  }
-                                }}
-                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            {isConnected && permissions.canManageAccounts && (
-                              <button
-                                type="button"
-                                disabled={disconnectingId === String((acc as any).accountId || acc.id)}
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  const id = String((acc as any).accountId || acc.id);
-                                  setDisconnectingId(id);
-                                  try {
-                                    await api.disconnectSocialAccount(id);
-                                    setCheckNotice(`${meta.name} channel disconnected.`);
-                                    setCheckFailed(false);
-                                    await onRefreshAccounts?.();
-                                  } catch (err: any) {
-                                    setCheckNotice(err.message || 'Failed to disconnect account');
-                                    setCheckFailed(true);
-                                  } finally {
-                                    setDisconnectingId('');
-                                  }
-                                }}
-                                className="px-2 py-1 text-[11px] font-semibold rounded-lg text-rose-600 hover:text-rose-800 hover:bg-rose-50 border border-rose-200 transition-colors cursor-pointer"
-                              >
-                                {disconnectingId === String((acc as any).accountId || acc.id) ? 'Disconnecting…' : 'Disconnect'}
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openConnectModal(meta.typeKey,group.brandId);
-                              }}
-                              className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-colors border cursor-pointer ${
+                          return (
+                            <div
+                              key={acc.id}
+                              onClick={() => openConnectModal(meta.typeKey, group.brandId)}
+                              className={`group rounded-2xl border transition-all duration-200 p-4 flex flex-col justify-between space-y-3 cursor-pointer ${
                                 isConnected
-                                  ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
-                                  : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 shadow-xs'
+                                  ? 'bg-slate-50/70 hover:bg-white border-slate-200/90 hover:border-indigo-300 hover:shadow-xs'
+                                  : 'bg-white hover:bg-amber-50/20 border-dashed border-slate-300 hover:border-indigo-300'
                               }`}
                             >
-                              {isConnected ? 'Update' : '+ Connect'}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2.5">
+                                  <div className={`w-9 h-9 rounded-xl ${meta.bg} ${meta.border} border flex items-center justify-center shrink-0 shadow-xs`}>
+                                    {meta.icon}
+                                  </div>
+                                  <div>
+                                    <h5 className="text-xs font-bold text-slate-900">{meta.name}</h5>
+                                    <p className={`text-[11px] font-mono truncate max-w-[140px] ${isConnected ? 'text-slate-600 font-semibold' : 'text-slate-400 italic'}`}>
+                                      {isConnected ? (acc.accountHandle || `@${acc.platform}`) : 'Not connected'}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border shrink-0 ${
+                                  isConnected
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : 'bg-slate-100 text-slate-500 border-slate-200'
+                                }`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-600' : 'bg-slate-400'}`}></span>
+                                  <span>{isConnected ? 'Active' : 'Disconnected'}</span>
+                                </span>
+                              </div>
+
+                              <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
+                                <span className="text-slate-500 font-mono text-[10px] truncate max-w-[120px]">
+                                  {isConnected ? (acc.socialMediaId || (acc as any).externalId) : 'Unset'}
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  {permissions.canManageAccounts && (
+                                    <button
+                                      type="button"
+                                      title="Delete channel"
+                                      disabled={deletingId === String((acc as any).accountId || acc.id)}
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        const id = String((acc as any).accountId || acc.id);
+                                        if (!window.confirm(`Permanently remove this ${meta.name} channel for ${group.brandName}?`)) return;
+                                        setDeletingId(id);
+                                        try {
+                                          await api.deleteSocialAccount(id);
+                                          setCheckNotice(`${meta.name} channel removed successfully.`);
+                                          setCheckFailed(false);
+                                          await onRefreshAccounts?.();
+                                        } catch (err: any) {
+                                          setCheckNotice(err.message || 'Failed to delete account');
+                                          setCheckFailed(true);
+                                        } finally {
+                                          setDeletingId('');
+                                        }
+                                      }}
+                                      className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                  {isConnected && permissions.canManageAccounts && (
+                                    <button
+                                      type="button"
+                                      disabled={disconnectingId === String((acc as any).accountId || acc.id)}
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        const id = String((acc as any).accountId || acc.id);
+                                        setDisconnectingId(id);
+                                        try {
+                                          await api.disconnectSocialAccount(id);
+                                          setCheckNotice(`${meta.name} channel disconnected.`);
+                                          setCheckFailed(false);
+                                          await onRefreshAccounts?.();
+                                        } catch (err: any) {
+                                          setCheckNotice(err.message || 'Failed to disconnect account');
+                                          setCheckFailed(true);
+                                        } finally {
+                                          setDisconnectingId('');
+                                        }
+                                      }}
+                                      className="px-2 py-1 text-[11px] font-semibold rounded-lg text-rose-600 hover:text-rose-800 hover:bg-rose-50 border border-rose-200 transition-colors cursor-pointer"
+                                    >
+                                      {disconnectingId === String((acc as any).accountId || acc.id) ? 'Disconnecting…' : 'Disconnect'}
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openConnectModal(meta.typeKey, group.brandId);
+                                    }}
+                                    className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-colors border cursor-pointer ${
+                                      isConnected
+                                        ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
+                                        : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 shadow-xs'
+                                    }`}
+                                  >
+                                    {isConnected ? 'Settings' : 'Connect'}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
                 </div>
               </div>
             );
